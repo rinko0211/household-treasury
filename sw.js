@@ -1,5 +1,5 @@
-const CACHE="household-treasury-v5";
-const CORE=["./index.html","./manifest.webmanifest","./app.js?v=5","./sync.js?v=5","./icons/icon.svg"];
+const CACHE="household-treasury-v6";
+const CORE=["./index.html","./manifest.webmanifest","./app.js","./sync.js","./rakuten-bank.js","./icons/icon.svg"];
 
 self.addEventListener("install",e=>e.waitUntil(
   caches.open(CACHE).then(c=>c.addAll(CORE)).then(()=>self.skipWaiting())

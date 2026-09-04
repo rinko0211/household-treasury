@@ -1,5 +1,5 @@
 (() => {
-  const PREF_KEY='householdTreasuryBankChartPrefsV18';
+  const PREF_KEY='householdTreasuryBankChartPrefsV19';
   const LABELS={total:'合計',rakuten:'楽天銀行',yucho:'ゆうちょ',other:'その他銀行'};
   const STYLES={
     total:{stroke:'#eef4ff',width:3.5,opacity:1},
@@ -14,9 +14,9 @@
       const p=JSON.parse(localStorage.getItem(PREF_KEY)||'null')||{};
       return{
         count:['30','90','200','all'].includes(String(p.count))?String(p.count):'90',
-        visible:{total:p.visible?.total!==false,rakuten:p.visible?.rakuten!==false,yucho:p.visible?.yucho!==false,other:p.visible?.other!==false}
+        visible:{total:p.visible?.total!==false,rakuten:p.visible?.rakuten===true,yucho:p.visible?.yucho===true,other:p.visible?.other===true}
       };
-    }catch{return{count:'90',visible:{total:true,rakuten:true,yucho:true,other:true}}}
+    }catch{return{count:'90',visible:{total:true,rakuten:false,yucho:false,other:false}}}
   }
   function savePrefs(){try{localStorage.setItem(PREF_KEY,JSON.stringify(prefs))}catch{}}
   const finite=v=>v!==null&&v!==''&&Number.isFinite(Number(v));
@@ -130,14 +130,14 @@
     const card=document.createElement('div');card.className='card full';card.id='bankHistoryChartCardV18';
     card.innerHTML=`
       <div style="display:flex;gap:10px;align-items:flex-start;justify-content:space-between;flex-wrap:wrap">
-        <div><div class="title" style="margin-bottom:3px">銀行残高推移</div><div class="tiny" id="bankChartCoverageV18">取引イベント順で表示</div></div>
+        <div><div class="title" style="margin-bottom:3px">銀行残高推移</div><div class="tiny" id="bankChartCoverageV18">取引イベント順 · 合計フォーカス</div></div>
         <div class="controls" id="bankChartRangesV18" style="flex-wrap:wrap"></div>
       </div>
       <div class="controls" id="bankChartLegendV18" style="margin:10px 0 4px;flex-wrap:wrap"></div>
       <div id="bankChartAuditV18" class="note" style="margin:8px 0"></div>
       <div id="bankChartPlotV18" style="position:relative;min-height:270px"></div>
       <div id="bankChartStatsV18" class="form" style="margin-top:10px"></div>
-      <div class="tiny" style="margin-top:8px">横軸は日付ではなく取引イベント数です。同日内でも1取引ごとに横へ進みます。同日の別銀行間はCSVに時刻がないため、楽天→ゆうちょ→その他の順で表示します。</div>`;
+      <div class="tiny" style="margin-top:8px">横軸は取引イベント順です。白い合計だけを表示するとY軸は合計残高の変動幅へ自動ズームします。銀行別の線は必要なときだけONにできます。</div>`;
     grid.insertBefore(card,grid.firstChild);
   }
 
@@ -182,7 +182,7 @@
     const all=keys.flatMap(k=>view.series[k]);
     if(!all.length){host.innerHTML='<div class="muted">表示する履歴がありません。</div>';return}
     const minI=Math.min(...all.map(p=>p.index)),maxI=Math.max(...all.map(p=>p.index));
-    const vals=all.map(p=>Number(p.value)),rawMin=Math.min(...vals),rawMax=Math.max(...vals),span=Math.max(1,rawMax-rawMin),minV=Math.max(0,rawMin-span*.08),maxV=rawMax+span*.08;
+    const vals=all.map(p=>Number(p.value)),rawMin=Math.min(...vals),rawMax=Math.max(...vals),span=Math.max(1,rawMax-rawMin),pad=Math.max(span*.10,1000),minV=Math.max(0,rawMin-pad),maxV=rawMax+pad;
     const W=1000,H=310,L=76,R=18,T=18,B=48,pw=W-L-R,ph=H-T-B;
     const x=i=>L+((Number(i)-minI)/Math.max(1,maxI-minI))*pw;
     const y=v=>T+((maxV-Number(v))/Math.max(1,maxV-minV))*ph;
@@ -211,11 +211,11 @@
 
   function renderChart(){
     ensureUi();const model=buildEventLedger(),view=sliced(model);renderControls(model);renderAudit(model);renderSvg(view);renderStats(view);
-    const c=document.getElementById('bankChartCoverageV18');if(c){const active=['rakuten','yucho','other'].filter(k=>model.series[k].length).map(k=>LABELS[k]);c.textContent=active.length?`${active.join('・')} · ${model.events.length}イベントを取引順で表示`:'銀行CSVを取り込むと履歴を表示します。'}
+    const c=document.getElementById('bankChartCoverageV18');if(c){const active=['rakuten','yucho','other'].filter(k=>model.series[k].length).map(k=>LABELS[k]);c.textContent=active.length?`${active.join('・')} · ${model.events.length}イベント · 合計フォーカス`:'銀行CSVを取り込むと履歴を表示します。'}
   }
 
   const prev=typeof render==='function'?render:null;
   if(prev)render=function renderV18(){prev();renderChart()};
   window.renderBankChart=renderChart;
-  try{renderChart()}catch(e){console.error('bank chart v18',e)}
+  try{renderChart()}catch(e){console.error('bank chart v19',e)}
 })();

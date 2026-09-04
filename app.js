@@ -15,7 +15,7 @@ const iso=d=>{const x=new Date(d);return Number.isNaN(x.getTime())?'':`${x.getFu
 const ym=d=>iso(d).slice(0,7);
 const today=()=>iso(new Date());
 const normalizeText=s=>String(s??'').normalize('NFKC').replace(/[\s　]+/g,'').toUpperCase();
-const esc=s=>String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+const esc=s=>String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot',"'":'&#39;'}[m]));
 const hash32=s=>{let h=2166136261;for(let i=0;i<s.length;i++){h^=s.charCodeAt(i);h=Math.imul(h,16777619)}return(h>>>0).toString(16)};
 
 function normalize(){
@@ -77,7 +77,7 @@ function injectUi(){
   }
   if(!$('forecastHorizon')){
     const host=document.querySelector('#cashflow .card');const controls=host.querySelector('.controls');
-    const sel=document.createElement('select');sel.id='forecastHorizon';sel.innerHTML='<option value="30">30日</option><option value="60">60日</option><option value="90" selected>90日</option>';sel.onchange=render;controls.prepend(sel);
+    const sel=document.createElement('select');sel.id='forecastHorizon';sel.innerHTML='<option value="30">30日</option><option value="60">60日</option><option value="90" selected>90日</option>';sel.onchange=()=>render();controls.prepend(sel);
   }
   if(!$('importSummary')){
     const host=document.querySelector('#imports .grid');const d=document.createElement('div');d.className='card full';d.innerHTML='<div class="title">Import Summary</div><div id="importSummary" class="muted">まだ取込はありません。</div><div id="reviewQueue" style="margin-top:10px"></div>';host.appendChild(d);

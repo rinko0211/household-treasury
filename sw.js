@@ -1,4 +1,4 @@
-const CACHE="household-treasury-v18";
+const CACHE="household-treasury-v19";
 const CORE=["./index.html","./manifest.webmanifest","./app.js?v=7","./import-history-hotfix.js?v=11","./event-yucho-v13.js?v=14","./adhoc-events-v15.js?v=15","./bank-chart-v18.js?v=18","./recovery-safety.js?v=11","./sync.js?v=10","./recovery-cloud.js?v=11","./icons/icon.svg"];
 self.addEventListener("install",e=>e.waitUntil(caches.open(CACHE).then(c=>c.addAll(CORE)).then(()=>self.skipWaiting())));
 self.addEventListener("activate",e=>e.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k!==CACHE).map(k=>caches.delete(k)))).then(()=>self.clients.claim())));

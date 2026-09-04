@@ -3,7 +3,6 @@
   const finite = v => v !== null && v !== '' && Number.isFinite(Number(v));
   const ntext = s => String(s ?? '').normalize('NFKC').replace(/[\s　()（）［］\[\]・]/g, '').toUpperCase();
 
-  // ---- Yucho: robust balance-column recognition + safe re-import of a previously incomplete file ----
   function pickHeader(headers, candidates) {
     const normalized = headers.map(ntext);
     for (const c of candidates.map(ntext)) {
@@ -49,6 +48,14 @@
       if (!items.length) throw new Error('ゆうちょ明細行が見つかりません。');
       const balanceItems = items.filter(x => finite(x.balance_after));
       if (!balanceItems.length) throw new Error('ゆうちょCSVから残高を取得できませんでした。');
+
+      // Remove incomplete legacy copies of the same Yucho transactions before adding balance-aware rows.
+      const incoming = new Set(items.map(x => [x.date, x.amount, ntext(x.description_raw)].join('|')));
+      state.cashTransactions = (state.cashTransactions || []).filter(t => {
+        if (t.source !== 'Yucho' || finite(t.balance_after)) return true;
+        return !incoming.has([t.date, t.amount, ntext(t.description_raw)].join('|'));
+      });
+
       const res = upsertCash(items);
       const latestDate = balanceItems.map(x => x.date).sort().at(-1);
       const latestCandidates = balanceItems.filter(x => x.date === latestDate);
@@ -75,7 +82,6 @@
         const hasUsableYucho = Array.isArray(state.cashTransactions) && state.cashTransactions.some(t => t.source === 'Yucho' && finite(t.balance_after));
         if (!hasUsableYucho) {
           const sha = await fileHash(buf);
-          // Old versions could mark the file imported even though no usable balance was stored.
           state.imports = (state.imports || []).filter(x => x.sha256 !== sha);
         }
       }
@@ -83,7 +89,6 @@
     };
   }
 
-  // ---- Per-occurrence forecast overrides ----
   if (typeof generated === 'function') {
     generated = function generatedV13(days = 90) {
       const from = new Date(); from.setHours(0, 0, 0, 0);
@@ -223,10 +228,9 @@
       trs.forEach((tr, i) => {
         const e = rows[i]; if (!e) return;
         const td = tr.lastElementChild; if (!td) return;
-        td.innerHTML = `<div class="controls" style="justify-content:flex-end;flex-wrap:nowrap"><button class="btn secondary" onclick="openEventEditorV13(${i})">編集</button><button class="btn secondary" onclick="openEventEditorV13(${i})">削除/変更</button></div>`;
+        td.innerHTML = `<button class="btn secondary" onclick="openEventEditorV13(${i})">編集 / 削除</button>`;
       });
 
-      // Explicit diagnostic for old Yucho imports that have transactions but no usable balance.
       const yuchoRows = (state.cashTransactions || []).filter(t => t.source === 'Yucho');
       const usable = yuchoRows.some(t => finite(t.balance_after));
       const box = $('bankBalanceBreakdown');

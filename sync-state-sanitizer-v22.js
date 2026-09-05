@@ -77,6 +77,7 @@
   injectClassic('./kabu-card-v44.js?v=44', 'data-household-kabu-card-v44');
   injectClassic('./settings-ux-v45.js?v=45', 'data-household-settings-ux-v45');
   injectClassic('./card-autolink-v46.js?v=46', 'data-household-card-autolink-v46');
+  injectClassic('./observer-guard-v50.js?v=50', 'data-household-observer-guard-v50');
   injectClassic('./semantic-model-v47.js?v=47', 'data-household-semantic-model-v47');
   injectClassic('./semantic-ui-v48.js?v=48', 'data-household-semantic-ui-v48');
   injectClassic('./card-forecast-v49.js?v=49', 'data-household-card-forecast-v49');

@@ -75,4 +75,5 @@
   injectClassic('./payment-routing-v42.js?v=42', 'data-household-payment-routing-v42');
   injectClassic('./fixed-master-unified-v43.js?v=43', 'data-household-fixed-master-unified-v43');
   injectClassic('./kabu-card-v44.js?v=44', 'data-household-kabu-card-v44');
+  injectClassic('./settings-ux-v45.js?v=45', 'data-household-settings-ux-v45');
 })();

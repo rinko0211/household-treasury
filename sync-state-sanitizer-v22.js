@@ -67,4 +67,5 @@
   injectClassic('./expense-scope-v34.js?v=34', 'data-household-expense-scope-v34');
   injectClassic('./reimbursement-v35.js?v=35', 'data-household-reimbursement-v35');
   injectClassic('./annual-reserve-v36.js?v=36', 'data-household-annual-reserve-v36');
+  injectClassic('./future-planner-v37.js?v=37', 'data-household-future-planner-v37');
 })();

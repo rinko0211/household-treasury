@@ -80,5 +80,6 @@
   injectClassic('./observer-guard-v50.js?v=50', 'data-household-observer-guard-v50');
   injectClassic('./semantic-model-v47.js?v=47', 'data-household-semantic-model-v47');
   injectClassic('./semantic-ui-v48.js?v=48', 'data-household-semantic-ui-v48');
+  injectClassic('./card-identity-v51.js?v=51', 'data-household-card-identity-v51');
   injectClassic('./card-forecast-v49.js?v=49', 'data-household-card-forecast-v49');
 })();

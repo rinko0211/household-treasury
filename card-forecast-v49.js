@@ -6,7 +6,7 @@
   const stateNow=()=> (window.getTreasuryStateRaw||window.getTreasuryState)?.()||{};
   const iso=d=>{const x=new Date(d);return Number.isNaN(x.getTime())?'':`${x.getFullYear()}-${String(x.getMonth()+1).padStart(2,'0')}-${String(x.getDate()).padStart(2,'0')}`};
   let timer=null,observer=null;
-  function cardKey(s){return norm(s).replace(/カード|CARD/g,'')}
+  function cardKey(s){const n=norm(s).replace(/カード|CARD/g,'');if(/RAKUTEN|楽天/.test(n))return'RAKUTEN';if(/KABU&|KABUAND|カブアンド|ＫＡＢＵ＆/.test(n))return'KABU';if(/MUFG|三菱UFJ|ミツビシUFJ|DC|JAL/.test(n))return'MUFGDCJAL';if(/JCB|ジェーシービー|シ゛エーシーヒ゛ー/.test(n))return'JCB';return n}
   function sameCard(a,b){const x=cardKey(a),y=cardKey(b);return !!x&&!!y&&(x===y||x.includes(y)||y.includes(x))}
   function addMonths(ym,n){const [y,m]=ym.split('-').map(Number),d=new Date(y,m-1+n,1);return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`}
   function lastDay(y,m){return new Date(y,m,0).getDate()}

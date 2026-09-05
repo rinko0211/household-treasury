@@ -72,4 +72,5 @@
   injectClassic('./dashboard-v39.js?v=39', 'data-household-dashboard-v39');
   injectClassic('./review-center-v40.js?v=40', 'data-household-review-center-v40');
   injectClassic('./cashflow-integration-v41.js?v=41', 'data-household-cashflow-integration-v41');
+  injectClassic('./payment-routing-v42.js?v=42', 'data-household-payment-routing-v42');
 })();

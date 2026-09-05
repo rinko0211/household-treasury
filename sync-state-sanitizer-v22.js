@@ -70,4 +70,5 @@
   injectClassic('./future-planner-v37.js?v=37', 'data-household-future-planner-v37');
   injectClassic('./forecast-v38.js?v=38', 'data-household-forecast-v38');
   injectClassic('./dashboard-v39.js?v=39', 'data-household-dashboard-v39');
+  injectClassic('./review-center-v40.js?v=40', 'data-household-review-center-v40');
 })();

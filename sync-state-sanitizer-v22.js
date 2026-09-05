@@ -65,4 +65,5 @@
   injectClassic('./phase2-reconcile-ui-v29.js?v=29', 'data-household-reconcile-v29');
   injectClassic('./link-audit-v33.js?v=33', 'data-household-link-audit-v33');
   injectClassic('./expense-scope-v34.js?v=34', 'data-household-expense-scope-v34');
+  injectClassic('./reimbursement-v35.js?v=35', 'data-household-reimbursement-v35');
 })();

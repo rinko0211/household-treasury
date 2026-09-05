@@ -60,6 +60,7 @@
     document.head.appendChild(script);
   }
 
+  injectClassic('./storage-budget-v55.js?v=55', 'data-household-storage-budget-v55');
   injectClassic('./master-manager-v27.js?v=27', 'data-household-master-v27');
   injectClassic('./import-engine-v28.js?v=28', 'data-household-import-v28');
   injectClassic('./phase2-reconcile-ui-v29.js?v=29', 'data-household-reconcile-v29');

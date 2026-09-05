@@ -89,4 +89,5 @@
   injectClassic('./rakuten-billing-v56.js?v=56', 'data-household-rakuten-billing-v56');
   injectClassic('./integrity-hotfix-v57.js?v=57', 'data-household-integrity-hotfix-v57');
   injectClassic('./bonus-allocation-v58.js?v=58', 'data-household-bonus-allocation-v58');
+  injectClassic('./bonus-allocation-target-fix-v58.js?v=58', 'data-household-bonus-allocation-target-fix-v58');
 })();

@@ -1,1 +1,1 @@
-import './sync-v23.js?v=23';
+import './sync-v24.js?v=24';

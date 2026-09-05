@@ -1,5 +1,5 @@
-const CACHE="household-treasury-v23";
-const CORE=["./index.html","./manifest.webmanifest","./app.js?v=8","./import-history-hotfix.js?v=11","./event-yucho-v13.js?v=14","./adhoc-events-v15.js?v=15","./bank-chart-v20.js?v=20","./cashflow-chart-v21.js?v=21","./recovery-safety.js?v=11","./sync-state-sanitizer-v22.js?v=22","./sync.js?v=10","./sync-v23.js?v=23","./recovery-cloud.js?v=11","./icons/icon.svg"];
+const CACHE="household-treasury-v24";
+const CORE=["./index.html","./manifest.webmanifest","./app.js?v=8","./import-history-hotfix.js?v=11","./event-yucho-v13.js?v=14","./adhoc-events-v15.js?v=15","./bank-chart-v20.js?v=20","./cashflow-chart-v21.js?v=21","./recovery-safety.js?v=11","./sync-state-sanitizer-v22.js?v=22","./sync.js?v=10","./sync-v24.js?v=24","./recovery-cloud.js?v=11","./icons/icon.svg"];
 self.addEventListener("install",e=>e.waitUntil(caches.open(CACHE).then(c=>c.addAll(CORE)).then(()=>self.skipWaiting())));
 self.addEventListener("activate",e=>e.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k!==CACHE).map(k=>caches.delete(k)))).then(()=>self.clients.claim())));
 self.addEventListener("fetch",e=>{if(e.request.method!=="GET")return;const u=new URL(e.request.url);if(u.origin!==location.origin)return;e.respondWith(fetch(e.request).then(resp=>{if(resp&&resp.ok){const cp=resp.clone();caches.open(CACHE).then(c=>c.put(e.request,cp))}return resp}).catch(async()=>{const exact=await caches.match(e.request);if(exact)return exact;if(e.request.mode==="navigate")return caches.match("./index.html");return Response.error()}))});

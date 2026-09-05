@@ -50,4 +50,11 @@
 
   window.getTreasuryState = () => sanitize(originalGet());
   window.getTreasuryStateRaw = () => originalGet();
+
+  if (!document.querySelector('script[data-household-master-v27]')) {
+    const script = document.createElement('script');
+    script.src = './master-manager-v27.js?v=27';
+    script.dataset.householdMasterV27 = '1';
+    document.head.appendChild(script);
+  }
 })();

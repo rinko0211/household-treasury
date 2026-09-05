@@ -86,4 +86,5 @@
   injectClassic('./card-master-refresh-v52.js?v=52', 'data-household-card-master-refresh-v52');
   injectClassic('./settings-reactive-v53.js?v=53', 'data-household-settings-reactive-v53');
   injectClassic('./settings-list-integrity-v54.js?v=54', 'data-household-settings-list-integrity-v54');
+  injectClassic('./rakuten-billing-v56.js?v=56', 'data-household-rakuten-billing-v56');
 })();

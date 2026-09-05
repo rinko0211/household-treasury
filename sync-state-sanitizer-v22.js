@@ -84,4 +84,5 @@
   injectClassic('./card-forecast-v49.js?v=49', 'data-household-card-forecast-v49');
   injectClassic('./card-master-refresh-v52.js?v=52', 'data-household-card-master-refresh-v52');
   injectClassic('./settings-reactive-v53.js?v=53', 'data-household-settings-reactive-v53');
+  injectClassic('./settings-list-integrity-v54.js?v=54', 'data-household-settings-list-integrity-v54');
 })();

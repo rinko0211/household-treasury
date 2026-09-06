@@ -99,4 +99,5 @@
   injectClassic('./revolving-card-v66.js?v=66', 'data-household-revolving-card-v66');
   injectClassic('./bonus-modal-stability-v67.js?v=67', 'data-household-bonus-modal-v67');
   injectClassic('./mobile-interaction-kernel-v68.js?v=68', 'data-household-mobile-kernel-v68');
+  injectClassic('./desktop-interaction-v69.js?v=69', 'data-household-desktop-interaction-v69');
 })();

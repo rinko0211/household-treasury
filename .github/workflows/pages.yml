@@ -49,6 +49,7 @@ jobs:
           grep -q "revolving-card-v66.js" sync-state-sanitizer-v22.js
           grep -q "bonus-modal-stability-v67.js" sync-state-sanitizer-v22.js
           grep -q "mobile-interaction-kernel-v68.js" sync-state-sanitizer-v22.js
+          grep -q "desktop-interaction-v69.js" sync-state-sanitizer-v22.js
           ! grep -q "injectClassic('./expense-scope-v34.js" sync-state-sanitizer-v22.js
           ! grep -q "injectClassic('./review-center-v40.js" sync-state-sanitizer-v22.js
           ! grep -q "injectClassic('./annual-reserve-v36.js" sync-state-sanitizer-v22.js
@@ -62,8 +63,12 @@ jobs:
           grep -q "data-v68-event-del" mobile-interaction-kernel-v68.js
           grep -q "data-v68-occ-del" mobile-interaction-kernel-v68.js
           grep -q "data-v68-card-toggle" mobile-interaction-kernel-v68.js
+          grep -q "data-v69-event-del" desktop-interaction-v69.js
+          grep -q "data-v69-occ-del" desktop-interaction-v69.js
+          grep -q "data-v69-forecast" desktop-interaction-v69.js
           grep -q "bonus-modal-stability-v67.js?v=67" sw.js
           grep -q "mobile-interaction-kernel-v68.js?v=68" sw.js
+          grep -q "desktop-interaction-v69.js?v=69" sw.js
       - name: Setup Pages
         uses: actions/configure-pages@v5
       - name: Upload site

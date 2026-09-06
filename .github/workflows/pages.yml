@@ -23,6 +23,32 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v6
+      - name: Check JavaScript syntax
+        shell: bash
+        run: |
+          set -euo pipefail
+          for f in ./*.js; do
+            case "$(basename "$f")" in
+              sync-v24.js|sync-v26.js)
+                cp "$f" "/tmp/$(basename "$f" .js).mjs"
+                node --check "/tmp/$(basename "$f" .js).mjs"
+                ;;
+              *)
+                node --check "$f"
+                ;;
+            esac
+          done
+      - name: Check critical runtime loaders
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -q "semantic-model-v47.js" sync-state-sanitizer-v22.js
+          grep -q "master-occurrence-overrides-v63.js" sync-state-sanitizer-v22.js
+          grep -q "occurrence-card-bridge-v65.js" sync-state-sanitizer-v22.js
+          grep -q "card-detail-stability-v64.js" sync-state-sanitizer-v22.js
+          grep -q "mufg-import-integrity-v65.js" sync-state-sanitizer-v22.js
+          ! grep -q "injectClassic('./expense-scope-v34.js" sync-state-sanitizer-v22.js
+          ! grep -q "injectClassic('./review-center-v40.js" sync-state-sanitizer-v22.js
       - name: Setup Pages
         uses: actions/configure-pages@v5
       - name: Upload site

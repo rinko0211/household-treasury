@@ -84,6 +84,7 @@
   injectClassic('./card-autolink-v46.js?v=46', 'data-household-card-autolink-v46');
   injectClassic('./observer-guard-v50.js?v=50', 'data-household-observer-guard-v50');
   injectClassic('./semantic-model-v47.js?v=47', 'data-household-semantic-model-v47');
+  injectClassic('./semantic-observer-guard-v71.js?v=71', 'data-household-semantic-observer-guard-v71');
   injectClassic('./semantic-ui-v48.js?v=48', 'data-household-semantic-ui-v48');
   injectClassic('./card-identity-v51.js?v=51', 'data-household-card-identity-v51');
   injectClassic('./card-forecast-v49.js?v=49', 'data-household-card-forecast-v49');
@@ -105,4 +106,5 @@
   // v68 mobile owner retired in v70 phase 2. v70 is the single mobile interaction owner.
   injectClassic('./mobile-interaction-v70.js?v=70', 'data-household-mobile-interaction-v70');
   injectClassic('./desktop-interaction-v69.js?v=69', 'data-household-desktop-interaction-v69');
+  injectClassic('./tab-router-v71.js?v=71', 'data-household-tab-router-v71');
 })();

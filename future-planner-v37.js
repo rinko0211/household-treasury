@@ -120,5 +120,6 @@
   }
   function queue(){clearTimeout(renderTimer);renderTimer=setTimeout(renderPlanner,80)}
   function boot(){const st=stateNow();if(normalizeEvents(st))persist(st,'Phase 6データ移行');ensureUi();renderPlanner();const target=$('eventsBody');if(target){observer=new MutationObserver(queue);observer.observe(target,{childList:true,subtree:true})}document.addEventListener('click',e=>{if(e.target.closest?.('[data-page="cashflow"]'))setTimeout(renderPlanner,0)});window.addEventListener('focus',queue);window.renderFuturePlannerV37=renderPlanner}
+  if(window.__householdConsolidatedUiV70){window.renderFuturePlannerV37=()=>{};window.householdFuturePlannerV37={normalizeEvents,inferKind,recurring};return}
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});else setTimeout(boot,0);
 })();

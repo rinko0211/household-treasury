@@ -237,5 +237,6 @@
     window.addEventListener('focus',()=>queueRender(100));
     window.renderMobileCashflowV59=renderAll;
   }
+  if(window.__householdConsolidatedUiV70){window.renderMobileCashflowV59=()=>{};return}
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});else setTimeout(boot,0);
 })();

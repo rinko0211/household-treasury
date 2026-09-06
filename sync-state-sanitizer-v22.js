@@ -93,10 +93,10 @@
   injectClassic('./bonus-allocation-target-fix-v58.js?v=58', 'data-household-bonus-allocation-target-fix-v58');
   injectClassic('./mobile-cashflow-v59.js?v=59', 'data-household-mobile-cashflow-v59');
   injectClassic('./mobile-cashflow-v60.js?v=60', 'data-household-mobile-cashflow-v60');
-  injectClassic('./interaction-stability-v62.js?v=62', 'data-household-interaction-stability-v62');
-  injectClassic('./master-occurrence-overrides-v63.js?v=63', 'data-household-master-occurrence-v63');
+  // v62/v63/v64 mobile UI layers retired in v68. Their competing DOM rewrites caused intermittent iPhone actions.
   injectClassic('./occurrence-card-bridge-v65.js?v=65', 'data-household-occurrence-card-v65');
-  injectClassic('./card-detail-stability-v64.js?v=64', 'data-household-card-detail-v64');
   injectClassic('./audit-hardening-v65.js?v=65', 'data-household-audit-hardening-v65');
   injectClassic('./revolving-card-v66.js?v=66', 'data-household-revolving-card-v66');
+  injectClassic('./bonus-modal-stability-v67.js?v=67', 'data-household-bonus-modal-v67');
+  injectClassic('./mobile-interaction-kernel-v68.js?v=68', 'data-household-mobile-kernel-v68');
 })();

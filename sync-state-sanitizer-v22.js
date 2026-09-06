@@ -92,7 +92,8 @@
   injectClassic('./bonus-allocation-v58.js?v=58', 'data-household-bonus-allocation-v58');
   injectClassic('./bonus-allocation-target-fix-v58.js?v=58', 'data-household-bonus-allocation-target-fix-v58');
   injectClassic('./mobile-cashflow-v59.js?v=59', 'data-household-mobile-cashflow-v59');
-  injectClassic('./mobile-cashflow-v60.js?v=60', 'data-household-mobile-cashflow-v60');
+  // v60 row renderer retired in v70 phase 1. It competed with v68 for #mobileCashflowRowsV60.
+  injectClassic('./mobile-host-v70.js?v=70', 'data-household-mobile-host-v70');
   // v62/v63/v64 mobile UI layers retired in v68. Their competing DOM rewrites caused intermittent iPhone actions.
   injectClassic('./occurrence-card-bridge-v65.js?v=65', 'data-household-occurrence-card-v65');
   injectClassic('./audit-hardening-v65.js?v=65', 'data-household-audit-hardening-v65');

@@ -48,11 +48,15 @@ jobs:
           grep -q "card-detail-stability-v64.js" sync-state-sanitizer-v22.js
           grep -q "mufg-import-integrity-v65.js" sync-state-sanitizer-v22.js
           grep -q "audit-hardening-v65.js" sync-state-sanitizer-v22.js
+          grep -q "revolving-card-v66.js" sync-state-sanitizer-v22.js
           ! grep -q "injectClassic('./expense-scope-v34.js" sync-state-sanitizer-v22.js
           ! grep -q "injectClassic('./review-center-v40.js" sync-state-sanitizer-v22.js
           ! grep -q "injectClassic('./annual-reserve-v36.js" sync-state-sanitizer-v22.js
           grep -q "masterOccurrenceOverrides" sync-v26.js
-          grep -q "audit-hardening-v65.js?v=65" sw.js
+          grep -q "payment_model:'REVOLVING'" revolving-card-v66.js
+          grep -q "CARD_REVOLVING_PAYMENT" revolving-card-v66.js
+          grep -q "principal_unknown:true" revolving-card-v66.js
+          grep -q "revolving-card-v66.js?v=66" sw.js
       - name: Setup Pages
         uses: actions/configure-pages@v5
       - name: Upload site

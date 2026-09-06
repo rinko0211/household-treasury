@@ -95,13 +95,14 @@
   injectClassic('./bonus-allocation-v58.js?v=58', 'data-household-bonus-allocation-v58');
   injectClassic('./bonus-allocation-target-fix-v58.js?v=58', 'data-household-bonus-allocation-target-fix-v58');
   injectClassic('./mobile-cashflow-v59.js?v=59', 'data-household-mobile-cashflow-v59');
-  // v60 row renderer retired in v70 phase 1. It competed with v68 for #mobileCashflowRowsV60.
+  // v60 row renderer retired in v70 phase 1. It competed for the mobile rows host.
   injectClassic('./mobile-host-v70.js?v=70', 'data-household-mobile-host-v70');
-  // v62/v63/v64 mobile UI layers retired in v68. Their competing DOM rewrites caused intermittent iPhone actions.
+  // v62/v63/v64 UI layers are retired. Data compatibility is owned by v65+ model layers.
   injectClassic('./occurrence-card-bridge-v65.js?v=65', 'data-household-occurrence-card-v65');
   injectClassic('./audit-hardening-v65.js?v=65', 'data-household-audit-hardening-v65');
   injectClassic('./revolving-card-v66.js?v=66', 'data-household-revolving-card-v66');
   injectClassic('./bonus-modal-stability-v67.js?v=67', 'data-household-bonus-modal-v67');
-  injectClassic('./mobile-interaction-kernel-v68.js?v=68', 'data-household-mobile-kernel-v68');
+  // v68 mobile owner retired in v70 phase 2. v70 is the single mobile interaction owner.
+  injectClassic('./mobile-interaction-v70.js?v=70', 'data-household-mobile-interaction-v70');
   injectClassic('./desktop-interaction-v69.js?v=69', 'data-household-desktop-interaction-v69');
 })();

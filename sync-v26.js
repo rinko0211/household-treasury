@@ -1,5 +1,5 @@
-// v57 compatibility loader: preserve v26 PostgREST fix, large encrypted-state safety,
-// and mark remote-state application so newer local master data cannot be rolled back.
+// v65 compatibility loader: preserve v26 PostgREST fix, large encrypted-state safety,
+// mark remote-state application, and include newer state domains in conflict scoring.
 const nativeFetch = window.fetch.bind(window);
 window.fetch = (input, init) => {
   try {
@@ -27,6 +27,12 @@ const oldRemoteApply="window.replaceTreasuryState?.(next);window.repairTreasuryB
 const safeRemoteApply="window.__treasuryApplyingRemote=true;try{window.replaceTreasuryState?.(next)}finally{window.__treasuryApplyingRemote=false}window.repairTreasuryBankBalances?.();remoteRevision=Number(row.revision)||1;";
 if (!coreSource.includes(oldRemoteApply)) throw new Error('同期コアのremote apply保護パッチを適用できません。');
 coreSource = coreSource.replace(oldRemoteApply, safeRemoteApply);
+
+const oldScoreLoop="for(const k of ['cashTransactions','purchaseEvents','cardSettlements','investmentEvents','assetSnapshots','history','imports','rules','events'])n+=Math.min(20,Array.isArray(s[k])?s[k].length:0);";
+const newScoreLoop="for(const k of ['cashTransactions','purchaseEvents','cardSettlements','cardBillingLines','investmentEvents','assetSnapshots','history','imports','rules','events','automationRules','bonusPlans','masterOccurrenceOverrides'])n+=Math.min(20,Array.isArray(s[k])?s[k].length:0);for(const k of ['accounts','cards','liabilities','fixedExpenses'])n+=Math.min(20,Array.isArray(s.masters?.[k])?s.masters[k].length:0);";
+if (!coreSource.includes(oldScoreLoop)) throw new Error('同期コアのstateScore互換パッチを適用できません。');
+coreSource = coreSource.replace(oldScoreLoop, newScoreLoop);
+
 const blobUrl = URL.createObjectURL(new Blob([coreSource], {type:'text/javascript'}));
 try {
   await import(blobUrl);

@@ -2,6 +2,9 @@
   const originalGet = window.getTreasuryState;
   if (typeof originalGet !== 'function') return;
 
+  // v70 phase 2: data/model compatibility remains, but legacy hidden UI boots are disabled.
+  window.__householdConsolidatedUiV70 = true;
+
   const DERIVED_KEYS = new Set([
     'updatedAt',
     'bankBalanceAsOf',

@@ -92,5 +92,5 @@
   injectClassic('./bonus-allocation-target-fix-v58.js?v=58', 'data-household-bonus-allocation-target-fix-v58');
   injectClassic('./mobile-cashflow-v59.js?v=59', 'data-household-mobile-cashflow-v59');
   injectClassic('./mobile-cashflow-v60.js?v=60', 'data-household-mobile-cashflow-v60');
-  injectClassic('./interaction-stability-v61.js?v=61', 'data-household-interaction-stability-v61');
+  injectClassic('./interaction-stability-v62.js?v=62', 'data-household-interaction-stability-v62');
 })();

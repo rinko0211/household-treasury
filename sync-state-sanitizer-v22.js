@@ -98,4 +98,5 @@
   injectClassic('./occurrence-card-bridge-v65.js?v=65', 'data-household-occurrence-card-v65');
   injectClassic('./card-detail-stability-v64.js?v=64', 'data-household-card-detail-v64');
   injectClassic('./audit-hardening-v65.js?v=65', 'data-household-audit-hardening-v65');
+  injectClassic('./revolving-card-v66.js?v=66', 'data-household-revolving-card-v66');
 })();

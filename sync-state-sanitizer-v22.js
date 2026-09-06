@@ -68,7 +68,7 @@
   injectClassic('./link-audit-v33.js?v=33', 'data-household-link-audit-v33');
   // v34 expense-scope UI/normalizer retired in v65. Semantic v47 is the canonical migration/classification layer.
   injectClassic('./reimbursement-v35.js?v=35', 'data-household-reimbursement-v35');
-  injectClassic('./annual-reserve-v36.js?v=36', 'data-household-annual-reserve-v36');
+  // v36 annual-reserve UI retired in v65. v48/v59 are canonical; v65 preserves the paid action there.
   injectClassic('./future-planner-v37.js?v=37', 'data-household-future-planner-v37');
   injectClassic('./forecast-v38.js?v=38', 'data-household-forecast-v38');
   injectClassic('./dashboard-v39.js?v=39', 'data-household-dashboard-v39');
@@ -97,4 +97,5 @@
   injectClassic('./master-occurrence-overrides-v63.js?v=63', 'data-household-master-occurrence-v63');
   injectClassic('./occurrence-card-bridge-v65.js?v=65', 'data-household-occurrence-card-v65');
   injectClassic('./card-detail-stability-v64.js?v=64', 'data-household-card-detail-v64');
+  injectClassic('./audit-hardening-v65.js?v=65', 'data-household-audit-hardening-v65');
 })();

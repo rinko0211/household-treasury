@@ -42,38 +42,50 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          grep -q "semantic-model-v47.js" sync-state-sanitizer-v22.js
-          grep -q "occurrence-card-bridge-v65.js" sync-state-sanitizer-v22.js
-          grep -q "mufg-import-integrity-v65.js" sync-state-sanitizer-v22.js
-          grep -q "audit-hardening-v65.js" sync-state-sanitizer-v22.js
-          grep -q "revolving-card-v66.js" sync-state-sanitizer-v22.js
-          grep -q "bonus-modal-stability-v67.js" sync-state-sanitizer-v22.js
-          grep -q "mobile-host-v70.js" sync-state-sanitizer-v22.js
-          grep -q "mobile-interaction-kernel-v68.js" sync-state-sanitizer-v22.js
-          grep -q "desktop-interaction-v69.js" sync-state-sanitizer-v22.js
-          ! grep -q "injectClassic('./expense-scope-v34.js" sync-state-sanitizer-v22.js
-          ! grep -q "injectClassic('./review-center-v40.js" sync-state-sanitizer-v22.js
-          ! grep -q "injectClassic('./annual-reserve-v36.js" sync-state-sanitizer-v22.js
-          ! grep -q "injectClassic('./interaction-stability-v62.js" sync-state-sanitizer-v22.js
-          ! grep -q "injectClassic('./master-occurrence-overrides-v63.js" sync-state-sanitizer-v22.js
-          ! grep -q "injectClassic('./card-detail-stability-v64.js" sync-state-sanitizer-v22.js
-          ! grep -q "injectClassic('./mobile-cashflow-v60.js" sync-state-sanitizer-v22.js
-          grep -q "masterOccurrenceOverrides" sync-v26.js
-          grep -q "payment_model:'REVOLVING'" revolving-card-v66.js
-          grep -q "CARD_REVOLVING_PAYMENT" revolving-card-v66.js
-          grep -q "principal_unknown:true" revolving-card-v66.js
-          grep -q "data-v68-event-del" mobile-interaction-kernel-v68.js
-          grep -q "data-v68-occ-del" mobile-interaction-kernel-v68.js
-          grep -q "data-v68-card-toggle" mobile-interaction-kernel-v68.js
-          grep -q "data-v69-event-del" desktop-interaction-v69.js
-          grep -q "data-v69-occ-del" desktop-interaction-v69.js
-          grep -q "data-v69-forecast" desktop-interaction-v69.js
-          grep -q "bonus-modal-stability-v67.js?v=67" sw.js
-          grep -q "mobile-host-v70.js?v=70" sw.js
-          ! grep -q "mobile-cashflow-v60.js?v=60" sw.js
-          grep -q "mobile-interaction-kernel-v68.js?v=68" sw.js
-          grep -q "desktop-interaction-v69.js?v=69" sw.js
-          grep -q "household-treasury-v70-phase1" sw.js
+          grep -Fq "semantic-model-v47.js" sync-state-sanitizer-v22.js
+          grep -Fq "occurrence-card-bridge-v65.js" sync-state-sanitizer-v22.js
+          grep -Fq "mufg-import-integrity-v65.js" sync-state-sanitizer-v22.js
+          grep -Fq "audit-hardening-v65.js" sync-state-sanitizer-v22.js
+          grep -Fq "revolving-card-v66.js" sync-state-sanitizer-v22.js
+          grep -Fq "bonus-modal-stability-v67.js" sync-state-sanitizer-v22.js
+          grep -Fq "mobile-host-v70.js" sync-state-sanitizer-v22.js
+          grep -Fq "mobile-interaction-v70.js" sync-state-sanitizer-v22.js
+          grep -Fq "desktop-interaction-v69.js" sync-state-sanitizer-v22.js
+          ! grep -Fq "injectClassic('./expense-scope-v34.js" sync-state-sanitizer-v22.js
+          ! grep -Fq "injectClassic('./review-center-v40.js" sync-state-sanitizer-v22.js
+          ! grep -Fq "injectClassic('./annual-reserve-v36.js" sync-state-sanitizer-v22.js
+          ! grep -Fq "injectClassic('./interaction-stability-v62.js" sync-state-sanitizer-v22.js
+          ! grep -Fq "injectClassic('./master-occurrence-overrides-v63.js" sync-state-sanitizer-v22.js
+          ! grep -Fq "injectClassic('./card-detail-stability-v64.js" sync-state-sanitizer-v22.js
+          ! grep -Fq "injectClassic('./mobile-cashflow-v60.js" sync-state-sanitizer-v22.js
+          ! grep -Fq "injectClassic('./mobile-interaction-kernel-v68.js" sync-state-sanitizer-v22.js
+          grep -Fq "masterOccurrenceOverrides" sync-v26.js
+          grep -Fq "payment_model:'REVOLVING'" revolving-card-v66.js
+          grep -Fq "CARD_REVOLVING_PAYMENT" revolving-card-v66.js
+          grep -Fq "principal_unknown:true" revolving-card-v66.js
+          grep -Fq "data-v69-event-del" desktop-interaction-v69.js
+          grep -Fq "data-v69-occ-del" desktop-interaction-v69.js
+          grep -Fq "data-v69-forecast" desktop-interaction-v69.js
+      - name: Check v70 mobile single-owner phase 2
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -Fq "__householdConsolidatedUiV70 = true" sync-state-sanitizer-v22.js
+          grep -Fq "renderFuturePlannerV37=()=>{}" future-planner-v37.js
+          grep -Fq "renderCardForecastV49=()=>{}" card-forecast-v49.js
+          grep -Fq "renderMobileCashflowV59=()=>{}" mobile-cashflow-v59.js
+          grep -Fq "if(window.__householdConsolidatedUiV70)return" revolving-card-v66.js
+          grep -Fq "__mobileKernelGeneratedV70" mobile-interaction-v70.js
+          grep -Fq "data-v70-event-del" mobile-interaction-v70.js
+          grep -Fq "data-v70-occ-del" mobile-interaction-v70.js
+          grep -Fq "data-v70-forecast" mobile-interaction-v70.js
+          grep -Fq "planCache" mobile-interaction-v70.js
+          grep -Fq "mobile-host-v70.js?v=70" sw.js
+          grep -Fq "mobile-interaction-v70.js?v=70" sw.js
+          ! grep -Fq "mobile-cashflow-v60.js?v=60" sw.js
+          ! grep -Fq "mobile-interaction-kernel-v68.js?v=68" sw.js
+          grep -Fq "desktop-interaction-v69.js?v=69" sw.js
+          grep -Fq "household-treasury-v70-phase2" sw.js
       - name: Setup Pages
         uses: actions/configure-pages@v5
       - name: Upload site

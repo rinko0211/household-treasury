@@ -36,7 +36,6 @@
     return'予定';
   }
 
-  // Canonical occurrence override application. UI v62/v63 is retired; data behavior remains here.
   if(typeof generated==='function'&&!window.__mobileKernelGeneratedV68){
     window.__mobileKernelGeneratedV68=true;
     const previousGenerated=generated;
@@ -99,23 +98,23 @@
   function sourceActions(e,st){
     const pid=manualId(e,st);if(pid)return{kind:'EVENT',id:pid};
     if(isMasterEvent(e)){const mid=String(e.master_id||e.source_master_id||''),date=originalDate(e);if(mid&&date)return{kind:'MASTER',id:mid,date}}
-    const cm=cardMeta(e);if(cm)return{kind:'CARD',...cm};
+    const cm=cardMeta(e);if(cm)return{kind:'CARD',cardKind:cm.kind,card:cm.card,ym:cm.ym};
     return{kind:'GENERATED'};
   }
-  function actionHtml(a,e){
+  function actionHtml(a){
     if(a.kind==='EVENT')return`<button type="button" class="btn secondary" data-v68-event-edit="${esc(a.id)}">編集</button><button type="button" class="btn danger" data-v68-event-del="${esc(a.id)}">削除</button>`;
     if(a.kind==='MASTER')return`<button type="button" class="btn secondary" data-v68-occ-edit="${esc(a.id)}" data-v68-occ-date="${esc(a.date)}">この回を編集</button><button type="button" class="btn danger" data-v68-occ-del="${esc(a.id)}" data-v68-occ-date="${esc(a.date)}">この回を削除</button><button type="button" class="btn secondary" data-v68-master="${esc(a.id)}">元マスタ</button>`;
-    if(a.kind==='CARD'){const k=`${a.kind}:${a.card}:${a.ym}:${a.kind}`;const d=detailFor(a);return`<button type="button" class="btn secondary" data-v68-card-toggle="${esc(k)}">内訳 ${d?.items?.length||0}件</button>`}
+    if(a.kind==='CARD'){const k=`card:${a.cardKind}:${a.card}:${a.ym}`,d=detailFor({kind:a.cardKind,card:a.card,ym:a.ym});return`<button type="button" class="btn secondary" data-v68-card-toggle="${esc(k)}">内訳 ${d?.items?.length||0}件</button>`}
     return'<span class="tiny">自動生成</span>';
   }
   function renderRows(){
     if(!mobileMq.matches)return;const card=ensureUi(),host=$('mobileCashflowRowsV60');if(!card||!host)return;const st=stateNow(),rows=cashRows().slice(0,80);
-    host.innerHTML=rows.length?rows.map(e=>{const a=sourceActions(e,st),amountUnknown=e.amount_unknown||e.amount===null||e.amount===''||!Number.isFinite(Number(e.amount)),amount=Number(e.amount)||0;let detail='';if(a.kind==='CARD'){const k=`${a.kind}:${a.card}:${a.ym}:${a.kind}`,open=openInline.has(k),d=detailFor(a);detail=`<div class="v68-detail" data-v68-card-panel="${esc(k)}" ${open?'':'hidden'}>${detailHtml(d)}</div>`}return`<div class="v60-row" data-v68-row="${esc(String(e.id||''))}"><div class="v60-top"><div class="v60-name"><b>${esc(e.name||'予定')}</b><div class="tiny">${esc(e.date||'')} · ${esc(kindLabel(e))}${e.occurrence_overridden?' · この回だけ変更済み':''}</div></div><b class="amt ${amountUnknown?'warn':amount<0?'bad':'good'}">${amountUnknown?'未定':`${amount>0?'+':''}${yen(amount)}`}</b></div><div class="v68-actions">${actionHtml(a,e)}</div>${detail}</div>`}).join(''):'<div class="muted">この期間の予定はありません。</div>';
+    host.innerHTML=rows.length?rows.map(e=>{const a=sourceActions(e,st),amountUnknown=e.amount_unknown||e.amount===null||e.amount===''||!Number.isFinite(Number(e.amount)),amount=Number(e.amount)||0;let detail='';if(a.kind==='CARD'){const k=`card:${a.cardKind}:${a.card}:${a.ym}`,open=openInline.has(k),d=detailFor({kind:a.cardKind,card:a.card,ym:a.ym});detail=`<div class="v68-detail" data-v68-card-panel="${esc(k)}" ${open?'':'hidden'}>${detailHtml(d)}</div>`}return`<div class="v60-row" data-v68-row="${esc(String(e.id||''))}"><div class="v60-top"><div class="v60-name"><b>${esc(e.name||'予定')}</b><div class="tiny">${esc(e.date||'')} · ${esc(kindLabel(e))}${e.occurrence_overridden?' · この回だけ変更済み':''}</div></div><b class="amt ${amountUnknown?'warn':amount<0?'bad':'good'}">${amountUnknown?'未定':`${amount>0?'+':''}${yen(amount)}`}</b></div><div class="v68-actions">${actionHtml(a)}</div>${detail}</div>`}).join(''):'<div class="muted">この期間の予定はありません。</div>';
     renderForecastCard();
   }
 
   function ensureForecastCard(){let card=$('cardForecastStableV68');const grid=document.querySelector('#cashflow .grid');if(!grid)return null;if(!card){card=document.createElement('div');card.id='cardForecastStableV68';card.className='card full';card.innerHTML='<div class="title">カード見込・返済 <span class="tag">安定表示 v68</span></div><div class="tiny">詳細は対象部分だけを開閉します。Cash Flow全体は再描画しません。</div><div id="cardForecastStableRowsV68" style="margin-top:10px"></div>';const mobile=$('mobileCashflowV60');mobile?.after(card)}return card}
-  function renderForecastCard(){const card=ensureForecastCard(),host=$('cardForecastStableRowsV68');if(!card||!host)return;const rows=planRows().slice(0,18);host.innerHTML=rows.length?rows.map(r=>{const meta={kind:String(r.type||'')==='CARD_REVOLVING_PAYMENT'?'REVOLVING':'ESTIMATE',card:r.card||'',ym:r.billing_month||''},k=`forecast:${meta.kind}:${meta.card}:${meta.ym}`,open=openForecast.has(k),d=detailFor(meta);return`<div class="card" style="padding:10px;margin-top:7px"><button type="button" class="btn secondary" style="width:100%;display:flex;justify-content:space-between;gap:8px;align-items:center;text-align:left" data-v68-forecast-toggle="${esc(k)}"><span><b>${esc(meta.card)} · ${esc(meta.ym)}</b> <span class="tiny">${meta.kind==='REVOLVING'?'リボ返済':'見込'}</span></span><span class="amt">${yen(Math.abs(Number(r.amount)||0))} ${open?'▲':'▼'}</span></button><div class="v68-detail" data-v68-forecast-panel="${esc(k)}" ${open?'':'hidden'}>${detailHtml(d)}</div></div>`}).join(''):'<div class="muted">見込請求・返済予定はありません。</div>'}
+  function renderForecastCard(){const card=ensureForecastCard(),host=$('cardForecastStableRowsV68');if(!card||!host)return;const rows=planRows().slice(0,18);host.innerHTML=rows.length?rows.map(r=>{const meta={kind:String(r.type||'')==='CARD_REVOLVING_PAYMENT'?'REVOLVING':'ESTIMATE',card:r.card||'',ym:r.billing_month||''},k=`forecast:${meta.kind}:${meta.card}:${meta.ym}`,open=openForecast.has(k),d=detailFor(meta);return`<div class="card" style="padding:10px;margin-top:7px"><button type="button" class="btn secondary" style="width:100%;display:flex;justify-content:space-between;gap:8px;align-items:center;text-align:left" data-v68-forecast-toggle="${esc(k)}"><span><b>${esc(meta.card)} · ${esc(meta.ym)}</b> <span class="tiny">${meta.kind==='REVOLVING'?'リボ返済':'見込'}</span></span><span class="amt">${yen(Math.abs(Number(r.amount)||0))} <span data-v68-arrow>${open?'▲':'▼'}</span></span></button><div class="v68-detail" data-v68-forecast-panel="${esc(k)}" ${open?'':'hidden'}>${detailHtml(d)}</div></div>`}).join(''):'<div class="muted">見込請求・返済予定はありません。</div>'}
 
   function ensureEditors(){
     if(!$('futureEditorV68')){const m=document.createElement('div');m.id='futureEditorV68';m.hidden=true;m.style.display='none';m.innerHTML=`<div class="v68-bg" data-v68-event-close></div><div class="card v68-modal"><div class="title">将来イベントを編集</div><div class="form"><div class="field"><label>日付</label><input id="v68EventDate" type="date"></div><div class="field"><label>内容</label><input id="v68EventName"></div><div class="field"><label>種類</label><select id="v68EventKind"><option value="INCOME">収入</option><option value="NORMAL">通常費</option><option value="SPECIAL">特別費</option><option value="INVESTMENT">投資</option><option value="DEBT">負債返済</option><option value="TRANSFER">資金移動</option></select></div><div class="field"><label>金額</label><input id="v68EventAmount" type="number" min="0"></div><div class="field"><label>確度</label><select id="v68EventCert"><option value="CONFIRMED">確定</option><option value="ESTIMATED">概算</option><option value="TBD">未定</option></select></div><div class="field"><label>繰り返し</label><select id="v68EventRecurring"><option value="NONE">単発</option><option value="MONTHLY">毎月</option><option value="YEARLY">毎年</option></select></div></div><div class="controls" style="margin-top:12px"><button type="button" class="btn" data-v68-event-save>保存</button><button type="button" class="btn secondary" data-v68-event-close>キャンセル</button></div></div>`;document.body.appendChild(m)}
@@ -140,7 +139,7 @@
   function addFuture(){const legacy=$('futureAddV37');if(legacy){legacy.click();return}const old=$('addEvent');if(old){old.click();return}alert('予定追加画面を開けませんでした。')}
 
   function persist(st,msg){window.treasuryRecoverySnapshot?.(`${msg}直前`);window.replaceTreasuryState?.(st);window.repairTreasuryBankBalances?.();window.setTreasurySaveStatus?.(`${msg}・同期中`);window.cloudSyncOnLocalSave?.();try{window.renderForecastV38?.()}catch{}scheduleRender(80)}
-  function togglePanel(button,panel,set,key){if(!panel)return;const open=panel.hidden;panel.hidden=!open;if(open)set.add(key);else set.delete(key);const last=button.querySelector('[data-v68-arrow]');if(last)last.textContent=open?'▲':'▼'}
+  function togglePanel(button,panel,set,key){if(!panel)return;const open=panel.hidden;panel.hidden=!open;if(open)set.add(key);else set.delete(key);const arrow=button.querySelector('[data-v68-arrow]');if(arrow)arrow.textContent=open?'▲':'▼'}
 
   document.addEventListener('click',e=>{
     const t=e.target;
@@ -153,7 +152,7 @@
       if(own.matches('[data-v68-occ-del]'))return deleteOccurrence(own.dataset.v68OccDel,own.dataset.v68OccDate);
       if(own.matches('[data-v68-master]'))return editMaster(own.dataset.v68Master);
       if(own.matches('[data-v68-card-toggle]')){const k=own.dataset.v68CardToggle,p=own.closest('.v60-row')?.querySelector(`[data-v68-card-panel="${CSS.escape(k)}"]`);return togglePanel(own,p,openInline,k)}
-      if(own.matches('[data-v68-forecast-toggle]')){const k=own.dataset.v68ForecastToggle,p=own.closest('.card')?.querySelector(`[data-v68-forecast-panel="${CSS.escape(k)}"]`);const open=p?.hidden;if(p)p.hidden=!open;if(open)openForecast.add(k);else openForecast.delete(k);scheduleRender(0);return}
+      if(own.matches('[data-v68-forecast-toggle]')){const k=own.dataset.v68ForecastToggle,p=own.closest('.card')?.querySelector(`[data-v68-forecast-panel="${CSS.escape(k)}"]`);return togglePanel(own,p,openForecast,k)}
       if(own.matches('[data-v68-event-save]'))return saveEvent();if(own.matches('[data-v68-event-close]'))return closeEventEditor();
       if(own.matches('[data-v68-occ-save]'))return saveOccurrence();if(own.matches('[data-v68-occ-reset]'))return resetOccurrence();if(own.matches('[data-v68-occ-close]'))return closeOccurrence();
     }

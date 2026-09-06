@@ -63,15 +63,16 @@
   injectClassic('./storage-budget-v55.js?v=55', 'data-household-storage-budget-v55');
   injectClassic('./master-manager-v27.js?v=27', 'data-household-master-v27');
   injectClassic('./import-engine-v28.js?v=28', 'data-household-import-v28');
+  injectClassic('./mufg-import-integrity-v65.js?v=65', 'data-household-mufg-import-v65');
   injectClassic('./phase2-reconcile-ui-v29.js?v=29', 'data-household-reconcile-v29');
   injectClassic('./link-audit-v33.js?v=33', 'data-household-link-audit-v33');
-  injectClassic('./expense-scope-v34.js?v=34', 'data-household-expense-scope-v34');
+  // v34 expense-scope UI/normalizer retired in v65. Semantic v47 is the canonical migration/classification layer.
   injectClassic('./reimbursement-v35.js?v=35', 'data-household-reimbursement-v35');
   injectClassic('./annual-reserve-v36.js?v=36', 'data-household-annual-reserve-v36');
   injectClassic('./future-planner-v37.js?v=37', 'data-household-future-planner-v37');
   injectClassic('./forecast-v38.js?v=38', 'data-household-forecast-v38');
   injectClassic('./dashboard-v39.js?v=39', 'data-household-dashboard-v39');
-  injectClassic('./review-center-v40.js?v=40', 'data-household-review-center-v40');
+  // v40 review center retired in v65. Semantic v47/v48 own review rules and review UI.
   injectClassic('./cashflow-integration-v41.js?v=41', 'data-household-cashflow-integration-v41');
   injectClassic('./payment-routing-v42.js?v=42', 'data-household-payment-routing-v42');
   injectClassic('./fixed-master-unified-v43.js?v=43', 'data-household-fixed-master-unified-v43');
@@ -94,5 +95,6 @@
   injectClassic('./mobile-cashflow-v60.js?v=60', 'data-household-mobile-cashflow-v60');
   injectClassic('./interaction-stability-v62.js?v=62', 'data-household-interaction-stability-v62');
   injectClassic('./master-occurrence-overrides-v63.js?v=63', 'data-household-master-occurrence-v63');
+  injectClassic('./occurrence-card-bridge-v65.js?v=65', 'data-household-occurrence-card-v65');
   injectClassic('./card-detail-stability-v64.js?v=64', 'data-household-card-detail-v64');
 })();

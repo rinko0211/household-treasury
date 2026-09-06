@@ -8,9 +8,10 @@
   };
   const masterDay = m => Number(m?.dueDay || m?.paymentDay || m?.day) || 1;
   const findOverride = (st, masterId, date) => (st.masterOccurrenceOverrides || []).find(o => String(o.master_id) === String(masterId) && String(o.occurrence_date) === String(date)) || null;
+  const isCardEstimate = row => String(row?.type || '') === 'CARD_ESTIMATE' || String(row?.source || '') === 'card_estimate_v49';
 
   function applyToCardEstimate(row, st) {
-    if (String(row?.type || '') !== 'CARD_ESTIMATE' && String(row?.source || '') !== 'card_estimate_v49') return row;
+    if (!isCardEstimate(row)) return row;
     const ym = String(row.billing_month || String(row.date || '').slice(0,7));
     const purchases = Array.isArray(row.components?.purchases) ? row.components.purchases : [];
     const scheduled = Array.isArray(row.components?.scheduled) ? row.components.scheduled : [];
@@ -41,10 +42,14 @@
     };
   }
 
+  function keepRow(row) {
+    return !isCardEstimate(row) || Math.abs(Number(row.amount) || 0) > 0;
+  }
+
   function adjustPlan(plan) {
     const st = stateNow();
     const out = structuredClone(plan || {rows:[],warnings:[]});
-    out.rows = (out.rows || []).map(r => applyToCardEstimate(r, st)).filter(r => Math.abs(Number(r.amount) || 0) > 0);
+    out.rows = (out.rows || []).map(r => applyToCardEstimate(r, st)).filter(keepRow);
     return out;
   }
 
@@ -59,7 +64,7 @@
     const prevGenerated = generated;
     generated = function generatedOccurrenceCardV65(days = 90) {
       const st = stateNow();
-      return prevGenerated(days).map(r => applyToCardEstimate(r, st)).filter(r => Math.abs(Number(r.amount) || 0) > 0 || Number(r.amount) > 0);
+      return prevGenerated(days).map(r => applyToCardEstimate(r, st)).filter(keepRow);
     };
   }
 

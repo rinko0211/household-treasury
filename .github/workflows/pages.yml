@@ -97,7 +97,29 @@ jobs:
           grep -Fq "mobile-runtime-gate-v72.js?v=72" sw.js
           grep -Fq "semantic-observer-guard-v71.js?v=71" sw.js
           grep -Fq "tab-router-v71.js?v=71" sw.js
-          grep -Fq "household-treasury-v72-mobile-runtime" sw.js
+      - name: Check v73 import integrity
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -Fq "csv-parser-v73.js?v=73" sync-state-sanitizer-v22.js
+          grep -Fq "mobile-import-v73.js?v=73" sync-state-sanitizer-v22.js
+          grep -Fq "card-import-corrections-v73.js?v=73" sync-state-sanitizer-v22.js
+          grep -Fq "mobileCsvPickerV73" mobile-import-v73.js
+          grep -Fq "htmlFor='csvInput'" mobile-import-v73.js
+          grep -Fq "CSV_PAYMENT_HEADER" card-import-corrections-v73.js
+          grep -Fq "data-v73-purchase" card-import-corrections-v73.js
+          grep -Fq "data-v73-settlement" card-import-corrections-v73.js
+          grep -Fq "csv-parser-v73.js?v=73" sw.js
+          grep -Fq "mobile-import-v73.js?v=73" sw.js
+          grep -Fq "card-import-corrections-v73.js?v=73" sw.js
+          grep -Fq "household-treasury-v73-import-integrity" sw.js
+          node <<'NODE'
+          const {parseCsvV73}=require('./csv-parser-v73.js');
+          const rows=parseCsvV73('a,b,c\r\n1,"x,y",3\r\n2,"hello\r\nworld",4\r\n');
+          if(rows.length!==3)throw new Error(`expected 3 rows, got ${rows.length}`);
+          if(rows[1][1]!=='x,y')throw new Error('quoted comma parsing failed');
+          if(rows[2][1]!=='hello\r\nworld')throw new Error('quoted newline parsing failed');
+          NODE
       - name: Setup Pages
         uses: actions/configure-pages@v5
       - name: Upload site

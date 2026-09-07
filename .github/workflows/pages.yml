@@ -85,7 +85,19 @@ jobs:
           ! grep -Fq "mobile-cashflow-v60.js?v=60" sw.js
           ! grep -Fq "mobile-interaction-kernel-v68.js?v=68" sw.js
           grep -Fq "desktop-interaction-v69.js?v=69" sw.js
-          grep -Fq "household-treasury-v70-phase2" sw.js
+      - name: Check v72 mobile runtime gate
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -Fq "mobile-runtime-gate-v72.js?v=72" sync-state-sanitizer-v22.js
+          grep -Fq "(min-width:821px)" sync-state-sanitizer-v22.js
+          grep -Fq "__mobileRuntimeGateV72" mobile-runtime-gate-v72.js
+          grep -Fq "suppressDocClick" mobile-runtime-gate-v72.js
+          grep -Fq "desktopCashflowV69" mobile-runtime-gate-v72.js
+          grep -Fq "mobile-runtime-gate-v72.js?v=72" sw.js
+          grep -Fq "semantic-observer-guard-v71.js?v=71" sw.js
+          grep -Fq "tab-router-v71.js?v=71" sw.js
+          grep -Fq "household-treasury-v72-mobile-runtime" sw.js
       - name: Setup Pages
         uses: actions/configure-pages@v5
       - name: Upload site

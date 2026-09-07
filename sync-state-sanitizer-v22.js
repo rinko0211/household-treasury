@@ -96,6 +96,7 @@
   injectClassic('./settings-list-integrity-v54.js?v=54', 'data-household-settings-list-integrity-v54');
   injectClassic('./rakuten-billing-v56.js?v=56', 'data-household-rakuten-billing-v56');
   injectClassic('./card-import-corrections-v73.js?v=73', 'data-household-card-import-corrections-v73');
+  injectClassic('./rakuten-enavi-v74.js?v=74', 'data-household-rakuten-enavi-v74');
   injectClassic('./integrity-hotfix-v57.js?v=57', 'data-household-integrity-hotfix-v57');
   injectClassic('./bonus-allocation-v58.js?v=58', 'data-household-bonus-allocation-v58');
   injectClassic('./bonus-allocation-target-fix-v58.js?v=58', 'data-household-bonus-allocation-target-fix-v58');

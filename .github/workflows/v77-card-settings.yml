@@ -1,0 +1,45 @@
+name: Check v77 Card Settings
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+      - name: Check v77 single card owner
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check card-settings-unified-v77.js
+          grep -Fq "card-settings-unified-v77.js?v=77" sync-state-sanitizer-v22.js
+          ! grep -Fq "injectClassic('./card-master-refresh-v52.js" sync-state-sanitizer-v22.js
+          grep -Fq "card-settings-unified-v77.js?v=77" sw.js
+          ! grep -Fq "card-master-refresh-v52.js?v=52" sw.js
+          grep -Fq "household-treasury-v77-card-settings" sw.js
+          grep -Fq "__cardSettingsUnifiedV77" card-settings-unified-v77.js
+          grep -Fq "unifiedCardsV77" card-settings-unified-v77.js
+          grep -Fq "semanticCardRowsV48" card-settings-unified-v77.js
+          grep -Fq "legacyRows.remove()" card-settings-unified-v77.js
+          grep -Fq "masterAddCardV1" card-settings-unified-v77.js
+          grep -Fq "refreshFixedCardSelects" card-settings-unified-v77.js
+          grep -Fq "paymentCard = name" card-settings-unified-v77.js
+          grep -Fq "m.paymentCard = null" card-settings-unified-v77.js
+          grep -Fq "月ごとの実額・補正はCash Flow側" card-settings-unified-v77.js
+          ! grep -Fq "MutationObserver" card-settings-unified-v77.js
+          ! grep -Fq "setInterval" card-settings-unified-v77.js
+          ! grep -Fq "dedupeCardAddButtons" settings-list-integrity-v54.js
+      - name: Check no active duplicate card add owner
+        shell: bash
+        run: |
+          set -euo pipefail
+          count=$(grep -o "injectClassic('./card-settings-unified-v77.js" sync-state-sanitizer-v22.js | wc -l)
+          test "$count" -eq 1
+          test "$(grep -o "id=\"addUnifiedCardV77\"" card-settings-unified-v77.js | wc -l)" -eq 1

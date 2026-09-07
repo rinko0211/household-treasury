@@ -71,6 +71,7 @@
   injectClassic('./link-audit-v33.js?v=33', 'data-household-link-audit-v33');
   // v34 expense-scope UI/normalizer retired in v65. Semantic v47 is the canonical migration/classification layer.
   injectClassic('./reimbursement-v35.js?v=35', 'data-household-reimbursement-v35');
+  injectClassic('./mobile-runtime-gate-v72.js?v=72', 'data-household-mobile-runtime-gate-v72');
   // v36 annual-reserve UI retired in v65. v48/v59 are canonical; v65 preserves the paid action there.
   injectClassic('./future-planner-v37.js?v=37', 'data-household-future-planner-v37');
   injectClassic('./forecast-v38.js?v=38', 'data-household-forecast-v38');
@@ -105,6 +106,6 @@
   injectClassic('./bonus-modal-stability-v67.js?v=67', 'data-household-bonus-modal-v67');
   // v68 mobile owner retired in v70 phase 2. v70 is the single mobile interaction owner.
   injectClassic('./mobile-interaction-v70.js?v=70', 'data-household-mobile-interaction-v70');
-  injectClassic('./desktop-interaction-v69.js?v=69', 'data-household-desktop-interaction-v69');
+  if (window.matchMedia?.('(min-width:821px)').matches) injectClassic('./desktop-interaction-v69.js?v=69', 'data-household-desktop-interaction-v69');
   injectClassic('./tab-router-v71.js?v=71', 'data-household-tab-router-v71');
 })();

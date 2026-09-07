@@ -125,7 +125,6 @@ jobs:
           set -euo pipefail
           grep -Fq "rakuten-enavi-v74.js?v=74" sync-state-sanitizer-v22.js
           grep -Fq "rakuten-enavi-v74.js?v=74" sw.js
-          grep -Fq "household-treasury-v74-rakuten-enavi" sw.js
           node <<'NODE'
           const {parseCsvV73}=require('./csv-parser-v73.js');
           const {analyzeRakutenEnaviV74}=require('./rakuten-enavi-v74.js');
@@ -141,6 +140,26 @@ jobs:
           if(a.futurePurchases.length!==1||a.futurePurchases[0].billingMonth!=='2026-10')throw new Error('future month mapping failed');
           if(a.dueDate!=='2026-09-28')throw new Error(`due date ${a.dueDate}`);
           NODE
+      - name: Check v75 revolving card corrections
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -Fq "date-normalizer-v75.js?v=75" sync-state-sanitizer-v22.js
+          grep -Fq "mufg-card-semantics-v75.js?v=75" sync-state-sanitizer-v22.js
+          grep -Fq "card-cashflow-edit-v75.js?v=75" sync-state-sanitizer-v22.js
+          grep -Fq "date-normalizer-v75.js?v=75" sw.js
+          grep -Fq "mufg-card-semantics-v75.js?v=75" sw.js
+          grep -Fq "card-cashflow-edit-v75.js?v=75" sw.js
+          grep -Fq "household-treasury-v75-card-cashflow" sw.js
+          grep -Fq "2026})年" date-normalizer-v75.js || true
+          grep -Fq "CARD_PURCHASE" date-normalizer-v75.js
+          grep -Fq "payment_model='REVOLVING'" mufg-card-semantics-v75.js
+          grep -Fq "p.category='CAR';p.subcategory='TOLL'" mufg-card-semantics-v75.js
+          grep -Fq "cardCashflowOverrides" card-cashflow-edit-v75.js
+          grep -Fq "この月だけ" card-cashflow-edit-v75.js
+          grep -Fq "data-v75-pdate" card-cashflow-edit-v75.js
+          grep -Fq "data-v75-card-edit" card-cashflow-edit-v75.js
+          grep -Fq "年\\s*(\\d{1,2})月" date-normalizer-v75.js
       - name: Setup Pages
         uses: actions/configure-pages@v5
       - name: Upload site

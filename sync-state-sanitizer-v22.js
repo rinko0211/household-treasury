@@ -65,6 +65,7 @@
 
   injectClassic('./storage-budget-v55.js?v=55', 'data-household-storage-budget-v55');
   injectClassic('./master-manager-v27.js?v=27', 'data-household-master-v27');
+  injectClassic('./card-settings-unified-v77.js?v=77', 'data-household-card-settings-unified-v77');
   injectClassic('./import-engine-v28.js?v=28', 'data-household-import-v28');
   injectClassic('./csv-parser-v73.js?v=73', 'data-household-csv-parser-v73');
   injectClassic('./date-normalizer-v75.js?v=75', 'data-household-date-normalizer-v75');
@@ -94,7 +95,7 @@
   injectClassic('./semantic-review-stability-v76.js?v=76', 'data-household-semantic-review-stability-v76');
   injectClassic('./card-identity-v51.js?v=51', 'data-household-card-identity-v51');
   injectClassic('./card-forecast-v49.js?v=49', 'data-household-card-forecast-v49');
-  injectClassic('./card-master-refresh-v52.js?v=52', 'data-household-card-master-refresh-v52');
+  // v52 card settings UI retired in v77. Phase 1 household master is the sole card settings owner.
   injectClassic('./settings-reactive-v53.js?v=53', 'data-household-settings-reactive-v53');
   injectClassic('./settings-list-integrity-v54.js?v=54', 'data-household-settings-list-integrity-v54');
   injectClassic('./rakuten-billing-v56.js?v=56', 'data-household-rakuten-billing-v56');

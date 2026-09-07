@@ -40,25 +40,10 @@
       try{
         const actual=activeFixed(), ids=renderedFixedIds(), set=new Set(ids);
         const missing=actual.some(x=>!set.has(String(x.id)));
-        if(ids.length!==actual.length||missing){
-          window.renderSemanticUiV48?.();
-        }
+        if(ids.length!==actual.length||missing) window.renderSemanticUiV48?.();
         setTimeout(()=>{updateCount();highlightNew(newId)},0);
       }finally{checking=false}
     },0);
-  }
-
-  function dedupeCardAddButtons(){
-    const settings=$('settings'); if(!settings)return;
-    const preferred=$('addCardV52');
-    const buttons=[...settings.querySelectorAll('button')].filter(b=>b.textContent.trim()==='＋カード');
-    if(preferred){
-      preferred.style.display='';
-      buttons.forEach(b=>{if(b!==preferred)b.style.display='none'});
-    }else if(buttons.length>1){
-      buttons.slice(0,-1).forEach(b=>b.style.display='none');
-    }
-    const legacy=$('masterAddCardV1'); if(legacy&&legacy!==preferred)legacy.style.display='none';
   }
 
   document.addEventListener('pointerdown',e=>{
@@ -73,9 +58,7 @@
         reconcileFixedList(added?.id||null); addSnapshot=null;
       },0);
     }
-    if(e.target.closest?.('[data-v48-fixed-save],[data-v48-fixed-del],[data-page="settings"],#addCardV52,#masterAddCardV1')){
-      setTimeout(()=>{reconcileFixedList();dedupeCardAddButtons()},0);
-    }
+    if(e.target.closest?.('[data-v48-fixed-save],[data-v48-fixed-del],[data-page="settings"]')) setTimeout(()=>reconcileFixedList(),0);
   });
 
   const previousReplace=window.replaceTreasuryState;
@@ -83,15 +66,15 @@
     window.__settingsListIntegrityV54Wrapped=true;
     window.replaceTreasuryState=function replaceTreasuryStateV54(next){
       const result=previousReplace(next);
-      setTimeout(()=>{reconcileFixedList();dedupeCardAddButtons()},0);
+      setTimeout(()=>reconcileFixedList(),0);
       return result;
     };
   }
 
   function boot(){
-    reconcileFixedList(); dedupeCardAddButtons();
-    setTimeout(()=>{reconcileFixedList();dedupeCardAddButtons()},120);
-    window.refreshSettingsListsV54=()=>{reconcileFixedList();dedupeCardAddButtons()};
+    reconcileFixedList();
+    setTimeout(()=>reconcileFixedList(),120);
+    window.refreshSettingsListsV54=()=>reconcileFixedList();
   }
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});else setTimeout(boot,0);
 })();

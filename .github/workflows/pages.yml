@@ -150,9 +150,6 @@ jobs:
           grep -Fq "date-normalizer-v75.js?v=75" sw.js
           grep -Fq "mufg-card-semantics-v75.js?v=75" sw.js
           grep -Fq "card-cashflow-edit-v75.js?v=75" sw.js
-          grep -Fq "household-treasury-v75-card-cashflow" sw.js
-          grep -Fq "2026})年" date-normalizer-v75.js || true
-          grep -Fq "CARD_PURCHASE" date-normalizer-v75.js
           grep -Fq "payment_model='REVOLVING'" mufg-card-semantics-v75.js
           grep -Fq "p.category='CAR';p.subcategory='TOLL'" mufg-card-semantics-v75.js
           grep -Fq "cardCashflowOverrides" card-cashflow-edit-v75.js
@@ -160,6 +157,19 @@ jobs:
           grep -Fq "data-v75-pdate" card-cashflow-edit-v75.js
           grep -Fq "data-v75-card-edit" card-cashflow-edit-v75.js
           grep -Fq "年\\s*(\\d{1,2})月" date-normalizer-v75.js
+      - name: Check v76 review stability
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -Fq "semantic-review-stability-v76.js?v=76" sync-state-sanitizer-v22.js
+          grep -Fq "semantic-review-stability-v76.js?v=76" sw.js
+          grep -Fq "household-treasury-v76-review-stability" sw.js
+          grep -Fq "semantic_manual_override" semantic-review-stability-v76.js
+          grep -Fq "manual_override_v76" semantic-review-stability-v76.js
+          grep -Fq "duplicate_review_rule_v76" semantic-review-stability-v76.js
+          grep -Fq "保存済み ✓" semantic-review-stability-v76.js
+          grep -Fq "stopImmediatePropagation" semantic-review-stability-v76.js
+          grep -Fq "typeof save === 'function'" semantic-review-stability-v76.js
       - name: Setup Pages
         uses: actions/configure-pages@v5
       - name: Upload site

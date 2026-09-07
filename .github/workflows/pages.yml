@@ -112,13 +112,34 @@ jobs:
           grep -Fq "csv-parser-v73.js?v=73" sw.js
           grep -Fq "mobile-import-v73.js?v=73" sw.js
           grep -Fq "card-import-corrections-v73.js?v=73" sw.js
-          grep -Fq "household-treasury-v73-import-integrity" sw.js
           node <<'NODE'
           const {parseCsvV73}=require('./csv-parser-v73.js');
           const rows=parseCsvV73('a,b,c\r\n1,"x,y",3\r\n2,"hello\r\nworld",4\r\n');
           if(rows.length!==3)throw new Error(`expected 3 rows, got ${rows.length}`);
           if(rows[1][1]!=='x,y')throw new Error('quoted comma parsing failed');
           if(rows[2][1]!=='hello\r\nworld')throw new Error('quoted newline parsing failed');
+          NODE
+      - name: Check v74 Rakuten e-NAVI semantics
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -Fq "rakuten-enavi-v74.js?v=74" sync-state-sanitizer-v22.js
+          grep -Fq "rakuten-enavi-v74.js?v=74" sw.js
+          grep -Fq "household-treasury-v74-rakuten-enavi" sw.js
+          node <<'NODE'
+          const {parseCsvV73}=require('./csv-parser-v73.js');
+          const {analyzeRakutenEnaviV74}=require('./rakuten-enavi-v74.js');
+          const csv='利用日,利用店名・商品名,利用者,支払方法,利用金額,手数料/利息,支払総額,支払月,9月支払金額,当月請求額,10月繰越残高,10月以降請求額\r\n'+
+            '2026/08/29,通常利用,本人,1回払い,22000,0,22000,9月,22000,22000,0,\r\n'+
+            '2026/05/28,返済方法変更ＷＥＢ　MYPROTEIN,本人,"分割変更3回払い\r\n(3回目)",- ,334,11674,9月,3891,3891,0,\r\n'+
+            ',購入金額：\\11340 / 分割変更金額：\\11340,,,,,,,,,,\r\n'+
+            '2026/09/01,翌月利用,本人,1回払い,3451,0,3451,10月以降,,,,3451\r\n';
+          const a=analyzeRakutenEnaviV74(csv,'enavi202609(3149)(1).csv',parseCsvV73);
+          if(a.statementYm!=='2026-09')throw new Error(`statement month ${a.statementYm}`);
+          if(a.currentTotal!==25891)throw new Error(`current total ${a.currentTotal}`);
+          if(a.installments.length!==1)throw new Error(`installments ${a.installments.length}`);
+          if(a.futurePurchases.length!==1||a.futurePurchases[0].billingMonth!=='2026-10')throw new Error('future month mapping failed');
+          if(a.dueDate!=='2026-09-28')throw new Error(`due date ${a.dueDate}`);
           NODE
       - name: Setup Pages
         uses: actions/configure-pages@v5

@@ -88,6 +88,7 @@
   injectClassic('./card-autolink-v46.js?v=46', 'data-household-card-autolink-v46');
   injectClassic('./observer-guard-v50.js?v=50', 'data-household-observer-guard-v50');
   injectClassic('./semantic-model-v47.js?v=47', 'data-household-semantic-model-v47');
+  injectClassic('./mufg-card-semantics-v75.js?v=75', 'data-household-mufg-card-semantics-v75');
   injectClassic('./semantic-observer-guard-v71.js?v=71', 'data-household-semantic-observer-guard-v71');
   injectClassic('./semantic-ui-v48.js?v=48', 'data-household-semantic-ui-v48');
   injectClassic('./card-identity-v51.js?v=51', 'data-household-card-identity-v51');
@@ -99,8 +100,8 @@
   injectClassic('./card-import-corrections-v73.js?v=73', 'data-household-card-import-corrections-v73');
   injectClassic('./rakuten-enavi-v74.js?v=74', 'data-household-rakuten-enavi-v74');
   injectClassic('./integrity-hotfix-v57.js?v=57', 'data-household-integrity-hotfix-v57');
-  injectClassic('./bonus-allocation-v58.js?v=58', 'data-household-bonus-v58');
-  injectClassic('./bonus-allocation-target-fix-v58.js?v=58', 'data-household-bonus-target-fix-v58');
+  injectClassic('./bonus-allocation-v58.js?v=58', 'data-household-bonus-allocation-v58');
+  injectClassic('./bonus-allocation-target-fix-v58.js?v=58', 'data-household-bonus-allocation-target-fix-v58');
   injectClassic('./mobile-cashflow-v59.js?v=59', 'data-household-mobile-cashflow-v59');
   // v60 row renderer retired in v70 phase 1. It competed for the mobile rows host.
   injectClassic('./mobile-host-v70.js?v=70', 'data-household-mobile-host-v70');

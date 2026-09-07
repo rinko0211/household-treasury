@@ -67,6 +67,7 @@
   injectClassic('./master-manager-v27.js?v=27', 'data-household-master-v27');
   injectClassic('./import-engine-v28.js?v=28', 'data-household-import-v28');
   injectClassic('./csv-parser-v73.js?v=73', 'data-household-csv-parser-v73');
+  injectClassic('./date-normalizer-v75.js?v=75', 'data-household-date-normalizer-v75');
   injectClassic('./mobile-import-v73.js?v=73', 'data-household-mobile-import-v73');
   injectClassic('./mufg-import-integrity-v65.js?v=65', 'data-household-mufg-import-v65');
   injectClassic('./phase2-reconcile-ui-v29.js?v=29', 'data-household-reconcile-v29');
@@ -98,8 +99,8 @@
   injectClassic('./card-import-corrections-v73.js?v=73', 'data-household-card-import-corrections-v73');
   injectClassic('./rakuten-enavi-v74.js?v=74', 'data-household-rakuten-enavi-v74');
   injectClassic('./integrity-hotfix-v57.js?v=57', 'data-household-integrity-hotfix-v57');
-  injectClassic('./bonus-allocation-v58.js?v=58', 'data-household-bonus-allocation-v58');
-  injectClassic('./bonus-allocation-target-fix-v58.js?v=58', 'data-household-bonus-allocation-target-fix-v58');
+  injectClassic('./bonus-allocation-v58.js?v=58', 'data-household-bonus-v58');
+  injectClassic('./bonus-allocation-target-fix-v58.js?v=58', 'data-household-bonus-target-fix-v58');
   injectClassic('./mobile-cashflow-v59.js?v=59', 'data-household-mobile-cashflow-v59');
   // v60 row renderer retired in v70 phase 1. It competed for the mobile rows host.
   injectClassic('./mobile-host-v70.js?v=70', 'data-household-mobile-host-v70');
@@ -110,6 +111,7 @@
   injectClassic('./bonus-modal-stability-v67.js?v=67', 'data-household-bonus-modal-v67');
   // v68 mobile owner retired in v70 phase 2. v70 is the single mobile interaction owner.
   injectClassic('./mobile-interaction-v70.js?v=70', 'data-household-mobile-interaction-v70');
+  injectClassic('./card-cashflow-edit-v75.js?v=75', 'data-household-card-cashflow-edit-v75');
   if (window.matchMedia?.('(min-width:821px)').matches) injectClassic('./desktop-interaction-v69.js?v=69', 'data-household-desktop-interaction-v69');
   injectClassic('./tab-router-v71.js?v=71', 'data-household-tab-router-v71');
 })();

@@ -66,6 +66,8 @@
   injectClassic('./storage-budget-v55.js?v=55', 'data-household-storage-budget-v55');
   injectClassic('./master-manager-v27.js?v=27', 'data-household-master-v27');
   injectClassic('./import-engine-v28.js?v=28', 'data-household-import-v28');
+  injectClassic('./csv-parser-v73.js?v=73', 'data-household-csv-parser-v73');
+  injectClassic('./mobile-import-v73.js?v=73', 'data-household-mobile-import-v73');
   injectClassic('./mufg-import-integrity-v65.js?v=65', 'data-household-mufg-import-v65');
   injectClassic('./phase2-reconcile-ui-v29.js?v=29', 'data-household-reconcile-v29');
   injectClassic('./link-audit-v33.js?v=33', 'data-household-link-audit-v33');
@@ -93,6 +95,7 @@
   injectClassic('./settings-reactive-v53.js?v=53', 'data-household-settings-reactive-v53');
   injectClassic('./settings-list-integrity-v54.js?v=54', 'data-household-settings-list-integrity-v54');
   injectClassic('./rakuten-billing-v56.js?v=56', 'data-household-rakuten-billing-v56');
+  injectClassic('./card-import-corrections-v73.js?v=73', 'data-household-card-import-corrections-v73');
   injectClassic('./integrity-hotfix-v57.js?v=57', 'data-household-integrity-hotfix-v57');
   injectClassic('./bonus-allocation-v58.js?v=58', 'data-household-bonus-allocation-v58');
   injectClassic('./bonus-allocation-target-fix-v58.js?v=58', 'data-household-bonus-allocation-target-fix-v58');

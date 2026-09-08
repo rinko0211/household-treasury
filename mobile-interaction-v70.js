@@ -97,6 +97,8 @@
       #futurePlannerCardV37,#adhocEventListCardV15,#mobileFutureV59,#cardForecastV49,#cardForecastStableV61,#cardForecastStableV62,#cardForecastStableV64,#cardForecastStableV68{display:none!important}
       #mobileCashflowV60 .v70-actions{display:flex;gap:7px;justify-content:flex-end;flex-wrap:wrap;margin-top:8px}
       #mobileCashflowV60 .v70-detail,#cardForecastStableV70 .v70-detail{margin-top:8px;padding:8px;border:1px solid #263755;border-radius:10px}
+      #mobileCashflowV60 .v78-amount-stack{display:flex;flex-direction:column;align-items:flex-end;gap:2px;flex:0 0 auto;text-align:right}
+      #mobileCashflowV60 .v78-balance{white-space:nowrap;opacity:.82}
       #futureEditorV70 .v70-bg,#occurrenceEditorV70 .v70-bg{position:fixed;inset:0;background:#0009;z-index:11000}
       #futureEditorV70 .v70-modal,#occurrenceEditorV70 .v70-modal{position:fixed;z-index:11001;left:50%;top:50%;transform:translate(-50%,-50%);width:min(94vw,520px);max-height:90vh;overflow:auto}
       #futureEditorV70 .form,#occurrenceEditorV70 .form{grid-template-columns:1fr!important}
@@ -123,9 +125,9 @@
     if(!mobileMq.matches)return;const card=ensureUi(),host=$('mobileCashflowRowsV60');if(!card||!host)return;
     planCache=null;const st=stateNow(),rows=cashRows().slice(0,80);planRows();
     host.innerHTML=rows.length?rows.map(e=>{
-      const a=sourceAction(e,st),unknown=e.amount_unknown||e.amount===null||e.amount===''||!Number.isFinite(Number(e.amount)),amount=Number(e.amount)||0;let detail='';
+      const a=sourceAction(e,st),unknown=e.amount_unknown||e.amount===null||e.amount===''||!Number.isFinite(Number(e.amount)),amount=Number(e.amount)||0,balanceKnown=e.balance!==null&&e.balance!==''&&Number.isFinite(Number(e.balance)),balance=balanceKnown?Number(e.balance):null;let detail='';
       if(a.kind==='CARD'){const k=`inline:${a.meta.kind}:${a.meta.card}:${a.meta.ym}`,d=detailFor(a.meta);detail=`<div class="v70-detail" data-v70-inline-panel="${esc(k)}" ${openInline.has(k)?'':'hidden'}>${detailHtml(d)}</div>`}
-      return`<div class="v60-row" data-v70-row="${esc(String(e.id||''))}"><div class="v60-top"><div class="v60-name"><b>${esc(e.name||'予定')}</b><div class="tiny">${esc(e.date||'')} · ${esc(kindLabel(e))}${e.occurrence_overridden?' · この回だけ変更済み':''}</div></div><b class="amt ${unknown?'warn':amount<0?'bad':'good'}">${unknown?'未定':`${amount>0?'+':''}${yen(amount)}`}</b></div><div class="v70-actions">${actionHtml(a)}</div>${detail}</div>`;
+      return`<div class="v60-row" data-v70-row="${esc(String(e.id||''))}"><div class="v60-top"><div class="v60-name"><b>${esc(e.name||'予定')}</b><div class="tiny">${esc(e.date||'')} · ${esc(kindLabel(e))}${e.occurrence_overridden?' · この回だけ変更済み':''}</div></div><div class="v78-amount-stack"><b class="amt ${unknown?'warn':amount<0?'bad':'good'}">${unknown?'未定':`${amount>0?'+':''}${yen(amount)}`}</b><div class="tiny v78-balance ${balanceKnown&&balance<0?'bad':''}">${balanceKnown?`予測残高 ${yen(balance)}`:'予測残高 —'}</div></div></div><div class="v70-actions">${actionHtml(a)}</div>${detail}</div>`;
     }).join(''):'<div class="muted">この期間の予定はありません。</div>';
     renderForecastCard();
   }

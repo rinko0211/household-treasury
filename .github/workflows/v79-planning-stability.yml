@@ -1,0 +1,64 @@
+name: Check v79 Planning Stability
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+      - name: Check v79 syntax and loaders
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check planning-model-v79.js
+          node --check planning-ui-v79.js
+          grep -Fq "planning-model-v79.js?v=79" sync-state-sanitizer-v22.js
+          grep -Fq "planning-ui-v79.js?v=79" sync-state-sanitizer-v22.js
+          grep -Fq "planning-model-v79.js?v=79" sw.js
+          grep -Fq "planning-ui-v79.js?v=79" sw.js
+          grep -Fq "household-treasury-v79-planning-stability" sw.js
+      - name: Check stable single-path UI behavior
+        shell: bash
+        run: |
+          set -euo pipefail
+          ! grep -Fq "MutationObserver" planning-model-v79.js
+          ! grep -Fq "MutationObserver" planning-ui-v79.js
+          ! grep -Fq "setInterval" planning-model-v79.js
+          ! grep -Fq "setInterval" planning-ui-v79.js
+          grep -Fq "cashflowForecastChartV21" planning-ui-v79.js
+          grep -Fq "grid.prepend(chart)" planning-ui-v79.js
+          grep -Fq "forecastHorizon" planning-ui-v79.js
+          grep -Fq "treasury:pagechange" planning-ui-v79.js
+      - name: Check salary and card baseline model
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -Fq "ensureSalaryRows" planning-model-v79.js
+          grep -Fq "settings_salary_v79" planning-model-v79.js
+          grep -Fq "monthlyBaselineAmount" planning-model-v79.js
+          grep -Fq "BASELINE_FLOOR" planning-model-v79.js
+          grep -Fq "Math.max(base,components)" planning-model-v79.js
+          grep -Fq "card_cashflow_override" planning-model-v79.js
+          grep -Fq "確定請求 ＞ この月だけ補正 ＞ 基準請求額 ＞ 固定費積上げ" planning-ui-v79.js
+      - name: Check dashboard and annual transparency
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -Fq "次の給与まで最低" planning-ui-v79.js
+          grep -Fq "2か月最低" planning-ui-v79.js
+          grep -Fq "3か月最低" planning-ui-v79.js
+          grep -Fq "6か月最低" planning-ui-v79.js
+          grep -Fq "その場で内訳を見る" planning-ui-v79.js
+          grep -Fq "年払い・ボーナス使途" planning-ui-v79.js
+          grep -Fq "月別積立内訳" planning-ui-v79.js
+          grep -Fq "月別収支（年払い積立後）" planning-ui-v79.js
+          grep -Fq "data-v79-annual-calc" planning-ui-v79.js
+          grep -Fq "shortage-bonusTotal" planning-model-v79.js

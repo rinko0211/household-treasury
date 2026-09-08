@@ -112,8 +112,8 @@
   injectClassic('./audit-hardening-v65.js?v=65', 'data-household-audit-hardening-v65');
   injectClassic('./revolving-card-v66.js?v=66', 'data-household-revolving-card-v66');
   injectClassic('./bonus-modal-stability-v67.js?v=67', 'data-household-bonus-modal-v67');
-  // v68 mobile owner retired in v70 phase 2. v70 is the single mobile interaction owner.
-  injectClassic('./mobile-interaction-v70.js?v=70', 'data-household-mobile-interaction-v70');
+  // v68 mobile owner retired in v70 phase 2. v70 remains the single mobile interaction owner; v78 only changes its row presentation.
+  injectClassic('./mobile-interaction-v70.js?v=78', 'data-household-mobile-interaction-v70');
   injectClassic('./card-cashflow-edit-v75.js?v=75', 'data-household-card-cashflow-edit-v75');
   if (window.matchMedia?.('(min-width:821px)').matches) injectClassic('./desktop-interaction-v69.js?v=69', 'data-household-desktop-interaction-v69');
   injectClassic('./tab-router-v71.js?v=71', 'data-household-tab-router-v71');

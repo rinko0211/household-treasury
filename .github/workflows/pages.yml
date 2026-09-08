@@ -81,7 +81,7 @@ jobs:
           grep -Fq "data-v70-forecast" mobile-interaction-v70.js
           grep -Fq "planCache" mobile-interaction-v70.js
           grep -Fq "mobile-host-v70.js?v=70" sw.js
-          grep -Fq "mobile-interaction-v70.js?v=70" sw.js
+          grep -Fq "mobile-interaction-v70.js?v=78" sw.js
           ! grep -Fq "mobile-cashflow-v60.js?v=60" sw.js
           ! grep -Fq "mobile-interaction-kernel-v68.js?v=68" sw.js
           grep -Fq "desktop-interaction-v69.js?v=69" sw.js
@@ -163,13 +163,23 @@ jobs:
           set -euo pipefail
           grep -Fq "semantic-review-stability-v76.js?v=76" sync-state-sanitizer-v22.js
           grep -Fq "semantic-review-stability-v76.js?v=76" sw.js
-          grep -Fq "household-treasury-v76-review-stability" sw.js
           grep -Fq "semantic_manual_override" semantic-review-stability-v76.js
           grep -Fq "manual_override_v76" semantic-review-stability-v76.js
           grep -Fq "duplicate_review_rule_v76" semantic-review-stability-v76.js
           grep -Fq "保存済み ✓" semantic-review-stability-v76.js
           grep -Fq "stopImmediatePropagation" semantic-review-stability-v76.js
           grep -Fq "typeof save === 'function'" semantic-review-stability-v76.js
+      - name: Check v78 cashflow projected balances
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -Fq "mobile-interaction-v70.js?v=78" sync-state-sanitizer-v22.js
+          grep -Fq "mobile-interaction-v70.js?v=78" sw.js
+          grep -Fq "household-treasury-v78-row-balances" sw.js
+          grep -Fq "balanceKnown" mobile-interaction-v70.js
+          grep -Fq "予測残高" mobile-interaction-v70.js
+          grep -Fq "v78-amount-stack" mobile-interaction-v70.js
+          test ! -f mobile-cashflow-balance-v78.js
       - name: Setup Pages
         uses: actions/configure-pages@v5
       - name: Upload site

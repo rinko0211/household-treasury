@@ -175,11 +175,35 @@ jobs:
           set -euo pipefail
           grep -Fq "mobile-interaction-v70.js?v=78" sync-state-sanitizer-v22.js
           grep -Fq "mobile-interaction-v70.js?v=78" sw.js
-          grep -Fq "household-treasury-v78-row-balances" sw.js
           grep -Fq "balanceKnown" mobile-interaction-v70.js
           grep -Fq "予測残高" mobile-interaction-v70.js
           grep -Fq "v78-amount-stack" mobile-interaction-v70.js
           test ! -f mobile-cashflow-balance-v78.js
+      - name: Check v79 planning stability
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -Fq "planning-model-v79.js?v=79" sync-state-sanitizer-v22.js
+          grep -Fq "planning-ui-v79.js?v=79" sync-state-sanitizer-v22.js
+          grep -Fq "planning-model-v79.js?v=79" sw.js
+          grep -Fq "planning-ui-v79.js?v=79" sw.js
+          grep -Fq "household-treasury-v79-planning-stability" sw.js
+          grep -Fq "BASELINE_FLOOR" planning-model-v79.js
+          grep -Fq "settings_salary_v79" planning-model-v79.js
+          grep -Fq "shortage-bonusTotal" planning-model-v79.js
+          grep -Fq "次の給与まで最低" planning-ui-v79.js
+          grep -Fq "2か月最低" planning-ui-v79.js
+          grep -Fq "3か月最低" planning-ui-v79.js
+          grep -Fq "6か月最低" planning-ui-v79.js
+          grep -Fq "その場で内訳を見る" planning-ui-v79.js
+          grep -Fq "年払い・ボーナス使途" planning-ui-v79.js
+          grep -Fq "月別収支（年払い積立後）" planning-ui-v79.js
+          grep -Fq "grid.prepend(chart)" planning-ui-v79.js
+          grep -Fq "data-v79-annual-calc" planning-ui-v79.js
+          ! grep -Fq "MutationObserver" planning-model-v79.js
+          ! grep -Fq "MutationObserver" planning-ui-v79.js
+          ! grep -Fq "setInterval" planning-model-v79.js
+          ! grep -Fq "setInterval" planning-ui-v79.js
       - name: Setup Pages
         uses: actions/configure-pages@v5
       - name: Upload site

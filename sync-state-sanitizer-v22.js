@@ -117,7 +117,9 @@
   injectClassic('./card-cashflow-edit-v75.js?v=75', 'data-household-card-cashflow-edit-v75');
   if (window.matchMedia?.('(min-width:821px)').matches) injectClassic('./desktop-interaction-v69.js?v=69', 'data-household-desktop-interaction-v69');
   injectClassic('./tab-router-v71.js?v=71', 'data-household-tab-router-v71');
-  // v79 is a final planning layer: one model wrapper + one non-observer UI coordinator.
+  // v79 is the base planning layer; v80 separates annual UI and hardens recurring card baselines.
   injectClassic('./planning-model-v79.js?v=79', 'data-household-planning-model-v79');
   injectClassic('./planning-ui-v79.js?v=79', 'data-household-planning-ui-v79');
+  injectClassic('./planning-model-v80.js?v=80', 'data-household-planning-model-v80');
+  injectClassic('./planning-ui-v80.js?v=80', 'data-household-planning-ui-v80');
 })();

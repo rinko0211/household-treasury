@@ -1,4 +1,4 @@
-name: Check v82 Liquidity Flow
+name: Check v82 Import Review Cleanup
 
 on:
   push:
@@ -14,17 +14,13 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v6
-      - name: Check v82 syntax and loaders
+      - name: Check v82 import cleanup remains active
         shell: bash
         run: |
           set -euo pipefail
           node --check import-review-cleanup-v82.js
-          node --check liquidity-flow-v82.js
           grep -Fq "import-review-cleanup-v82.js?v=82" sync-state-sanitizer-v22.js
-          grep -Fq "liquidity-flow-v82.js?v=82" sync-state-sanitizer-v22.js
           grep -Fq "import-review-cleanup-v82.js?v=82" sw.js
-          grep -Fq "liquidity-flow-v82.js?v=82" sw.js
-          grep -Fq "household-treasury-v82-liquidity-flow" sw.js
       - name: Check confirmation-only cleanup
         shell: bash
         run: |
@@ -33,24 +29,9 @@ jobs:
           grep -Fq "dismissReview" import-review-cleanup-v82.js
           ! grep -Fq "semanticReviewRowsV48" import-review-cleanup-v82.js
           ! grep -Fq "data-v48-review-save" import-review-cleanup-v82.js
-      - name: Check securities to debt flow model
+      - name: Check retired repayment visualization stays retired
         shell: bash
         run: |
           set -euo pipefail
-          grep -Fq "cash_balance" liquidity-flow-v82.js
-          grep -Fq "transfer_group_id" liquidity-flow-v82.js
-          grep -Fq "DEBT_PRINCIPAL" liquidity-flow-v82.js
-          grep -Fq "revolvingBalance" liquidity-flow-v82.js
-          grep -Fq "householdDashboardBankV81" liquidity-flow-v82.js
-          grep -Fq "リボ返済 資金移動フロー" liquidity-flow-v82.js
-          grep -Fq "60 * 86400000" liquidity-flow-v82.js
-          grep -Fq "transfer.out ? latestDebtPrincipal" liquidity-flow-v82.js
-      - name: Check visualization does not create duplicate cashflow
-        shell: bash
-        run: |
-          set -euo pipefail
-          ! grep -Fq "events.push" liquidity-flow-v82.js
-          ! grep -Fq "cashTransactions.push" liquidity-flow-v82.js
-          ! grep -Fq "purchaseEvents.push" liquidity-flow-v82.js
-          ! grep -Fq "MutationObserver" liquidity-flow-v82.js
-          ! grep -Fq "setInterval" liquidity-flow-v82.js
+          ! grep -Fq "injectClassic('./liquidity-flow-v82.js?v=82'" sync-state-sanitizer-v22.js
+          ! grep -Fq '"./liquidity-flow-v82.js?v=82"' sw.js

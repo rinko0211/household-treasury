@@ -1,0 +1,55 @@
+name: Check v83 Account Transfer
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+      - name: Check v83 syntax and loaders
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check account-transfer-v83.js
+          grep -Fq "account-transfer-v83.js?v=83" sync-state-sanitizer-v22.js
+          grep -Fq "account-transfer-v83.js?v=83" sw.js
+          grep -Fq "household-treasury-v83-account-transfer" sw.js
+      - name: Check account balance tracking
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -Fq "cash_balance" account-transfer-v83.js
+          grep -Fq "balance_after" account-transfer-v83.js
+          grep -Fq "projectedAccounts" account-transfer-v83.js
+          grep -Fq "balanceAsOf" account-transfer-v83.js
+          grep -Fq "資産・口座残高" account-transfer-v83.js
+      - name: Check transfer event semantics
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -Fq "accountTransfersV83" account-transfer-v83.js
+          grep -Fq "from_account_id" account-transfer-v83.js
+          grep -Fq "to_account_id" account-transfer-v83.js
+          grep -Fq "ACCOUNT_TRANSFER" account-transfer-v83.js
+          grep -Fq "liquid(from)===liquid(to)" account-transfer-v83.js
+          grep -Fq "return liquid(to)?n:-n" account-transfer-v83.js
+          grep -Fq "projectedBalance-=amount" account-transfer-v83.js
+          grep -Fq "projectedBalance+=amount" account-transfer-v83.js
+      - name: Check UI ownership and no polling
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -Fq "mobileAddTransferV83" account-transfer-v83.js
+          grep -Fq "desktopAddTransferV83" account-transfer-v83.js
+          grep -Fq "option[value=\"TRANSFER\"]" account-transfer-v83.js
+          ! grep -Fq "MutationObserver" account-transfer-v83.js
+          ! grep -Fq "setInterval" account-transfer-v83.js
+          ! grep -Fq "liquidity-flow-v82.js?v=82" sync-state-sanitizer-v22.js

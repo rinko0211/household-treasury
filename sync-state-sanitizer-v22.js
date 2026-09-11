@@ -68,6 +68,7 @@
   injectClassic('./card-settings-unified-v77.js?v=77', 'data-household-card-settings-unified-v77');
   injectClassic('./import-engine-v28.js?v=28', 'data-household-import-v28');
   injectClassic('./csv-parser-v73.js?v=73', 'data-household-csv-parser-v73');
+  injectClassic('./asset-snapshot-v85.js?v=85', 'data-household-asset-snapshot-v85');
   injectClassic('./date-normalizer-v75.js?v=75', 'data-household-date-normalizer-v75');
   injectClassic('./mobile-import-v73.js?v=73', 'data-household-mobile-import-v73');
   injectClassic('./mufg-import-integrity-v65.js?v=65', 'data-household-mufg-import-v65');

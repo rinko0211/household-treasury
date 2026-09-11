@@ -31,8 +31,11 @@
 
   function recentBrokerTransfer(st) {
     const rows = st.cashTransactions || [];
-    const brokerOut = rows.filter(t => (norm(t.source).includes('RAKUTEN') || norm(t.source).includes('楽天証券')) && t.is_transfer && Number(t.amount) < 0)
-      .sort((a, b) => String(b.date || '').localeCompare(String(a.date || '')))[0] || null;
+    const cutoff = Date.now() - 60 * 86400000;
+    const brokerOut = rows.filter(t => {
+      const dt = Date.parse(t.date || '');
+      return (norm(t.source).includes('RAKUTEN') || norm(t.source).includes('楽天証券')) && t.is_transfer && Number(t.amount) < 0 && Number.isFinite(dt) && dt >= cutoff;
+    }).sort((a, b) => String(b.date || '').localeCompare(String(a.date || '')))[0] || null;
     if (!brokerOut) return { out:null, bankIn:null };
     let bankIn = rows.find(t => t !== brokerOut && Number(t.amount) > 0 && t.is_transfer && brokerOut.transfer_group_id && t.transfer_group_id === brokerOut.transfer_group_id) || null;
     if (!bankIn && brokerOut.linked_event_id) bankIn = rows.find(t => String(t.id) === String(brokerOut.linked_event_id)) || null;
@@ -54,7 +57,7 @@
   function latestDebtPrincipal(st, afterDate) {
     return (st.cashTransactions || []).filter(t => {
       if (Number(t.amount) >= 0) return false;
-      if (afterDate && String(t.date || '') < String(afterDate)) return false;
+      if (!afterDate || String(t.date || '') < String(afterDate)) return false;
       return String(t.economic_type || '') === 'DEBT_PRINCIPAL' || String(t.cashflow_type || '') === 'DEBT_PRINCIPAL';
     }).sort((a, b) => String(b.date || '').localeCompare(String(a.date || '')))[0] || null;
   }
@@ -78,7 +81,7 @@
     const allocation = rev.balance !== null ? Math.min(sourceAmount, rev.balance) : sourceAmount;
     const shortage = rev.balance !== null ? Math.max(0, rev.balance - sourceAmount) : null;
     const remainder = rev.balance !== null ? Math.max(0, sourceAmount - rev.balance) : null;
-    const debtPayment = latestDebtPrincipal(st, transfer.bankIn?.date || transfer.out?.date || '');
+    const debtPayment = transfer.out ? latestDebtPrincipal(st, transfer.bankIn?.date || transfer.out.date) : null;
     return { st, snap, brokerCash, rev, transfer, transferAmount, sourceAmount, allocation, shortage, remainder, debtPayment, bank:bankTotal() };
   }
 

@@ -135,4 +135,6 @@
   injectClassic('./account-transfer-v83.js?v=83', 'data-household-account-transfer-v83');
   // v84 adds direct edit/cancel actions to generated transfer events without adding another row renderer.
   injectClassic('./account-transfer-actions-v84.js?v=84', 'data-household-account-transfer-actions-v84');
+  // v87 is the final revolving forecast cap: known balance reaches zero => no further monthly payment rows.
+  injectClassic('./revolving-payoff-cap-v87.js?v=87', 'data-household-revolving-payoff-cap-v87');
 })();

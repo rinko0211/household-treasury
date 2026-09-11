@@ -122,4 +122,8 @@
   injectClassic('./planning-ui-v79.js?v=79', 'data-household-planning-ui-v79');
   injectClassic('./planning-model-v80.js?v=80', 'data-household-planning-model-v80');
   injectClassic('./planning-ui-v80.js?v=80', 'data-household-planning-ui-v80');
+  // v81 is the final card-cycle authority and restores bank balances to the planning dashboard.
+  injectClassic('./card-cycle-v81.js?v=81', 'data-household-card-cycle-v81');
+  injectClassic('./card-cycle-ui-v81.js?v=81', 'data-household-card-cycle-ui-v81');
+  injectClassic('./dashboard-bank-v81.js?v=81', 'data-household-dashboard-bank-v81');
 })();

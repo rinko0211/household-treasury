@@ -77,12 +77,13 @@
     const rev = revolvingInfo(st);
     const transfer = recentBrokerTransfer(st);
     const transferAmount = transfer.out ? Math.abs(Number(transfer.out.amount) || 0) : 0;
-    const sourceAmount = brokerCash !== null && brokerCash > 0 ? brokerCash : transferAmount;
+    const transferSupersedesSnapshot = !!(transfer.out && (!snap?.snapshot_date || String(transfer.out.date || '') >= String(snap.snapshot_date || '')));
+    const sourceAmount = transferSupersedesSnapshot ? transferAmount : (brokerCash !== null && brokerCash > 0 ? brokerCash : transferAmount);
     const allocation = rev.balance !== null ? Math.min(sourceAmount, rev.balance) : sourceAmount;
     const shortage = rev.balance !== null ? Math.max(0, rev.balance - sourceAmount) : null;
     const remainder = rev.balance !== null ? Math.max(0, sourceAmount - rev.balance) : null;
     const debtPayment = transfer.out ? latestDebtPrincipal(st, transfer.bankIn?.date || transfer.out.date) : null;
-    return { st, snap, brokerCash, rev, transfer, transferAmount, sourceAmount, allocation, shortage, remainder, debtPayment, bank:bankTotal() };
+    return { st, snap, brokerCash, rev, transfer, transferAmount, transferSupersedesSnapshot, sourceAmount, allocation, shortage, remainder, debtPayment, bank:bankTotal() };
   }
 
   function ensureStyle() {
@@ -126,19 +127,20 @@
     const card = ensure();
     if (!card) return;
     const m = model();
-    const stage1Status = m.brokerCash !== null && m.brokerCash > 0 ? '現金化済み・預り金あり' : m.transfer.out ? '証券口座から出金済み' : '預り金データ待ち';
+    const stage1Status = m.transferSupersedesSnapshot ? `証券口座から出金済み ${m.transfer.out?.date || ''}` : m.brokerCash !== null && m.brokerCash > 0 ? '現金化済み・預り金あり' : m.transfer.out ? '証券口座から出金済み' : '預り金データ待ち';
     const stage2Status = m.transfer.bankIn ? `銀行入金確認 ${m.transfer.bankIn.date || ''}` : m.transfer.out ? '出金処理中 / 銀行入金待ち' : 'これから銀行へ移動';
     const stage3Status = m.rev.balance === 0 ? 'リボ残高 0' : m.debtPayment ? `返済実績確認 ${m.debtPayment.date || ''}` : '返済予定';
+    const stage1Amount = m.transferSupersedesSnapshot ? (m.transferAmount || null) : m.brokerCash;
     const stage2Amount = m.transfer.bankIn ? Math.abs(Number(m.transfer.bankIn.amount) || 0) : (m.transferAmount || m.allocation || null);
     const stage3Amount = m.debtPayment ? Math.abs(Number(m.debtPayment.amount) || 0) : (m.allocation || null);
     const names = m.rev.names.length ? m.rev.names.join(' / ') : 'リボカード';
-    const snapshotNote = m.snap ? `楽天証券残高基準 ${m.snap.snapshot_date || '—'}` : '楽天証券の資産残高CSVを取り込むと預り金を自動表示します。';
+    const snapshotNote = m.transferSupersedesSnapshot && m.snap ? `楽天証券の残高スナップショット（${m.snap.snapshot_date || '—'}）より新しい出金実績を優先表示しています。` : m.snap ? `楽天証券残高基準 ${m.snap.snapshot_date || '—'}` : '楽天証券の資産残高CSVを取り込むと預り金を自動表示します。';
     const balanceText = m.rev.balance === null ? '未登録' : yen(m.rev.balance);
     const gapText = m.shortage === null ? '—' : m.shortage > 0 ? `不足 ${yen(m.shortage)}` : `余り ${yen(m.remainder || 0)}`;
 
     card.innerHTML = `<div style="display:flex;justify-content:space-between;gap:8px;align-items:flex-start;flex-wrap:wrap"><div><div class="title" style="margin-bottom:3px">リボ返済 資金移動フロー <span class="tag">v82</span></div><div class="tiny">投資売却後の現金を「証券預り金 → 銀行 → リボ返済」として追跡します。これは表示専用で、資金移動を新しい支出として二重計上しません。</div></div></div>
       <div class="v82-flow">
-        ${stage('楽天証券','預り金',m.brokerCash,stage1Status,!!(m.brokerCash > 0 || m.transfer.out))}
+        ${stage('楽天証券','預り金 / 出金',stage1Amount,stage1Status,!!(m.brokerCash > 0 || m.transfer.out))}
         <div class="v82-arrow">→</div>
         ${stage('銀行へ移動','振替予定 / 実績',stage2Amount,stage2Status,!!m.transfer.bankIn)}
         <div class="v82-arrow">→</div>

@@ -127,6 +127,8 @@
   injectClassic('./card-cycle-v81.js?v=81', 'data-household-card-cycle-v81');
   injectClassic('./card-cycle-ui-v81.js?v=81', 'data-household-card-cycle-ui-v81');
   injectClassic('./dashboard-bank-v81.js?v=81', 'data-household-dashboard-bank-v81');
+  // v86 augments the existing v75 editor: it does not add another cash-flow renderer.
+  injectClassic('./card-event-consistency-v86.js?v=86', 'data-household-card-event-consistency-v86');
   // v82 keeps only the import-review cleanup. Its one-off repayment flow UI is retired by the generic v83 account-transfer model.
   injectClassic('./import-review-cleanup-v82.js?v=82', 'data-household-import-review-cleanup-v82');
   // v83 owns account-level balances and future internal transfers.

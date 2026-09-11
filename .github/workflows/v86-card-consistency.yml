@@ -1,0 +1,50 @@
+name: Check v86 Card Consistency
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+      - name: Check syntax and loaders
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check card-event-consistency-v86.js
+          grep -Fq "card-event-consistency-v86.js?v=86" sync-state-sanitizer-v22.js
+          grep -Fq "card-event-consistency-v86.js?v=86" sw.js
+          grep -Fq "household-treasury-v86-card-consistency" sw.js
+      - name: Check live total behavior
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -Fq "purchaseTotalFromDom" card-event-consistency-v86.js
+          grep -Fq "Math.max(usage,baseline)" card-event-consistency-v86.js
+          grep -Fq "amount.value=String(Math.round(computed))" card-event-consistency-v86.js
+          grep -Fq "data-v75-pamount" card-event-consistency-v86.js
+          grep -Fq "明細＋固定費から支払額を自動反映" card-event-consistency-v86.js
+      - name: Check revolving separation
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -Fq "現在リボ残高" card-event-consistency-v86.js
+          grep -Fq "今月利用合計" card-event-consistency-v86.js
+          grep -Fq "今月返済額" card-event-consistency-v86.js
+          grep -Fq "返済後残高の単純試算" card-event-consistency-v86.js
+          grep -Fq "手数料・利息は含めない" card-event-consistency-v86.js
+      - name: Preserve existing editor authority
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f card-cashflow-edit-v75.js
+          grep -Fq "data-v75-save" card-cashflow-edit-v75.js
+          grep -Fq "cardCashflowOverrides" card-cashflow-edit-v75.js
+          if grep -Eq "MutationObserver|setInterval" card-event-consistency-v86.js; then exit 1; fi

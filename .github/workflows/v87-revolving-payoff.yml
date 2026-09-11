@@ -1,0 +1,43 @@
+name: Check v87 Revolving Payoff Cap
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check syntax and loaders
+        run: |
+          node --check revolving-payoff-cap-v87.js
+          grep -q "revolving-payoff-cap-v87.js?v=87" sync-state-sanitizer-v22.js
+          grep -q "revolving-payoff-cap-v87.js?v=87" sw.js
+          grep -q 'household-treasury-v87-revolving-payoff-cap' sw.js
+      - name: Check payoff cap behavior
+        run: |
+          node <<'NODE'
+          global.window = global;
+          let balance = 210000;
+          global.getTreasuryStateRaw = () => ({masters:{cards:[{id:'c1',name:'Test Card',active:true,paymentMode:'REVOLVING',revolvingBalance:balance}]}});
+          const rows = Array.from({length:8}, (_,i)=>({id:`r${i}`,date:`2026-${String(10+i).padStart(2,'0')}-10`,name:'Test Card リボ返済',card:'Test Card',type:'CARD_REVOLVING_PAYMENT',source:'card_revolving_v66',amount:-50000}));
+          global.householdCardForecastV49 = () => ({rows: structuredClone(rows), warnings:[]});
+          global.generated = () => structuredClone(rows);
+          require('./revolving-payoff-cap-v87.js');
+          let out = global.householdCardForecastV49(180).rows;
+          const amounts = out.map(r=>Math.abs(r.amount));
+          if (JSON.stringify(amounts)!==JSON.stringify([50000,50000,50000,50000,10000])) throw new Error(`bad amounts ${JSON.stringify(amounts)}`);
+          if (out.at(-1).revolving_balance_after!==0 || !out.at(-1).revolving_payoff_complete_v87) throw new Error('final payoff metadata missing');
+          balance = 0;
+          out = global.householdRevolvingPayoffCapV87.capRows(rows);
+          if (out.length!==0) throw new Error('zero balance must produce no revolving forecast rows');
+          balance = null;
+          out = global.householdRevolvingPayoffCapV87.capRows(rows);
+          if (out.length!==rows.length) throw new Error('unknown balance must preserve legacy forecast');
+          NODE
+      - name: Check no polling or observer added
+        run: |
+          ! grep -q "MutationObserver" revolving-payoff-cap-v87.js
+          ! grep -q "setInterval" revolving-payoff-cap-v87.js

@@ -1,0 +1,62 @@
+name: Check v81 Card Cycle Bank Dashboard
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+      - name: Check v81 syntax and loaders
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check card-cycle-v81.js
+          node --check card-cycle-ui-v81.js
+          node --check dashboard-bank-v81.js
+          grep -Fq "card-cycle-v81.js?v=81" sync-state-sanitizer-v22.js
+          grep -Fq "card-cycle-ui-v81.js?v=81" sync-state-sanitizer-v22.js
+          grep -Fq "dashboard-bank-v81.js?v=81" sync-state-sanitizer-v22.js
+          grep -Fq "household-treasury-v81-card-cycle-bank-dashboard" sw.js
+          grep -Fq "card-cycle-v81.js?v=81" sw.js
+          grep -Fq "dashboard-bank-v81.js?v=81" sw.js
+      - name: Check JAL closing cycle semantics
+        shell: bash
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const c=require('./card-cycle-v81.js');
+          if(c.canonicalCard('JALカード')!=='JAL') throw new Error('JAL identity failed');
+          if(c.canonicalCard('Dカード')!=='D_CARD') throw new Error('D card identity failed');
+          if(c.sameCard('JALカード','Dカード')) throw new Error('JAL and D card must differ');
+          const ym=c.billingMonthForDate('2026-12-30',15,1);
+          if(ym!=='2027-02') throw new Error(`12/30 JAL billing month expected 2027-02, got ${ym}`);
+          if(c.dateFor(ym,10)!=='2027-02-10') throw new Error('12/30 JAL payment date must be 2027-02-10');
+          if(c.billingMonthForDate('2026-12-15',15,1)!=='2027-01') throw new Error('12/15 must close in December and pay in January');
+          if(c.billingMonthForDate('2026-12-16',15,1)!=='2027-02') throw new Error('12/16 must close in January and pay in February');
+          NODE
+      - name: Check annual payment-card repair
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -Fq "ふるさと納税|FURUSATO" card-cycle-v81.js
+          grep -Fq "AMBIG_MUFG_DC_JAL" card-cycle-v81.js
+          grep -Fq "paymentCard=jal[0].name" card-cycle-v81.js
+          grep -Fq "data-v81-card-route-note" card-cycle-ui-v81.js
+          grep -Fq "請求先:" card-cycle-ui-v81.js
+      - name: Check dashboard bank balance restoration
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -Fq "銀行口座残高" dashboard-bank-v81.js
+          grep -Fq "楽天銀行" dashboard-bank-v81.js
+          grep -Fq "ゆうちょ" dashboard-bank-v81.js
+          grep -Fq "口座明細の最新合計" dashboard-bank-v81.js
+          grep -Fq "Cash Flow開始残高" dashboard-bank-v81.js

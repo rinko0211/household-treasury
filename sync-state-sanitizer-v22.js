@@ -126,4 +126,7 @@
   injectClassic('./card-cycle-v81.js?v=81', 'data-household-card-cycle-v81');
   injectClassic('./card-cycle-ui-v81.js?v=81', 'data-household-card-cycle-ui-v81');
   injectClassic('./dashboard-bank-v81.js?v=81', 'data-household-dashboard-bank-v81');
+  // v82 removes the legacy confirmation-only import rows and visualizes securities cash -> bank -> revolving repayment.
+  injectClassic('./import-review-cleanup-v82.js?v=82', 'data-household-import-review-cleanup-v82');
+  injectClassic('./liquidity-flow-v82.js?v=82', 'data-household-liquidity-flow-v82');
 })();

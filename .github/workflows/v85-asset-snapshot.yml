@@ -1,0 +1,42 @@
+name: Check v85 Asset Snapshot
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+      - name: Check v85 syntax and loaders
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check asset-snapshot-v85.js
+          grep -Fq "asset-snapshot-v85.js?v=85" sync-state-sanitizer-v22.js
+          grep -Fq "asset-snapshot-v85.js?v=85" sw.js
+          grep -Fq "household-treasury-v85-asset-snapshot" sw.js
+      - name: Check exact Rakuten Securities fields
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -Fq "exactValue(rows, '資産合計')" asset-snapshot-v85.js
+          grep -Fq "exactValue(rows, '保有商品の評価額合計')" asset-snapshot-v85.js
+          grep -Fq "exactValue(rows, '預り金合計')" asset-snapshot-v85.js
+          grep -Fq "exactValue(rows, '預り金')" asset-snapshot-v85.js
+          grep -Fq "exactValue(rows, '外貨預り金')" asset-snapshot-v85.js
+          grep -Fq "cash_balance: cash" asset-snapshot-v85.js
+      - name: Check same-file reimport repair
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -Fq "state.imports = imports.filter(x => x.sha256 !== sha)" asset-snapshot-v85.js
+          grep -Fq "reprocessed: removed.length > 0" asset-snapshot-v85.js
+          grep -Fq "source_file" asset-snapshot-v85.js
+          grep -Fq "parser_version: 85" asset-snapshot-v85.js

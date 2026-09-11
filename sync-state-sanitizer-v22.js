@@ -130,4 +130,6 @@
   injectClassic('./import-review-cleanup-v82.js?v=82', 'data-household-import-review-cleanup-v82');
   // v83 owns account-level balances and future internal transfers.
   injectClassic('./account-transfer-v83.js?v=83', 'data-household-account-transfer-v83');
+  // v84 adds direct edit/cancel actions to generated transfer events without adding another row renderer.
+  injectClassic('./account-transfer-actions-v84.js?v=84', 'data-household-account-transfer-actions-v84');
 })();

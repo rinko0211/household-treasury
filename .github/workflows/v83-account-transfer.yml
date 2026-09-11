@@ -1,4 +1,4 @@
-name: Check v83 Account Transfer
+name: Check v84 Account Transfer Actions
 
 on:
   push:
@@ -14,14 +14,17 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v6
-      - name: Check v83 syntax and loaders
+      - name: Check v83-v84 syntax and loaders
         shell: bash
         run: |
           set -euo pipefail
           node --check account-transfer-v83.js
+          node --check account-transfer-actions-v84.js
           grep -Fq "account-transfer-v83.js?v=83" sync-state-sanitizer-v22.js
+          grep -Fq "account-transfer-actions-v84.js?v=84" sync-state-sanitizer-v22.js
           grep -Fq "account-transfer-v83.js?v=83" sw.js
-          grep -Fq "household-treasury-v83-account-transfer" sw.js
+          grep -Fq "account-transfer-actions-v84.js?v=84" sw.js
+          grep -Fq "household-treasury-v84-transfer-actions" sw.js
       - name: Check account balance tracking
         shell: bash
         run: |
@@ -43,7 +46,19 @@ jobs:
           grep -Fq "return liquid(to)?n:-n" account-transfer-v83.js
           grep -Fq "projectedBalance-=amount" account-transfer-v83.js
           grep -Fq "projectedBalance+=amount" account-transfer-v83.js
-      - name: Check UI ownership and no polling
+      - name: Check edit and cancel actions
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -Fq "data-v84-transfer-edit" account-transfer-actions-v84.js
+          grep -Fq "data-v84-transfer-cancel" account-transfer-actions-v84.js
+          grep -Fq "openTransfer" account-transfer-actions-v84.js
+          grep -Fq "t.active = false" account-transfer-actions-v84.js
+          grep -Fq "cancelledAt" account-transfer-actions-v84.js
+          grep -Fq "キャンセル済み・将来残高には反映しません" account-transfer-actions-v84.js
+          ! grep -Fq "MutationObserver" account-transfer-actions-v84.js
+          ! grep -Fq "setInterval" account-transfer-actions-v84.js
+      - name: Check UI ownership and retired liquidity flow
         shell: bash
         run: |
           set -euo pipefail

@@ -20,9 +20,9 @@ jobs:
           set -euo pipefail
           node --check planning-model-v80.js
           node --check planning-ui-v80.js
-          grep -Fq "planning-model-v80.js?v=80" sync-state-sanitizer-v22.js
+          grep -Fq "planning-model-v80.js?v=91" sync-state-sanitizer-v22.js
           grep -Fq "planning-ui-v80.js?v=80" sync-state-sanitizer-v22.js
-          grep -Fq "planning-model-v80.js?v=80" sw.js
+          grep -Fq "planning-model-v80.js?v=91" sw.js
           grep -Fq "planning-ui-v80.js?v=80" sw.js
           grep -Fq "household-treasury-v80-annual-baseline" sw.js
       - name: Check annual special separation
@@ -44,15 +44,16 @@ jobs:
           set -euo pipefail
           grep -Fq "meaningfulActual" planning-model-v80.js
           grep -Fq "BASELINE_FLOOR_V80" planning-model-v80.js
+          grep -Fq "D_CARD_STANDARD_EXACT_V91" planning-model-v80.js
           grep -Fq "baselinePreview" planning-model-v80.js
-          grep -Fq "Math.max(base,components)" planning-model-v80.js
+          grep -Fq "forecastAmountForCard" planning-model-v80.js
           ! grep -Fq "MutationObserver" planning-model-v80.js
           ! grep -Fq "setInterval" planning-model-v80.js
           node <<'NODE'
           const fs=require('fs'),vm=require('vm');
           const now=new Date(), ym=`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
           const state={masters:{cards:[{id:'c1',name:'TEST CARD',active:true,paymentMode:'FULL',forecastMode:'BASELINE',monthlyBaselineAmount:100000,settlementDay:15}]},cardSettlements:[{card:'TEST CARD',due_date:`${ym}-15`,amount:0}],cardCashflowOverrides:[]};
-          const ctx={console,structuredClone,Date,setTimeout,clearTimeout};ctx.window=ctx;ctx.getTreasuryStateRaw=()=>state;ctx.getTreasuryState=()=>state;ctx.householdCardIdentityV51={sameCard:(a,b)=>String(a)===String(b)};ctx.householdPlanningV79={baselineOf:c=>Number(c.monthlyBaselineAmount)||0,forecastMode:c=>c.forecastMode||'COMPONENTS',paymentMode:c=>c.paymentMode||'FULL'};ctx.householdCardForecastV49=()=>({rows:[],warnings:[]});ctx.generated=()=>[];vm.createContext(ctx);vm.runInContext(fs.readFileSync('planning-model-v80.js','utf8'),ctx);
+          const ctx={console,structuredClone,Date,setTimeout,clearTimeout};ctx.window=ctx;ctx.getTreasuryStateRaw=()=>state;ctx.getTreasuryState=()=>state;ctx.householdCardIdentityV51={sameCard:(a,b)=>String(a)===String(b)};ctx.householdPlanningV79={baselineOf:c=>Number(c.monthlyBaselineAmount)||0,forecastMode:c=>c.forecastMode||'COMPONENTS',paymentMode:c=>c.paymentMode||'FULL',forecastAmountForCard:(c,components)=>Math.max(Number(c.monthlyBaselineAmount)||0,Number(components)||0),canonicalCard:()=>''};ctx.householdCardForecastV49=()=>({rows:[],warnings:[]});ctx.generated=()=>[];vm.createContext(ctx);vm.runInContext(fs.readFileSync('planning-model-v80.js','utf8'),ctx);
           const preview=ctx.householdPlanningV80.baselinePreview(6);if(preview.length!==1)throw new Error('baseline card missing');if(preview[0].months.length!==6)throw new Error('six-month preview missing');if(preview[0].months.some(m=>m.amount!==100000))throw new Error('baseline not continuous');if(preview[0].months[0].source!=='BASELINE')throw new Error('zero placeholder incorrectly suppressed baseline');
           const rows=ctx.householdPlanningV80.stabilizeBaselineRows([],180);if(!rows.length)throw new Error('baseline rows not generated');if(rows.some(r=>Math.abs(r.amount)!==100000))throw new Error('unexpected baseline amount');
           console.log('v80 baseline semantic test PASS',rows.length);

@@ -1,0 +1,58 @@
+name: Check v90 Card Forecast Detail
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Check v90 syntax and loader
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check card-forecast-detail-v90.js
+          grep -Fq "card-forecast-detail-v90.js?v=90" sync-state-sanitizer-v22.js
+          grep -Fq "card-forecast-detail-v90.js?v=90" sw.js
+          grep -Fq 'household-treasury-v90-card-forecast-detail' sw.js
+          grep -Fq 'D_CARD_STANDARD_BASELINE_V90' card-forecast-detail-v90.js
+          grep -Fq 'cardBillingLines' card-forecast-detail-v90.js
+          grep -Fq 'reimbursementCardV35' card-forecast-detail-v90.js
+          grep -Fq '明細の編集を表示 / 非表示' card-forecast-detail-v90.js
+          ! grep -Fq 'MutationObserver' card-forecast-detail-v90.js
+          ! grep -Fq 'setInterval' card-forecast-detail-v90.js
+      - name: Check d-card standard amount overrides future component forecast
+        shell: bash
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const fs=require('fs'),vm=require('vm');
+          const state={masters:{cards:[{id:'d1',name:'dカード',active:true,paymentMode:'FULL',forecastMode:'BASELINE',monthlyBaselineAmount:70000}]},cardBillingLines:[],purchaseEvents:[]};
+          const document={getElementById:()=>null,querySelectorAll:()=>[],addEventListener:()=>{},body:{appendChild:()=>{}},createElement:()=>({})};
+          const window={
+            getTreasuryStateRaw:()=>state,
+            householdCardCycleV81:{canonicalCard:s=>String(s).includes('dカード')||String(s)==='D_CARD'?'D_CARD':'OTHER'},
+            householdCardIdentityV51:{sameCard:(a,b)=>a===b},
+            householdPlanningV79:{baselineOf:c=>Number(c.monthlyBaselineAmount)||0,forecastMode:c=>c.forecastMode||'COMPONENTS',paymentMode:c=>c.paymentMode||'FULL'},
+            householdCardForecastV49:()=>({rows:[
+              {type:'CARD_ESTIMATE',card:'dカード',billing_month:'2026-11',amount:-95000,known_purchase_total:60000,scheduled_fixed_total:35000},
+              {type:'CARD_ESTIMATE',card:'dカード',billing_month:'2026-12',amount:-110000,known_purchase_total:80000,scheduled_fixed_total:30000},
+              {type:'CARD_ESTIMATE',card:'dカード',billing_month:'2027-01',amount:-81000,card_cashflow_override:true}
+            ],warnings:[]}),
+            addEventListener:()=>{}
+          };
+          const sandbox={window,document,Intl,structuredClone,console,setTimeout:()=>0,clearTimeout:()=>{},alert:()=>{},generated:()=>[]};
+          vm.createContext(sandbox);
+          vm.runInContext(fs.readFileSync('card-forecast-detail-v90.js','utf8'),sandbox);
+          const rows=window.householdCardForecastV49(180).rows;
+          if(rows[0].amount!==-70000)throw new Error(`Nov expected -70000, got ${rows[0].amount}`);
+          if(rows[1].amount!==-70000)throw new Error(`Dec expected -70000, got ${rows[1].amount}`);
+          if(rows[0].forecast_method!=='D_CARD_STANDARD_BASELINE_V90')throw new Error('Nov v90 forecast method missing');
+          if(rows[2].amount!==-81000)throw new Error('manual month override must remain authoritative');
+          NODE

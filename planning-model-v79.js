@@ -9,6 +9,11 @@
   const paymentMode=c=>String(c?.paymentMode||c?.payment_mode||'FULL').toUpperCase()==='REVOLVING'?'REVOLVING':'FULL';
   const baselineOf=c=>{for(const v of [c?.monthlyBaselineAmount,c?.cardBaselineAmount,c?.forecastBaseline])if(v!==null&&v!==''&&Number.isFinite(Number(v)))return Math.max(0,Number(v));return 0};
   const forecastMode=c=>String(c?.forecastMode||c?.forecast_mode||(baselineOf(c)>0?'BASELINE':'COMPONENTS')).toUpperCase()==='BASELINE'?'BASELINE':'COMPONENTS';
+  const canonicalFallback=s=>{const raw=norm(s),n=raw.replace(/カード|CARD/g,'');if(!n)return'';if(/RAKUTEN|楽天/.test(raw))return'RAKUTEN';if(/JAL/.test(raw))return'JAL';if(n==='D'||/DOCOMO|DCMX/.test(raw))return'D_CARD';if(/MUFG|三菱UFJ|ミツビシUFJ/.test(raw))return'MUFG';if(n==='DC'||/^DC/.test(n))return'DC';return n};
+  const canonicalCard=s=>{try{return window.householdCardCycleV81?.canonicalCard?.(s)||canonicalFallback(s)}catch{return canonicalFallback(s)}};
+  // v91 policy owner: d-card "標準見込み額" is the forecast itself, not a floor.
+  // Other cards retain the legacy floor behavior unless their policy is changed explicitly later.
+  const forecastAmountForCard=(c,components=0)=>{const base=baselineOf(c),comp=Math.max(0,Number(components)||0);if(forecastMode(c)!=='BASELINE'||base<=0)return comp;return canonicalCard(c?.name)==='D_CARD'?base:Math.max(base,comp)};
   const addMonths=(ym,n)=>{const[y,m]=String(ym).split('-').map(Number),d=new Date(y,m-1+n,1);return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`};
   const lastDay=(y,m)=>new Date(y,m,0).getDate();
   const dateFor=(ym,day)=>{const[y,m]=String(ym).split('-').map(Number);return `${ym}-${String(Math.min(Math.max(1,Number(day)||1),lastDay(y,m))).padStart(2,'0')}`};
@@ -27,8 +32,8 @@
       if(r.card_cashflow_override)continue;
       const c=cardMaster(st,r.card);if(!c||paymentMode(c)!=='FULL'||forecastMode(c)!=='BASELINE')continue;
       const base=baselineOf(c);if(!base)continue;
-      const components=Math.max(0,Number(r.known_purchase_total)||0)+Math.max(0,Number(r.scheduled_fixed_total)||0),total=Math.max(base,components);
-      r.amount=-total;r.baseline_amount=base;r.forecast_method='BASELINE_FLOOR';r.baseline_floor_applied=total===base;
+      const components=Math.max(0,Number(r.known_purchase_total)||0)+Math.max(0,Number(r.scheduled_fixed_total)||0),total=forecastAmountForCard(c,components),exact=canonicalCard(c.name)==='D_CARD';
+      r.amount=-total;r.baseline_amount=base;r.forecast_method=exact?'D_CARD_STANDARD_EXACT_V91':'BASELINE_FLOOR';r.baseline_floor_applied=!exact&&total===base;r.baseline_exact_applied_v91=exact;
     }
     const horizon=Math.max(1,Number(days)||180),months=Math.max(1,Math.ceil(horizon/28)+1),start=from.slice(0,7),toD=new Date(`${from}T12:00:00`);toD.setDate(toD.getDate()+horizon);const to=iso(toD);
     for(const c of st.masters?.cards||[]){
@@ -37,8 +42,8 @@
       for(let i=0;i<months;i++){
         const ym=addMonths(start,i),key=`${norm(c.name)}|${ym}`;if(existing.has(key)||hasActual(st,c.name,ym))continue;
         const date=dateFor(ym,day);if(date<from||date>to)continue;
-        const o=manualOverride(st,c.name,ym),amount=o?Math.max(0,Number(o.amount)||0):base;
-        rows.push({id:`card-estimate:baseline:${norm(c.name)}:${ym}`,date:o?.date||date,name:`${c.name} 見込請求`,amount:-amount,type:'CARD_ESTIMATE',source:'card_estimate_v79',generated:true,record_kind:'FORECAST_EVENT',economic_type:'TRANSFER',estimated:true,card:c.name,billing_month:ym,known_purchase_total:0,scheduled_fixed_total:0,component_count:0,components:{purchases:[],scheduled:[]},baseline_amount:base,forecast_method:'BASELINE_FLOOR',baseline_floor_applied:!o,card_cashflow_override:!!o,card_cashflow_override_id:o?.id||null});
+        const o=manualOverride(st,c.name,ym),amount=o?Math.max(0,Number(o.amount)||0):base,exact=canonicalCard(c.name)==='D_CARD';
+        rows.push({id:`card-estimate:baseline:${norm(c.name)}:${ym}`,date:o?.date||date,name:`${c.name} 見込請求`,amount:-amount,type:'CARD_ESTIMATE',source:'card_estimate_v79',generated:true,record_kind:'FORECAST_EVENT',economic_type:'TRANSFER',estimated:true,card:c.name,billing_month:ym,known_purchase_total:0,scheduled_fixed_total:0,component_count:0,components:{purchases:[],scheduled:[]},baseline_amount:base,forecast_method:o?'MANUAL_OVERRIDE':exact?'D_CARD_STANDARD_EXACT_V91':'BASELINE_FLOOR',baseline_floor_applied:!o&&!exact,baseline_exact_applied_v91:!o&&exact,card_cashflow_override:!!o,card_cashflow_override_id:o?.id||null});
         existing.add(key);
       }
     }
@@ -72,5 +77,5 @@
   if(typeof prevPlan==='function'&&!window.__planningPlanV79){window.__planningPlanV79=true;window.householdCardForecastV49=function(days=180){const p=structuredClone(prevPlan(days)||{rows:[],warnings:[]});p.rows=enhanceCardRows(p.rows,days);return p}}
   if(typeof generated==='function'&&!window.__planningGeneratedV79){window.__planningGeneratedV79=true;const prevGenerated=generated;generated=function generatedPlanningV79(days=90){return ensureSalaryRows(enhanceCardRows(prevGenerated(days),days),days)}}
 
-  window.householdPlanningV79={baselineOf,forecastMode,paymentMode,enhanceCardRows,ensureSalaryRows,annualPlan,dueMonthOf,reservedOf,bonusList,sameCard};
+  window.householdPlanningV79={baselineOf,forecastMode,paymentMode,forecastAmountForCard,canonicalCard,enhanceCardRows,ensureSalaryRows,annualPlan,dueMonthOf,reservedOf,bonusList,sameCard};
 })();

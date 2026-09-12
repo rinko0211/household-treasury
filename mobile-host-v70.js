@@ -34,15 +34,17 @@
     card=document.createElement('div');
     card.id='mobileCashflowV60';
     card.className='card full';
-    card.innerHTML=`<div><div class="title" style="margin-bottom:3px">将来イベント <span class="tag">携帯 v70</span></div><div class="tiny">スマホCash Flowは単一の操作層で表示します。</div></div><div class="v60-horizons"><button class="btn secondary active" data-v60-h="30">30日</button><button class="btn secondary" data-v60-h="60">60日</button><button class="btn secondary" data-v60-h="90">90日</button><button class="btn secondary" data-v60-h="180">6か月</button></div><div id="mobileCashflowRowsV60"></div>`;
+    card.innerHTML=`<div><div class="title" style="margin-bottom:3px">将来イベント <span class="tag">携帯 v70</span></div><div class="tiny">スマホCash Flowは単一の操作層で表示します。標準見込みを確認しやすいよう初期表示は90日です。</div></div><div class="v60-horizons"><button class="btn secondary" data-v60-h="30">30日</button><button class="btn secondary" data-v60-h="60">60日</button><button class="btn secondary active" data-v60-h="90">90日</button><button class="btn secondary" data-v60-h="180">6か月</button></div><div id="mobileCashflowRowsV60"></div>`;
     grid.prepend(card);
+    const sel=$('forecastHorizon');
+    if(sel)sel.value='90';
     card.addEventListener('click',e=>{
       const b=e.target.closest?.('[data-v60-h]');
       if(!b)return;
       card.querySelectorAll('[data-v60-h]').forEach(x=>x.classList.toggle('active',x===b));
       const sel=$('forecastHorizon');
-      if(sel)sel.value=String(Number(b.dataset.v60H)||30);
-      // v68 remains the sole row renderer and handles the bubbled click.
+      if(sel)sel.value=String(Number(b.dataset.v60H)||90);
+      // v70 interaction layer reads the active horizon directly.
     });
     return card;
   }

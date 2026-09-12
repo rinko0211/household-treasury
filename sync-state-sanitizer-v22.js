@@ -139,4 +139,6 @@
   injectClassic('./revolving-payoff-cap-v87.js?v=87', 'data-household-revolving-payoff-cap-v87');
   // v88 autosaves closing/baseline fields before v81/v79 can redraw them and repairs d-card baseline defaults.
   injectClassic('./card-settings-stability-v88.js?v=88', 'data-household-card-settings-stability-v88');
+  // v90 makes d-card standard estimates authoritative for unconfirmed months and compacts/repairs card detail editing.
+  injectClassic('./card-forecast-detail-v90.js?v=90', 'data-household-card-forecast-detail-v90');
 })();

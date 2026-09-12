@@ -44,6 +44,7 @@
   const routeOf=m=>String(m?.paymentRoute||m?.payment_route||'DIRECT').toUpperCase();
   const baselineOf=c=>root.householdPlanningV79?.baselineOf?.(c)||0;
   const forecastMode=c=>root.householdPlanningV79?.forecastMode?.(c)||'COMPONENTS';
+  const forecastAmountForCard=(c,components)=>root.householdPlanningV79?.forecastAmountForCard?.(c,components)??Math.max(baselineOf(c),Math.max(0,Number(components)||0));
   const estimateKey=(card,ym)=>`ESTIMATE|${norm(card)}|${ym}`;
 
   function activeCards(st){return (st.masters?.cards||[]).filter(c=>c.active!==false)}
@@ -91,9 +92,9 @@
       if(useBaseline)for(let ym=range.from.slice(0,7);ym<=range.to.slice(0,7);ym=addMonths(ym,1))months.add(ym);
       for(const ym of [...months].sort()){
         const defaultDate=dateFor(ym,settleDay);if(defaultDate<range.from||defaultDate>range.to)continue;if(meaningfulActual(st,card.name,ym))continue;
-        const purchases=knownForCard(st,card,ym),known=purchases.reduce((a,p)=>a+purchaseAmount(p),0),sched=(scheduled.get(ym)||[]).filter(s=>!purchases.some(p=>linkedToMaster(p,s.master))),scheduledTotal=sched.reduce((a,s)=>a+s.amount,0),components=known+scheduledTotal,o=manualOverride(st,card.name,ym);
-        let amount=o?Math.max(0,Number(o.amount)||0):useBaseline?Math.max(base,components):components;if(amount<=0)continue;
-        rows.push({id:`card-estimate:v81:${norm(card.name)}:${ym}`,date:o?.date||defaultDate,name:`${card.name} 見込請求`,amount:-amount,type:'CARD_ESTIMATE',source:'card_estimate_v81',generated:true,record_kind:'FORECAST_EVENT',economic_type:'TRANSFER',estimated:true,card:card.name,billing_month:ym,known_purchase_total:known,scheduled_fixed_total:scheduledTotal,component_count:purchases.length+sched.length,components:{purchases:purchases.map(p=>({name:p.merchant_raw||'カード利用',amount:purchaseAmount(p)})),scheduled:sched.map(s=>({name:s.master.name||'予定',amount:s.amount,spend_date:s.spendDate,payment_date:s.payDate,master_id:s.master.id}))},baseline_amount:useBaseline?base:0,forecast_method:o?'MANUAL_OVERRIDE':useBaseline?'BASELINE_CYCLE_V81':'COMPONENTS_CYCLE_V81',baseline_floor_applied:useBaseline&&!o&&amount===base,card_cashflow_override:!!o,card_cashflow_override_id:o?.id||null,closing_day:closingDayValue(card),settlement_day:settleDay});
+        const purchases=knownForCard(st,card,ym),known=purchases.reduce((a,p)=>a+purchaseAmount(p),0),sched=(scheduled.get(ym)||[]).filter(s=>!purchases.some(p=>linkedToMaster(p,s.master))),scheduledTotal=sched.reduce((a,s)=>a+s.amount,0),components=known+scheduledTotal,o=manualOverride(st,card.name,ym),exactD=useBaseline&&canonicalCard(card.name)==='D_CARD';
+        let amount=o?Math.max(0,Number(o.amount)||0):useBaseline?forecastAmountForCard(card,components):components;if(amount<=0)continue;
+        rows.push({id:`card-estimate:v81:${norm(card.name)}:${ym}`,date:o?.date||defaultDate,name:`${card.name} 見込請求`,amount:-amount,type:'CARD_ESTIMATE',source:'card_estimate_v81',generated:true,record_kind:'FORECAST_EVENT',economic_type:'TRANSFER',estimated:true,card:card.name,billing_month:ym,known_purchase_total:known,scheduled_fixed_total:scheduledTotal,component_count:purchases.length+sched.length,components:{purchases:purchases.map(p=>({name:p.merchant_raw||'カード利用',amount:purchaseAmount(p)})),scheduled:sched.map(s=>({name:s.master.name||'予定',amount:s.amount,spend_date:s.spendDate,payment_date:s.payDate,master_id:s.master.id}))},baseline_amount:useBaseline?base:0,forecast_method:o?'MANUAL_OVERRIDE':exactD?'D_CARD_STANDARD_EXACT_V91':useBaseline?'BASELINE_CYCLE_V81':'COMPONENTS_CYCLE_V81',baseline_floor_applied:useBaseline&&!o&&!exactD&&amount===base,baseline_exact_applied_v91:exactD&&!o,card_cashflow_override:!!o,card_cashflow_override_id:o?.id||null,closing_day:closingDayValue(card),settlement_day:settleDay});
       }
     }
     rows.sort((a,b)=>String(a.date).localeCompare(String(b.date))||String(a.name).localeCompare(String(b.name),'ja'));return{rows,warnings};
@@ -119,7 +120,6 @@
   }
 
   const oldIdentity=root.householdCardIdentityV51||{};root.householdCardIdentityV51={...oldIdentity,canonicalCard,sameCard,resolveCardName:(s)=>resolveCardName(stateNow(),s)};
-  const prevGenerated=typeof root.generated==='function'?root.generated:(typeof generated==='function'?generated:null);
   if(typeof generated==='function'&&!root.__generatedCardCycleV81){root.__generatedCardCycleV81=true;const old=generated;generated=function generatedCardCycleV81(days=90){const base=(old(days)||[]).filter(r=>String(r.type||'')!=='CARD_ESTIMATE'),p=buildPlan(days);return [...base,...p.rows].sort((a,b)=>String(a.date||'').localeCompare(String(b.date||''))||String(a.name||'').localeCompare(String(b.name||''),'ja'))}}
   root.householdCardForecastV49=(days=180)=>buildPlan(days);
   if(root.householdPlanningV80)root.householdPlanningV80.baselinePreview=baselinePreview;

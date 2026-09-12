@@ -31,7 +31,15 @@ jobs:
           grep -Fq "amount.value=String(Math.round(computed))" card-event-consistency-v86.js
           grep -Fq "data-v75-pamount" card-event-consistency-v86.js
           grep -Fq "予測ルールから支払額を自動反映" card-event-consistency-v86.js
-          ! grep -Fq "Math.max(usage,baseline)" card-event-consistency-v86.js
+          grep -Fq "if(isDCard(c)&&baseline>0)return baseline" card-event-consistency-v86.js
+          grep -Fq "return Math.max(usage,baseline)" card-event-consistency-v86.js
+          node <<'NODE'
+          const fs=require('fs');
+          const s=fs.readFileSync('card-event-consistency-v86.js','utf8');
+          const d=s.indexOf('if(isDCard(c)&&baseline>0)return baseline');
+          const f=s.indexOf('return Math.max(usage,baseline)');
+          if(d<0||f<0||d>f)throw new Error('d-card exact fallback must precede generic baseline floor');
+          NODE
       - name: Check revolving separation
         shell: bash
         run: |

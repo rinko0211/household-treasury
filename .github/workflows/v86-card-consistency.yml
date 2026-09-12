@@ -19,18 +19,19 @@ jobs:
         run: |
           set -euo pipefail
           node --check card-event-consistency-v86.js
-          grep -Fq "card-event-consistency-v86.js?v=86" sync-state-sanitizer-v22.js
-          grep -Fq "card-event-consistency-v86.js?v=86" sw.js
+          grep -Fq "card-event-consistency-v86.js?v=91" sync-state-sanitizer-v22.js
+          grep -Fq "card-event-consistency-v86.js?v=91" sw.js
           grep -Fq "household-treasury-v86-card-consistency" sw.js
       - name: Check live total behavior
         shell: bash
         run: |
           set -euo pipefail
           grep -Fq "purchaseTotalFromDom" card-event-consistency-v86.js
-          grep -Fq "Math.max(usage,baseline)" card-event-consistency-v86.js
+          grep -Fq "forecastAmountForCard" card-event-consistency-v86.js
           grep -Fq "amount.value=String(Math.round(computed))" card-event-consistency-v86.js
           grep -Fq "data-v75-pamount" card-event-consistency-v86.js
-          grep -Fq "明細＋固定費から支払額を自動反映" card-event-consistency-v86.js
+          grep -Fq "予測ルールから支払額を自動反映" card-event-consistency-v86.js
+          ! grep -Fq "Math.max(usage,baseline)" card-event-consistency-v86.js
       - name: Check revolving separation
         shell: bash
         run: |
@@ -47,4 +48,5 @@ jobs:
           test -f card-cashflow-edit-v75.js
           grep -Fq "data-v75-save" card-cashflow-edit-v75.js
           grep -Fq "cardCashflowOverrides" card-cashflow-edit-v75.js
+          grep -Fq "v75PurchaseDetails" card-cashflow-edit-v75.js
           if grep -Eq "MutationObserver|setInterval" card-event-consistency-v86.js; then exit 1; fi

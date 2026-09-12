@@ -1,0 +1,47 @@
+name: Check v92 Card Forecast Authority
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+      - name: Syntax and runtime loading
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check card-forecast-authority-v92.js
+          grep -Fq "sync-state-sanitizer-v22.js?v=92" index.html
+          grep -Fq "card-forecast-authority-v92.js?v=92" sync-state-sanitizer-v22.js
+          grep -Fq "card-forecast-authority-v92.js?v=92" sw.js
+          grep -Fq 'household-treasury-v92-card-forecast-authority' sw.js
+      - name: Exact d-card standard policy
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -Fq "isDCard(c) && baselineOf(c) > 0 ? 'BASELINE'" card-forecast-authority-v92.js
+          grep -Fq "isDCard(c) && baselineOf(c) > 0 ? baselineOf(c)" card-forecast-authority-v92.js
+          grep -Fq "D_CARD_STANDARD_EXACT_V92" card-forecast-authority-v92.js
+          grep -Fq "標準見込み" card-forecast-authority-v92.js
+      - name: Priority and legacy normalization
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -Fq "meaningfulActual" card-forecast-authority-v92.js
+          grep -Fq "manualOverride" card-forecast-authority-v92.js
+          grep -Fq "isEstimateLike" card-forecast-authority-v92.js
+          grep -Fq "seen.has(ym)" card-forecast-authority-v92.js
+          grep -Fq "card_estimate_v92" card-forecast-authority-v92.js
+      - name: No competing observer loop
+        shell: bash
+        run: |
+          set -euo pipefail
+          if grep -Eq "MutationObserver|setInterval" card-forecast-authority-v92.js; then exit 1; fi

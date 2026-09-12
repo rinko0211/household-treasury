@@ -12,6 +12,8 @@
   const baselineOf=c=>window.householdPlanningV79?.baselineOf?.(c)||0;
   const forecastMode=c=>window.householdPlanningV79?.forecastMode?.(c)||'COMPONENTS';
   const paymentMode=c=>window.householdPlanningV79?.paymentMode?.(c)||'FULL';
+  const forecastAmountForCard=(c,components)=>window.householdPlanningV79?.forecastAmountForCard?.(c,components)??Math.max(baselineOf(c),Math.max(0,Number(components)||0));
+  const canonicalCard=s=>window.householdPlanningV79?.canonicalCard?.(s)||'';
   const cardMaster=(st,name)=>(st.masters?.cards||[]).find(c=>c.active!==false&&sameCard(c.name,name))||null;
   const estimateKey=(card,ym)=>`ESTIMATE|${norm(card)}|${ym}`;
   const manualOverride=(st,card,ym)=>(st.cardCashflowOverrides||[]).find(o=>String(o.key||'')===estimateKey(card,ym))||null;
@@ -38,21 +40,21 @@
       const key=`${norm(r.card)}|${String(r.billing_month||String(r.date||'').slice(0,7))}`;if(!byKey.has(key))byKey.set(key,r);
       const c=cardMaster(st,r.card);if(!c||paymentMode(c)!=='FULL'||forecastMode(c)!=='BASELINE')continue;
       const base=baselineOf(c);if(!base||r.card_cashflow_override)continue;
-      const components=Math.max(0,Number(r.known_purchase_total)||0)+Math.max(0,Number(r.scheduled_fixed_total)||0),total=Math.max(base,components);
-      r.amount=-total;r.baseline_amount=base;r.forecast_method='BASELINE_FLOOR_V80';r.baseline_floor_applied=total===base;
+      const components=Math.max(0,Number(r.known_purchase_total)||0)+Math.max(0,Number(r.scheduled_fixed_total)||0),total=forecastAmountForCard(c,components),exact=canonicalCard(c.name)==='D_CARD';
+      r.amount=-total;r.baseline_amount=base;r.forecast_method=exact?'D_CARD_STANDARD_EXACT_V91':'BASELINE_FLOOR_V80';r.baseline_floor_applied=!exact&&total===base;r.baseline_exact_applied_v91=exact;
     }
     for(const c of monthlyBaselineCards(st)){
       const day=settlementDay(st,c);if(!day)continue;
       for(const ym of range.months){
         const date=dateFor(ym,day);if(date<range.from||date>range.to)continue;
         if(meaningfulActual(st,c.name,ym))continue;
-        const key=`${norm(c.name)}|${ym}`,existing=byKey.get(key),o=manualOverride(st,c.name,ym),base=baselineOf(c);
+        const key=`${norm(c.name)}|${ym}`,existing=byKey.get(key),o=manualOverride(st,c.name,ym),base=baselineOf(c),exact=canonicalCard(c.name)==='D_CARD';
         if(existing){
-          if(o&&!existing.card_cashflow_override){existing.amount=-Math.max(0,Number(o.amount)||0);existing.date=o.date||existing.date;existing.card_cashflow_override=true;existing.card_cashflow_override_id=o.id||null}
+          if(o&&!existing.card_cashflow_override){existing.amount=-Math.max(0,Number(o.amount)||0);existing.date=o.date||existing.date;existing.card_cashflow_override=true;existing.card_cashflow_override_id=o.id||null;existing.forecast_method='MANUAL_OVERRIDE'}
           continue;
         }
         const amount=o?Math.max(0,Number(o.amount)||0):base;
-        const row={id:`card-estimate:baseline-v80:${norm(c.name)}:${ym}`,date:o?.date||date,name:`${c.name} 見込請求`,amount:-amount,type:'CARD_ESTIMATE',source:'card_estimate_v80',generated:true,record_kind:'FORECAST_EVENT',economic_type:'TRANSFER',estimated:true,card:c.name,billing_month:ym,known_purchase_total:0,scheduled_fixed_total:0,component_count:0,components:{purchases:[],scheduled:[]},baseline_amount:base,forecast_method:'BASELINE_FLOOR_V80',baseline_floor_applied:!o,card_cashflow_override:!!o,card_cashflow_override_id:o?.id||null};
+        const row={id:`card-estimate:baseline-v80:${norm(c.name)}:${ym}`,date:o?.date||date,name:`${c.name} 見込請求`,amount:-amount,type:'CARD_ESTIMATE',source:'card_estimate_v80',generated:true,record_kind:'FORECAST_EVENT',economic_type:'TRANSFER',estimated:true,card:c.name,billing_month:ym,known_purchase_total:0,scheduled_fixed_total:0,component_count:0,components:{purchases:[],scheduled:[]},baseline_amount:base,forecast_method:o?'MANUAL_OVERRIDE':exact?'D_CARD_STANDARD_EXACT_V91':'BASELINE_FLOOR_V80',baseline_floor_applied:!o&&!exact,baseline_exact_applied_v91:!o&&exact,card_cashflow_override:!!o,card_cashflow_override_id:o?.id||null};
         rows.push(row);byKey.set(key,row);
       }
     }

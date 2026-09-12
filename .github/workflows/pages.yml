@@ -103,7 +103,7 @@ jobs:
           set -euo pipefail
           grep -Fq "csv-parser-v73.js?v=73" sync-state-sanitizer-v22.js
           grep -Fq "mobile-import-v73.js?v=73" sync-state-sanitizer-v22.js
-          grep -Fq "card-import-corrections-v73.js?v=73" sync-state-sanitizer-v22.js
+          grep -Fq "card-import-corrections-v73.js?v=91" sync-state-sanitizer-v22.js
           grep -Fq "mobileCsvPickerV73" mobile-import-v73.js
           grep -Fq "htmlFor='csvInput'" mobile-import-v73.js
           grep -Fq "CSV_PAYMENT_HEADER" card-import-corrections-v73.js
@@ -111,7 +111,7 @@ jobs:
           grep -Fq "data-v73-settlement" card-import-corrections-v73.js
           grep -Fq "csv-parser-v73.js?v=73" sw.js
           grep -Fq "mobile-import-v73.js?v=73" sw.js
-          grep -Fq "card-import-corrections-v73.js?v=73" sw.js
+          grep -Fq "card-import-corrections-v73.js?v=91" sw.js
           node <<'NODE'
           const {parseCsvV73}=require('./csv-parser-v73.js');
           const rows=parseCsvV73('a,b,c\r\n1,"x,y",3\r\n2,"hello\r\nworld",4\r\n');
@@ -146,10 +146,10 @@ jobs:
           set -euo pipefail
           grep -Fq "date-normalizer-v75.js?v=75" sync-state-sanitizer-v22.js
           grep -Fq "mufg-card-semantics-v75.js?v=75" sync-state-sanitizer-v22.js
-          grep -Fq "card-cashflow-edit-v75.js?v=75" sync-state-sanitizer-v22.js
+          grep -Fq "card-cashflow-edit-v75.js?v=91" sync-state-sanitizer-v22.js
           grep -Fq "date-normalizer-v75.js?v=75" sw.js
           grep -Fq "mufg-card-semantics-v75.js?v=75" sw.js
-          grep -Fq "card-cashflow-edit-v75.js?v=75" sw.js
+          grep -Fq "card-cashflow-edit-v75.js?v=91" sw.js
           grep -Fq "payment_model='REVOLVING'" mufg-card-semantics-v75.js
           grep -Fq "p.category='CAR';p.subcategory='TOLL'" mufg-card-semantics-v75.js
           grep -Fq "cardCashflowOverrides" card-cashflow-edit-v75.js
@@ -183,9 +183,9 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          grep -Fq "planning-model-v79.js?v=79" sync-state-sanitizer-v22.js
+          grep -Fq "planning-model-v79.js?v=91" sync-state-sanitizer-v22.js
           grep -Fq "planning-ui-v79.js?v=79" sync-state-sanitizer-v22.js
-          grep -Fq "planning-model-v79.js?v=79" sw.js
+          grep -Fq "planning-model-v79.js?v=91" sw.js
           grep -Fq "planning-ui-v79.js?v=79" sw.js
           grep -Fq "household-treasury-v79-planning-stability" sw.js
           grep -Fq "BASELINE_FLOOR" planning-model-v79.js

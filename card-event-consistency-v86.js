@@ -39,7 +39,7 @@
   function baselineFor(c,m){
     if(m?.kind!=='ESTIMATE')return 0;
     if(String(c?.paymentMode||c?.payment_mode||'FULL').toUpperCase()==='REVOLVING')return 0;
-    if(String(c?.forecastMode||'').toUpperCase()!=='BASELINE')return 0;
+    if(String(c?.forecastMode||c?.forecast_mode||'').toUpperCase()!=='BASELINE')return 0;
     return Math.max(0,Number(c?.monthlyBaselineAmount)||0);
   }
   function revBalance(c){
@@ -60,7 +60,7 @@
       <div class="row"><span>未計上のカード固定費</span><b id="v86ScheduledTotal">—</b></div>
       <div class="row" id="v86BaselineRow"><span>月額標準額</span><b id="v86BaselineTotal">—</b></div>
       <div class="row"><span><b>現在の合計</b></span><b id="v86CurrentTotal">—</b></div>
-      <label id="v86AutoWrap" style="display:flex;align-items:center;gap:7px;margin-top:8px"><input type="checkbox" id="v86AutoTotal" checked> 明細＋固定費から支払額を自動反映</label>
+      <label id="v86AutoWrap" style="display:flex;align-items:center;gap:7px;margin-top:8px"><input type="checkbox" id="v86AutoTotal" checked> 予測ルールから支払額を自動反映</label>
       <div id="v86RevolvingBlock" hidden style="margin-top:9px;border-top:1px solid var(--border,#d8dee8);padding-top:8px">
         <div class="row"><span>現在リボ残高</span><b id="v86RevBalance">—</b></div>
         <div class="row"><span>今月利用合計</span><b id="v86RevUsage">—</b></div>
@@ -68,8 +68,10 @@
         <div class="row"><span>返済後残高の単純試算</span><b id="v86RevAfter">—</b></div>
         <div class="tiny warn">単純試算は「現在残高＋今月利用−返済額」。手数料・利息は含めないため、実残高の確定値にはしません。</div>
       </div>`;
+    const purchaseDetails=$('v75PurchaseDetails');
     const purchaseTitle=[...modal.querySelectorAll('.title')].find(x=>x.textContent.includes('利用明細'));
-    if(purchaseTitle) purchaseTitle.insertAdjacentElement('beforebegin',box);
+    if(purchaseDetails) purchaseDetails.insertAdjacentElement('beforebegin',box);
+    else if(purchaseTitle) purchaseTitle.insertAdjacentElement('beforebegin',box);
     else modal.querySelector('.card[style*="position:fixed"]')?.appendChild(box);
     box.querySelector('#v86AutoTotal')?.addEventListener('change',()=>refresh(true));
     modal.addEventListener('input',e=>{
@@ -92,7 +94,7 @@
     if(!meta)return;
     const st=stateNow(),c=cardMaster(st,meta.card),purchases=purchaseTotalFromDom(),scheduled=scheduledTotal(row),baseline=baselineFor(c,meta);
     const usage=purchases+scheduled;
-    const computed=meta.kind==='ESTIMATE'?Math.max(usage,baseline):usage;
+    const computed=meta.kind==='ESTIMATE'?(window.householdPlanningV79?.forecastAmountForCard?.(c,usage)??Math.max(usage,baseline)):usage;
     if($('v86PurchaseTotal'))$('v86PurchaseTotal').textContent=yen(purchases);
     if($('v86ScheduledTotal'))$('v86ScheduledTotal').textContent=yen(scheduled);
     if($('v86BaselineTotal'))$('v86BaselineTotal').textContent=baseline?yen(baseline):'—';

@@ -42,6 +42,16 @@
     if(String(c?.forecastMode||c?.forecast_mode||'').toUpperCase()!=='BASELINE')return 0;
     return Math.max(0,Number(c?.monthlyBaselineAmount)||0);
   }
+  function isDCard(c){
+    try { return window.householdPlanningV79?.canonicalCard?.(c?.name)==='D_CARD' || window.householdCardCycleV81?.canonicalCard?.(c?.name)==='D_CARD'; }
+    catch { const n=norm(c?.name).replace(/カード|CARD/g,''); return n==='D'||/DOCOMO|DCMX/.test(norm(c?.name)); }
+  }
+  function forecastTotal(c,usage,baseline){
+    const authoritative=window.householdPlanningV79?.forecastAmountForCard;
+    if(typeof authoritative==='function')return authoritative(c,usage);
+    if(isDCard(c)&&baseline>0)return baseline;
+    return Math.max(usage,baseline);
+  }
   function revBalance(c){
     const v=c?.revolvingBalance;
     return v!==null&&v!==''&&Number.isFinite(Number(v))?Math.max(0,Number(v)):null;
@@ -94,7 +104,7 @@
     if(!meta)return;
     const st=stateNow(),c=cardMaster(st,meta.card),purchases=purchaseTotalFromDom(),scheduled=scheduledTotal(row),baseline=baselineFor(c,meta);
     const usage=purchases+scheduled;
-    const computed=meta.kind==='ESTIMATE'?(window.householdPlanningV79?.forecastAmountForCard?.(c,usage)??Math.max(usage,baseline)):usage;
+    const computed=meta.kind==='ESTIMATE'?forecastTotal(c,usage,baseline):usage;
     if($('v86PurchaseTotal'))$('v86PurchaseTotal').textContent=yen(purchases);
     if($('v86ScheduledTotal'))$('v86ScheduledTotal').textContent=yen(scheduled);
     if($('v86BaselineTotal'))$('v86BaselineTotal').textContent=baseline?yen(baseline):'—';

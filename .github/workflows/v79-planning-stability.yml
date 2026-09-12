@@ -20,9 +20,9 @@ jobs:
           set -euo pipefail
           node --check planning-model-v79.js
           node --check planning-ui-v79.js
-          grep -Fq "planning-model-v79.js?v=79" sync-state-sanitizer-v22.js
+          grep -Fq "planning-model-v79.js?v=91" sync-state-sanitizer-v22.js
           grep -Fq "planning-ui-v79.js?v=79" sync-state-sanitizer-v22.js
-          grep -Fq "planning-model-v79.js?v=79" sw.js
+          grep -Fq "planning-model-v79.js?v=91" sw.js
           grep -Fq "planning-ui-v79.js?v=79" sw.js
           grep -Fq "household-treasury-v79-planning-stability" sw.js
       - name: Check stable single-path UI behavior
@@ -44,10 +44,22 @@ jobs:
           grep -Fq "ensureSalaryRows" planning-model-v79.js
           grep -Fq "settings_salary_v79" planning-model-v79.js
           grep -Fq "monthlyBaselineAmount" planning-model-v79.js
-          grep -Fq "BASELINE_FLOOR" planning-model-v79.js
-          grep -Fq "Math.max(base,components)" planning-model-v79.js
+          grep -Fq "forecastAmountForCard" planning-model-v79.js
+          grep -Fq "D_CARD_STANDARD_EXACT_V91" planning-model-v79.js
           grep -Fq "card_cashflow_override" planning-model-v79.js
-          grep -Fq "確定請求 ＞ この月だけ補正 ＞ 基準請求額 ＞ 固定費積上げ" planning-ui-v79.js
+          node <<'NODE'
+          const fs=require('fs'),vm=require('vm');
+          const state={masters:{cards:[]}};
+          const window={getTreasuryStateRaw:()=>state,getTreasuryState:()=>state};
+          const sandbox={window,structuredClone,console,setTimeout:()=>0,clearTimeout:()=>{},generated:()=>[]};
+          vm.createContext(sandbox);
+          vm.runInContext(fs.readFileSync('planning-model-v79.js','utf8'),sandbox);
+          const p=window.householdPlanningV79;
+          const d={name:'dカード',paymentMode:'FULL',forecastMode:'BASELINE',monthlyBaselineAmount:70000};
+          const r={name:'楽天カード',paymentMode:'FULL',forecastMode:'BASELINE',monthlyBaselineAmount:70000};
+          if(p.forecastAmountForCard(d,95000)!==70000)throw new Error('d-card standard amount must be exact');
+          if(p.forecastAmountForCard(r,95000)!==95000)throw new Error('non d-card floor behavior changed unexpectedly');
+          NODE
       - name: Check dashboard and annual transparency
         shell: bash
         run: |

@@ -1,0 +1,78 @@
+name: Check v88 Card Settings Stability
+
+on:
+  push:
+    paths:
+      - 'card-settings-stability-v88.js'
+      - 'sync-state-sanitizer-v22.js'
+      - 'sw.js'
+      - '.github/workflows/v88-card-settings-stability.yml'
+  workflow_dispatch:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check syntax and loaders
+        run: |
+          node --check card-settings-stability-v88.js
+          grep -q "card-settings-stability-v88.js?v=88" sync-state-sanitizer-v22.js
+          grep -q "card-settings-stability-v88.js?v=88" sw.js
+          grep -q "household-treasury-v88-card-settings-stability" sw.js
+
+      - name: Check autosave behavior is event based
+        run: |
+          grep -q "document.addEventListener('change'" card-settings-stability-v88.js
+          grep -q "data-v81-closing" card-settings-stability-v88.js
+          grep -q "data-v79-card-base-amount" card-settings-stability-v88.js
+          grep -q "標準見込み額を自動保存" card-settings-stability-v88.js
+          ! grep -q "MutationObserver" card-settings-stability-v88.js
+          ! grep -q "setInterval" card-settings-stability-v88.js
+          ! grep -q "setTimeout" card-settings-stability-v88.js
+
+      - name: Check d-card default and baseline migration
+        run: |
+          node <<'NODE'
+          const fs = require('fs');
+          const vm = require('vm');
+          let state = {
+            masters: {
+              cards: [{
+                id: 'd1',
+                name: 'dカード',
+                active: true,
+                paymentMode: 'FULL',
+                monthlyBaselineAmount: 70000,
+                forecastMode: 'COMPONENTS'
+              }]
+            }
+          };
+          let replacements = 0;
+          const document = {
+            addEventListener(){},
+            querySelectorAll(){ return []; },
+            querySelector(){ return null; }
+          };
+          const window = {
+            getTreasuryStateRaw: () => structuredClone(state),
+            replaceTreasuryState: n => { state = structuredClone(n); replacements++; },
+            setTreasurySaveStatus(){},
+            cloudSyncOnLocalSave(){},
+            treasuryRecoverySnapshot(){},
+            addEventListener(){},
+            householdCardCycleV81: {
+              canonicalCard(name){ return name === 'dカード' ? 'D_CARD' : name; }
+            }
+          };
+          const context = { window, document, CSS: { escape: String }, console, structuredClone, Date };
+          vm.createContext(context);
+          vm.runInContext(fs.readFileSync('card-settings-stability-v88.js','utf8'), context);
+          const c = state.masters.cards[0];
+          if (c.closingDay !== 15) throw new Error(`closingDay=${c.closingDay}`);
+          if (c.settlementDay !== 10) throw new Error(`settlementDay=${c.settlementDay}`);
+          if (c.forecastMode !== 'BASELINE') throw new Error(`forecastMode=${c.forecastMode}`);
+          if (replacements !== 1) throw new Error(`replacements=${replacements}`);
+          console.log('d-card migration PASS');
+          NODE

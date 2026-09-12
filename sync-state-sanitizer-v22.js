@@ -4,6 +4,7 @@
 
   // v70 phase 2: data/model compatibility remains, but legacy hidden UI boots are disabled.
   window.__householdConsolidatedUiV70 = true;
+  window.__householdRuntimeRelease = 'v91';
 
   const DERIVED_KEYS = new Set([
     'updatedAt',
@@ -100,7 +101,7 @@
   injectClassic('./settings-reactive-v53.js?v=53', 'data-household-settings-reactive-v53');
   injectClassic('./settings-list-integrity-v54.js?v=54', 'data-household-settings-list-integrity-v54');
   injectClassic('./rakuten-billing-v56.js?v=56', 'data-household-rakuten-billing-v56');
-  injectClassic('./card-import-corrections-v73.js?v=73', 'data-household-card-import-corrections-v73');
+  injectClassic('./card-import-corrections-v73.js?v=91', 'data-household-card-import-corrections-v73');
   injectClassic('./rakuten-enavi-v74.js?v=74', 'data-household-rakuten-enavi-v74');
   injectClassic('./integrity-hotfix-v57.js?v=57', 'data-household-integrity-hotfix-v57');
   injectClassic('./bonus-allocation-v58.js?v=58', 'data-household-bonus-allocation-v58');
@@ -115,20 +116,20 @@
   injectClassic('./bonus-modal-stability-v67.js?v=67', 'data-household-bonus-modal-v67');
   // v68 mobile owner retired in v70 phase 2. v70 remains the single mobile interaction owner; v78 only changes its row presentation.
   injectClassic('./mobile-interaction-v70.js?v=78', 'data-household-mobile-interaction-v70');
-  injectClassic('./card-cashflow-edit-v75.js?v=75', 'data-household-card-cashflow-edit-v75');
+  injectClassic('./card-cashflow-edit-v75.js?v=91', 'data-household-card-cashflow-edit-v75');
   if (window.matchMedia?.('(min-width:821px)').matches) injectClassic('./desktop-interaction-v69.js?v=69', 'data-household-desktop-interaction-v69');
   injectClassic('./tab-router-v71.js?v=71', 'data-household-tab-router-v71');
-  // v79 is the base planning layer; v80 separates annual UI and hardens recurring card baselines.
-  injectClassic('./planning-model-v79.js?v=79', 'data-household-planning-model-v79');
+  // v79/v80 own the baseline policy. v91 makes d-card standard amount exact rather than a component floor.
+  injectClassic('./planning-model-v79.js?v=91', 'data-household-planning-model-v79');
   injectClassic('./planning-ui-v79.js?v=79', 'data-household-planning-ui-v79');
-  injectClassic('./planning-model-v80.js?v=80', 'data-household-planning-model-v80');
+  injectClassic('./planning-model-v80.js?v=91', 'data-household-planning-model-v80');
   injectClassic('./planning-ui-v80.js?v=80', 'data-household-planning-ui-v80');
   // v81 is the final card-cycle authority and restores bank balances to the planning dashboard.
-  injectClassic('./card-cycle-v81.js?v=81', 'data-household-card-cycle-v81');
+  injectClassic('./card-cycle-v81.js?v=91', 'data-household-card-cycle-v81');
   injectClassic('./card-cycle-ui-v81.js?v=81', 'data-household-card-cycle-ui-v81');
   injectClassic('./dashboard-bank-v81.js?v=81', 'data-household-dashboard-bank-v81');
-  // v86 augments the existing v75 editor: it does not add another cash-flow renderer.
-  injectClassic('./card-event-consistency-v86.js?v=86', 'data-household-card-event-consistency-v86');
+  // v86 augments the existing v75 editor and follows the same v91 card forecast policy.
+  injectClassic('./card-event-consistency-v86.js?v=91', 'data-household-card-event-consistency-v86');
   // v82 keeps only the import-review cleanup. Its one-off repayment flow UI is retired by the generic v83 account-transfer model.
   injectClassic('./import-review-cleanup-v82.js?v=82', 'data-household-import-review-cleanup-v82');
   // v83 owns account-level balances and future internal transfers.
@@ -139,6 +140,5 @@
   injectClassic('./revolving-payoff-cap-v87.js?v=87', 'data-household-revolving-payoff-cap-v87');
   // v88 autosaves closing/baseline fields before v81/v79 can redraw them and repairs d-card baseline defaults.
   injectClassic('./card-settings-stability-v88.js?v=88', 'data-household-card-settings-stability-v88');
-  // v90 makes d-card standard estimates authoritative for unconfirmed months and compacts/repairs card detail editing.
-  injectClassic('./card-forecast-detail-v90.js?v=90', 'data-household-card-forecast-detail-v90');
+  // v90 overlay retired in v91: the source owners above now contain the behavior directly.
 })();

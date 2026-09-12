@@ -137,4 +137,6 @@
   injectClassic('./account-transfer-actions-v84.js?v=84', 'data-household-account-transfer-actions-v84');
   // v87 is the final revolving forecast cap: known balance reaches zero => no further monthly payment rows.
   injectClassic('./revolving-payoff-cap-v87.js?v=87', 'data-household-revolving-payoff-cap-v87');
+  // v88 autosaves closing/baseline fields before v81/v79 can redraw them and repairs d-card baseline defaults.
+  injectClassic('./card-settings-stability-v88.js?v=88', 'data-household-card-settings-stability-v88');
 })();

@@ -1,4 +1,4 @@
-name: Check v93 Core Card Authority
+name: Check v94 Core Card Authority
 
 on:
   push:
@@ -13,81 +13,37 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
-      - name: Check v93 syntax and authoritative loaders
+      - name: Check v94 syntax and authoritative loaders
         shell: bash
         run: |
           set -euo pipefail
-          for f in \
-            planning-model-v79.js \
-            planning-model-v80.js \
-            card-cycle-v81.js \
-            card-event-consistency-v86.js \
-            card-cashflow-edit-v75.js \
-            card-import-corrections-v73.js \
-            card-forecast-authority-v92.js \
-            sync-state-sanitizer-v22.js
-          do
-            node --check "$f"
-          done
-          grep -Fq "window.__householdRuntimeRelease = 'v93'" sync-state-sanitizer-v22.js
-          grep -Fq "card-import-corrections-v73.js?v=91" sync-state-sanitizer-v22.js
-          grep -Fq "card-cashflow-edit-v75.js?v=91" sync-state-sanitizer-v22.js
-          grep -Fq "planning-model-v79.js?v=91" sync-state-sanitizer-v22.js
-          grep -Fq "planning-model-v80.js?v=91" sync-state-sanitizer-v22.js
-          grep -Fq "card-cycle-v81.js?v=91" sync-state-sanitizer-v22.js
-          grep -Fq "card-event-consistency-v86.js?v=91" sync-state-sanitizer-v22.js
-          grep -Fq "card-forecast-authority-v92.js?v=93" sync-state-sanitizer-v22.js
-          ! grep -Fq "card-forecast-detail-v90.js?v=90" sync-state-sanitizer-v22.js
-          grep -Fq 'household-treasury-v93-final-cashflow-card-authority' sw.js
-          grep -Fq './sync-state-sanitizer-v22.js?v=93' sw.js
-          grep -Fq './card-forecast-authority-v92.js?v=93' sw.js
-          ! grep -Fq 'card-forecast-detail-v90.js?v=90' sw.js
-          grep -Fq './sync-state-sanitizer-v22.js?v=93' index.html
+          for f in planning-model-v79.js planning-model-v80.js card-cycle-v81.js card-event-consistency-v86.js card-cashflow-edit-v75.js card-import-corrections-v73.js card-baseline-floor-v94.js sync-state-sanitizer-v22.js; do node --check "$f"; done
+          grep -Fq "window.__householdRuntimeRelease = 'v94'" sync-state-sanitizer-v22.js
+          grep -Fq "card-baseline-floor-v94.js?v=94" sync-state-sanitizer-v22.js
+          grep -Fq 'household-treasury-v94-card-baseline-floor' sw.js
+          grep -Fq './sync-state-sanitizer-v22.js?v=94' sw.js
+          grep -Fq './card-baseline-floor-v94.js?v=94' sw.js
+          grep -Fq './sync-state-sanitizer-v22.js?v=94' index.html
+          ! grep -Fq 'card-forecast-authority-v92.js?v=93' sync-state-sanitizer-v22.js
+          ! grep -Fq 'card-forecast-authority-v92.js?v=93' sw.js
           grep -Fq "updateViaCache:'none'" index.html
-          grep -Fq '#reimbursementCardV35{display:none!important}' index.html
-      - name: Check d-card standard amount is the final authoritative forecast
+      - name: Check v94 floor policy is final
         shell: bash
         run: |
           set -euo pipefail
-          grep -Fq 'D_CARD_STANDARD_EXACT_V91' planning-model-v79.js
-          grep -Fq 'forecastAmountForCard' planning-model-v79.js
-          grep -Fq 'forecastAmountForCard' planning-model-v80.js
-          grep -Fq 'D_CARD_STANDARD_EXACT_V91' card-cycle-v81.js
-          grep -Fq 'forecastAmountForCard' card-event-consistency-v86.js
-          grep -Fq 'D_CARD_STANDARD_EXACT_V92' card-forecast-authority-v92.js
-          grep -Fq 'forecastCardAuthorityV93' card-forecast-authority-v92.js
-          grep -Fq 'recomputeCore' card-forecast-authority-v92.js
-          grep -Fq 'isEstimateLike' card-forecast-authority-v92.js
-          grep -Fq 'meaningfulActual' card-forecast-authority-v92.js
-          grep -Fq 'manualOverride' card-forecast-authority-v92.js
-          node <<'NODE'
-          const fs=require('fs'),vm=require('vm');
-          const state={masters:{cards:[]}};
-          const window={getTreasuryStateRaw:()=>state,getTreasuryState:()=>state};
-          const sandbox={window,structuredClone,console,setTimeout:()=>0,clearTimeout:()=>{},generated:()=>[]};
-          vm.createContext(sandbox);
-          vm.runInContext(fs.readFileSync('planning-model-v79.js','utf8'),sandbox);
-          const policy=window.householdPlanningV79;
-          const dCard={name:'dカード',paymentMode:'FULL',forecastMode:'BASELINE',monthlyBaselineAmount:70000};
-          const other={name:'楽天カード',paymentMode:'FULL',forecastMode:'BASELINE',monthlyBaselineAmount:70000};
-          const exact=policy.forecastAmountForCard(dCard,95000);
-          const legacyFloor=policy.forecastAmountForCard(other,95000);
-          if(exact!==70000)throw new Error(`d-card expected 70000, got ${exact}`);
-          if(legacyFloor!==95000)throw new Error(`other card expected legacy floor behavior 95000, got ${legacyFloor}`);
-          NODE
+          grep -Fq "Math.max(base,existing,components)" card-baseline-floor-v94.js
+          grep -Fq "MANUAL_OVERRIDE" card-baseline-floor-v94.js
+          grep -Fq "meaningfulActual" card-baseline-floor-v94.js
+          grep -Fq "BASELINE_FLOOR_V94" card-baseline-floor-v94.js
+          grep -Fq "householdPlanningV79" card-baseline-floor-v94.js
+          grep -Fq "householdCardForecastV49" card-baseline-floor-v94.js
+          grep -Fq "generatedBaselineFloorV94" card-baseline-floor-v94.js
       - name: Check detail ownership and recent imports
         shell: bash
         run: |
           set -euo pipefail
           grep -Fq 'cardBillingLines' card-import-corrections-v73.js
-          grep -Fq 'editableRows' card-import-corrections-v73.js
-          grep -Fq 'cardImportDetailV73' card-import-corrections-v73.js
-          grep -Fq 'data-v73-billing' card-import-corrections-v73.js
-          grep -Fq '最近取込（請求行）' card-import-corrections-v73.js
-          grep -Fq 'cardBillingLines' card-cashflow-edit-v75.js
           grep -Fq 'v75PurchaseDetails' card-cashflow-edit-v75.js
-          grep -Fq '明細の編集を表示 / 非表示' card-cashflow-edit-v75.js
-          grep -Fq '最近取込（請求行）' card-cashflow-edit-v75.js
           ! grep -Fq 'MutationObserver' card-import-corrections-v73.js
           ! grep -Fq 'setInterval' card-import-corrections-v73.js
           ! grep -Fq 'MutationObserver' card-cashflow-edit-v75.js

@@ -59,13 +59,20 @@ jobs:
               st.events=[];
               st.rules=[];
               window.replaceTreasuryState(st);
+              window.renderPlanningUiV79?.();
             });
 
             await page.click('[data-page="settings"]');
-            await page.waitForSelector('[data-v79-card-base-amount="e2e-d"]',{timeout:15000});
+            await page.waitForSelector('#unifiedCardsV77',{state:'attached',timeout:15000});
+            const unified=page.locator('#unifiedCardsV77');
+            if(!(await unified.evaluate(el=>el.open)))await page.click('#unifiedCardsV77 > summary');
+            await page.waitForSelector('#cardBaselineV79',{state:'attached',timeout:10000});
+            const baselinePanel=page.locator('#cardBaselineV79');
+            if(!(await baselinePanel.evaluate(el=>el.open)))await page.click('#cardBaselineV79 > summary');
+            await page.waitForSelector('[data-v79-card-base-amount="e2e-d"]',{state:'visible',timeout:10000});
             const baseline=page.locator('[data-v79-card-base-amount="e2e-d"]');
             await baseline.fill('50000');
-            await baseline.dispatchEvent('change');
+            await page.click('[data-v79-card-base-save="e2e-d"]');
             await page.waitForFunction(()=>{
               const st=(window.getTreasuryStateRaw||window.getTreasuryState)();
               const c=(st.masters?.cards||[]).find(x=>x.id==='e2e-d');
@@ -73,17 +80,17 @@ jobs:
             },{timeout:10000});
 
             await page.click('[data-page="cashflow"]');
-            await page.waitForTimeout(800);
+            await page.waitForTimeout(1000);
             const model=await page.evaluate(()=>{
               const rows=forecast(90).rows.filter(r=>r.type==='CARD_ESTIMATE'&&r.card==='Dカード');
-              return rows.map(r=>({ym:r.billing_month,amount:r.amount,name:r.name,method:r.forecast_method,balance:r.balance}));
+              return rows.map(r=>({ym:r.billing_month,amount:r.amount,name:r.name,method:r.forecast_method,balance:r.balance,known:r.known_purchase_total,scheduled:r.scheduled_fixed_total}));
             });
             const oct=model.find(r=>r.ym==='2026-10');
             const nov=model.find(r=>r.ym==='2026-11');
             const dec=model.find(r=>r.ym==='2026-12');
-            if(!oct||oct.amount!==-50000)throw new Error(`October floor failed: ${JSON.stringify(oct)}`);
-            if(!nov||nov.amount!==-200000)throw new Error(`November high amount failed: ${JSON.stringify(nov)}`);
-            if(!dec||dec.amount!==-50000)throw new Error(`December baseline failed: ${JSON.stringify(dec)}`);
+            if(!oct||oct.amount!==-50000)throw new Error(`October floor failed: ${JSON.stringify({oct,model})}`);
+            if(!nov||nov.amount!==-200000)throw new Error(`November high amount failed: ${JSON.stringify({nov,model})}`);
+            if(!dec||dec.amount!==-50000)throw new Error(`December baseline failed: ${JSON.stringify({dec,model})}`);
 
             await page.waitForSelector('#mobileCashflowRowsV60 .v60-row',{timeout:10000});
             const text=await page.locator('#mobileCashflowRowsV60').innerText();

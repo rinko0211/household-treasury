@@ -4,7 +4,7 @@
 
   // v70 phase 2: data/model compatibility remains, but legacy hidden UI boots are disabled.
   window.__householdConsolidatedUiV70 = true;
-  window.__householdRuntimeRelease = 'v92';
+  window.__householdRuntimeRelease = 'v93';
 
   const DERIVED_KEYS = new Set([
     'updatedAt',
@@ -140,7 +140,7 @@
   injectClassic('./revolving-payoff-cap-v87.js?v=87', 'data-household-revolving-payoff-cap-v87');
   // v88 autosaves closing/baseline fields before v81/v79 can redraw them and repairs d-card baseline defaults.
   injectClassic('./card-settings-stability-v88.js?v=88', 'data-household-card-settings-stability-v88');
-  // v92 is the last card forecast authority. It normalizes every d-card estimate, including legacy/generated rows, to the saved standard amount unless actual/month override exists.
-  injectClassic('./card-forecast-authority-v92.js?v=92', 'data-household-card-forecast-authority-v92');
+  // v93 keeps v92 card normalization but also owns the final forecast result, balance recomputation, and post-load Cash Flow refresh.
+  injectClassic('./card-forecast-authority-v92.js?v=93', 'data-household-card-forecast-authority-v92');
   // v90 overlay retired in v91: the source owners above now contain the behavior directly.
 })();

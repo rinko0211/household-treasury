@@ -1,4 +1,4 @@
-name: Check v92 Core Card Authority
+name: Check v93 Core Card Authority
 
 on:
   push:
@@ -13,7 +13,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
-      - name: Check v92 syntax and authoritative loaders
+      - name: Check v93 syntax and authoritative loaders
         shell: bash
         run: |
           set -euo pipefail
@@ -29,20 +29,20 @@ jobs:
           do
             node --check "$f"
           done
-          grep -Fq "window.__householdRuntimeRelease = 'v92'" sync-state-sanitizer-v22.js
+          grep -Fq "window.__householdRuntimeRelease = 'v93'" sync-state-sanitizer-v22.js
           grep -Fq "card-import-corrections-v73.js?v=91" sync-state-sanitizer-v22.js
           grep -Fq "card-cashflow-edit-v75.js?v=91" sync-state-sanitizer-v22.js
           grep -Fq "planning-model-v79.js?v=91" sync-state-sanitizer-v22.js
           grep -Fq "planning-model-v80.js?v=91" sync-state-sanitizer-v22.js
           grep -Fq "card-cycle-v81.js?v=91" sync-state-sanitizer-v22.js
           grep -Fq "card-event-consistency-v86.js?v=91" sync-state-sanitizer-v22.js
-          grep -Fq "card-forecast-authority-v92.js?v=92" sync-state-sanitizer-v22.js
+          grep -Fq "card-forecast-authority-v92.js?v=93" sync-state-sanitizer-v22.js
           ! grep -Fq "card-forecast-detail-v90.js?v=90" sync-state-sanitizer-v22.js
-          grep -Fq 'household-treasury-v92-card-forecast-authority' sw.js
-          grep -Fq './sync-state-sanitizer-v22.js?v=92' sw.js
-          grep -Fq './card-forecast-authority-v92.js?v=92' sw.js
+          grep -Fq 'household-treasury-v93-final-cashflow-card-authority' sw.js
+          grep -Fq './sync-state-sanitizer-v22.js?v=93' sw.js
+          grep -Fq './card-forecast-authority-v92.js?v=93' sw.js
           ! grep -Fq 'card-forecast-detail-v90.js?v=90' sw.js
-          grep -Fq './sync-state-sanitizer-v22.js?v=92' index.html
+          grep -Fq './sync-state-sanitizer-v22.js?v=93' index.html
           grep -Fq "updateViaCache:'none'" index.html
           grep -Fq '#reimbursementCardV35{display:none!important}' index.html
       - name: Check d-card standard amount is the final authoritative forecast
@@ -55,6 +55,8 @@ jobs:
           grep -Fq 'D_CARD_STANDARD_EXACT_V91' card-cycle-v81.js
           grep -Fq 'forecastAmountForCard' card-event-consistency-v86.js
           grep -Fq 'D_CARD_STANDARD_EXACT_V92' card-forecast-authority-v92.js
+          grep -Fq 'forecastCardAuthorityV93' card-forecast-authority-v92.js
+          grep -Fq 'recomputeCore' card-forecast-authority-v92.js
           grep -Fq 'isEstimateLike' card-forecast-authority-v92.js
           grep -Fq 'meaningfulActual' card-forecast-authority-v92.js
           grep -Fq 'manualOverride' card-forecast-authority-v92.js

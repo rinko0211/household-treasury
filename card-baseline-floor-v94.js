@@ -115,6 +115,16 @@
     try{window.renderPlanningUiV79?.();}catch{}
   }
 
+  function loadCycleDefaultsV96(){
+    if(typeof document==='undefined')return;
+    if(window.__cardCycleDefaultsV96||document.querySelector('script[data-household-card-cycle-defaults-v96]'))return;
+    const script=document.createElement('script');
+    script.src='./card-cycle-defaults-v96.js?v=96';
+    script.async=false;
+    script.setAttribute('data-household-card-cycle-defaults-v96','1');
+    document.head.appendChild(script);
+  }
+
   function loadCardMasterV95(){
     if(typeof document==='undefined')return;
     if(window.__cardMasterBaselineV95||document.querySelector('script[data-household-card-master-baseline-v95]'))return;
@@ -126,7 +136,8 @@
   }
 
   install();
+  loadCycleDefaultsV96();
   loadCardMasterV95();
-  setTimeout(()=>{install();refresh();loadCardMasterV95();},0);
-  setTimeout(()=>{install();refresh();loadCardMasterV95();},150);
+  setTimeout(()=>{install();refresh();loadCycleDefaultsV96();loadCardMasterV95();},0);
+  setTimeout(()=>{install();refresh();loadCycleDefaultsV96();loadCardMasterV95();},150);
 })();

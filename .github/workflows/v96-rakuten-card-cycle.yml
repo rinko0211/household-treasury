@@ -1,0 +1,99 @@
+name: Check v96 Rakuten Card Cycle
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Syntax and loader checks
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check card-cycle-defaults-v96.js
+          node --check card-baseline-floor-v94.js
+          node --check card-cycle-v81.js
+          grep -Fq "card-cycle-defaults-v96.js?v=96" card-baseline-floor-v94.js
+          grep -Fq "card-cycle-defaults-v96.js?v=96" sw.js
+          grep -Fq 'household-treasury-v96-rakuten-card-cycle' sw.js
+
+      - name: Verify Rakuten month-end close and next-month 27th payment
+        shell: bash
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const defaults=require('./card-cycle-defaults-v96.js');
+          const cycle=require('./card-cycle-v81.js');
+          const d=defaults.defaultCycleForName('楽天カード');
+          if(!d||d.closingDay!==31||d.settlementDay!==27)throw new Error(`defaults failed: ${JSON.stringify(d)}`);
+          const card={name:'楽天カード',...d};
+          const cases=[
+            ['2026-10-01','2026-11-27'],
+            ['2026-10-31','2026-11-27'],
+            ['2026-11-01','2026-12-27']
+          ];
+          for(const [spend,expected] of cases){
+            const actual=cycle.paymentDateForSpend(card,spend);
+            if(actual!==expected)throw new Error(`${spend} -> ${actual}, expected ${expected}`);
+          }
+          if(defaults.defaultCycleForName('JALカード')!==null)throw new Error('non-Rakuten card received Rakuten defaults');
+          console.log('Rakuten cycle pure mapping OK');
+          NODE
+
+      - name: Verify existing explicit cycle is preserved and fixed expense reaches card plan
+        shell: bash
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const fs=require('fs'),vm=require('vm');
+          const now=new Date();
+          const addMonths=(ym,n)=>{const [y,m]=ym.split('-').map(Number),d=new Date(y,m-1+n,1);return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`};
+          const currentYm=`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
+          const spendYm=addMonths(currentYm,1);
+          const expectedPayYm=addMonths(spendYm,1);
+          const state={
+            masters:{
+              cards:[
+                {id:'rakuten',name:'楽天カード',active:true,paymentMode:'FULL'},
+                {id:'custom',name:'楽天カード サブ',active:true,paymentMode:'FULL',closingDay:15,settlementDay:8}
+              ],
+              fixedExpenses:[{id:'rent-like',name:'10月1日の予定',active:true,forecastEnabled:true,paymentRoute:'CARD',paymentCard:'楽天カード',cadence:'MONTHLY',dueDay:1,amount:12345}]
+            },
+            purchaseEvents:[],cardSettlements:[],cardCashflowOverrides:[]
+          };
+          const listeners={};
+          const window={
+            getTreasuryStateRaw:()=>state,getTreasuryState:()=>state,
+            replaceTreasuryState:()=>{},setTreasurySaveStatus:()=>{},cloudSyncOnLocalSave:()=>{},treasuryRecoverySnapshot:()=>{},
+            addEventListener:(name,fn)=>{listeners[name]=fn},
+            householdPlanningV79:{baselineOf:()=>0,forecastMode:()=> 'COMPONENTS',forecastAmountForCard:(c,n)=>Number(n)||0}
+          };
+          const sandbox={window,console,structuredClone,setTimeout:fn=>{fn();return 1;},clearTimeout:()=>{},module:{exports:{}},exports:{}};
+          vm.createContext(sandbox);
+          vm.runInContext(fs.readFileSync('card-cycle-defaults-v96.js','utf8'),sandbox);
+          const main=state.masters.cards[0],custom=state.masters.cards[1];
+          if(main.closingDay!==31||main.settlementDay!==27)throw new Error(`state defaults not applied: ${JSON.stringify(main)}`);
+          if(custom.closingDay!==15||custom.settlementDay!==8)throw new Error(`explicit cycle overwritten: ${JSON.stringify(custom)}`);
+          sandbox.module={exports:{}};sandbox.exports={};
+          vm.runInContext(fs.readFileSync('card-cycle-v81.js','utf8'),sandbox);
+          const plan=window.householdCardCycleV81.buildPlan(120);
+          const row=plan.rows.find(r=>r.card==='楽天カード'&&r.date===`${expectedPayYm}-27`&&r.components?.scheduled?.some(x=>x.spend_date===`${spendYm}-01`&&x.amount===12345));
+          if(!row)throw new Error(`fixed card expense did not reach ${expectedPayYm}-27: ${JSON.stringify(plan.rows)}`);
+          if(row.scheduled_fixed_total<12345)throw new Error(`scheduled amount missing: ${row.scheduled_fixed_total}`);
+          console.log(`${spendYm}-01 -> ${expectedPayYm}-27 fixed-expense routing OK`);
+          NODE
+
+      - name: No polling or observer loop
+        shell: bash
+        run: |
+          set -euo pipefail
+          ! grep -Eq 'setInterval|MutationObserver' card-cycle-defaults-v96.js

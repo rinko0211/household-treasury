@@ -94,12 +94,13 @@ jobs:
 
             await page.waitForSelector('#mobileCashflowRowsV60 .v60-row',{timeout:10000});
             const text=await page.locator('#mobileCashflowRowsV60').innerText();
-            if(!text.includes('Dカード 見込請求'))throw new Error('Cash Flow DOM has no D-card estimate row');
-            if(!text.includes('¥50,000'))throw new Error(`Cash Flow DOM has no ¥50,000 row:\n${text}`);
-            if(!text.includes('¥200,000'))throw new Error(`Cash Flow DOM has no ¥200,000 row:\n${text}`);
+            const normalizedText=text.replaceAll('￥','¥');
+            if(!normalizedText.includes('Dカード 見込請求'))throw new Error('Cash Flow DOM has no D-card estimate row');
+            if(!normalizedText.includes('¥50,000'))throw new Error(`Cash Flow DOM has no ¥50,000 row:\n${text}`);
+            if(!normalizedText.includes('¥200,000'))throw new Error(`Cash Flow DOM has no ¥200,000 row:\n${text}`);
 
             await page.screenshot({path:'v94-browser-cashflow.png',fullPage:true});
-            fs.writeFileSync('v94-browser-result.json',JSON.stringify({release,model,domHas50000:text.includes('¥50,000'),domHas200000:text.includes('¥200,000')},null,2));
+            fs.writeFileSync('v94-browser-result.json',JSON.stringify({release,model,domHas50000:normalizedText.includes('¥50,000'),domHas200000:normalizedText.includes('¥200,000')},null,2));
             console.log('V94_BROWSER_RESULT',JSON.stringify({release,oct,nov,dec,domHas50000:true,domHas200000:true}));
             await browser.close();
           })().catch(e=>{console.error(e);process.exit(1)});

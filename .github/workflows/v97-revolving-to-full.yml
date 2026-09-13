@@ -1,0 +1,103 @@
+name: Check v97 Revolving To Full
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Syntax and loader checks
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check revolving-to-full-v97.js
+          node --check card-cycle-ui-v81.js
+          node --check sync-state-sanitizer-v22.js
+          grep -Fq "revolving-to-full-v97.js?v=97" sync-state-sanitizer-v22.js
+          grep -Fq "revolving-to-full-v97.js?v=97" sw.js
+          grep -Fq "card-cycle-ui-v81.js?v=97" sync-state-sanitizer-v22.js
+          grep -Fq "const desired=draft||persisted" card-cycle-ui-v81.js
+          grep -Fq 'household-treasury-v97-revolving-to-full' sw.js
+
+      - name: Verify JAL and DC payoff boundary becomes full-payment forecast
+        shell: bash
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const fs=require('fs'),vm=require('vm');
+          const RealDate=Date;
+          class FixedDate extends RealDate{
+            constructor(...args){super(...(args.length?args:['2026-09-13T12:00:00+09:00']))}
+            static now(){return new RealDate('2026-09-13T12:00:00+09:00').getTime()}
+          }
+          const state={
+            masters:{
+              cards:[
+                {id:'jal',name:'JALカード',active:true,paymentMode:'REVOLVING',revolvingBalance:210000,revolvingMonthlyPayment:50000,closingDay:15,settlementDay:10},
+                {id:'dc',name:'DCカード',active:true,paymentMode:'REVOLVING',revolvingBalance:60000,revolvingMonthlyPayment:50000,closingDay:15,settlementDay:10}
+              ],
+              fixedExpenses:[
+                {id:'jal-annual',name:'JAL年払い',active:true,forecastEnabled:true,paymentRoute:'CARD',paymentCard:'JALカード',cadence:'ANNUAL',dueMonth:3,dueDay:1,amount:120000},
+                {id:'dc-annual',name:'DC年払い',active:true,forecastEnabled:true,paymentRoute:'CARD',paymentCard:'DCカード',cadence:'ANNUAL',dueMonth:12,dueDay:1,amount:80000}
+              ]
+            },
+            purchaseEvents:[],cardSettlements:[],cardCashflowOverrides:[],masterOccurrenceOverrides:[]
+          };
+          const window={
+            getTreasuryStateRaw:()=>state,getTreasuryState:()=>state,
+            householdPlanningV79:{baselineOf:()=>0,forecastMode:()=> 'COMPONENTS',forecastAmountForCard:(c,n)=>Number(n)||0},
+            addEventListener:()=>{},replaceTreasuryState:()=>{},setTreasurySaveStatus:()=>{},cloudSyncOnLocalSave:()=>{},treasuryRecoverySnapshot:()=>{}
+          };
+          const sandbox={window,console,structuredClone,Date:FixedDate,setTimeout:()=>1,clearTimeout:()=>{},module:{exports:{}},exports:{}};
+          vm.createContext(sandbox);
+          vm.runInContext(fs.readFileSync('card-cycle-v81.js','utf8'),sandbox);
+          vm.runInContext(fs.readFileSync('revolving-to-full-v97.js','utf8'),sandbox);
+          const api=window.householdRevolvingToFullV97;
+          const jal=state.masters.cards[0],dc=state.masters.cards[1];
+          const jalPayoff=api.projectedPayoff(state,jal),dcPayoff=api.projectedPayoff(state,dc);
+          if(jalPayoff?.date!=='2027-02-10')throw new Error(`JAL payoff ${JSON.stringify(jalPayoff)}`);
+          if(dcPayoff?.date!=='2026-11-10')throw new Error(`DC payoff ${JSON.stringify(dcPayoff)}`);
+          const plan=api.transitionPlan(240);
+          const jalRow=plan.rows.find(r=>r.card==='JALカード'&&r.date==='2027-04-10');
+          const dcRow=plan.rows.find(r=>r.card==='DCカード'&&r.date==='2027-01-10');
+          if(!jalRow||Math.abs(jalRow.amount)!==120000||!jalRow.auto_full_after_payoff_v97)throw new Error(`JAL full row missing ${JSON.stringify(plan.rows)}`);
+          if(!dcRow||Math.abs(dcRow.amount)!==80000||!dcRow.auto_full_after_payoff_v97)throw new Error(`DC full row missing ${JSON.stringify(plan.rows)}`);
+          if(plan.rows.some(r=>r.card==='JALカード'&&String(r.date)<'2027-02-10'))throw new Error('JAL full forecast appeared before payoff');
+          if(plan.rows.some(r=>r.card==='DCカード'&&String(r.date)<'2026-11-10'))throw new Error('DC full forecast appeared before payoff');
+          console.log('JAL/DC payoff-to-full transition OK');
+          NODE
+
+      - name: Verify manual revolving payment override shifts payoff date
+        shell: bash
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const fs=require('fs'),vm=require('vm');
+          const RealDate=Date;
+          class FixedDate extends RealDate{
+            constructor(...args){super(...(args.length?args:['2026-09-13T12:00:00+09:00']))}
+            static now(){return new RealDate('2026-09-13T12:00:00+09:00').getTime()}
+          }
+          const state={masters:{cards:[{id:'jal',name:'JALカード',active:true,paymentMode:'REVOLVING',revolvingBalance:110000,revolvingMonthlyPayment:50000,closingDay:15,settlementDay:10}],fixedExpenses:[]},purchaseEvents:[],cardSettlements:[],masterOccurrenceOverrides:[],cardCashflowOverrides:[{key:'REVOLVING|JAL|2026-10',card:'JALカード',billing_month:'2026-10',amount:10000,date:'2026-10-10'}]};
+          const window={getTreasuryStateRaw:()=>state,getTreasuryState:()=>state,householdPlanningV79:{baselineOf:()=>0,forecastMode:()=> 'COMPONENTS',forecastAmountForCard:(c,n)=>Number(n)||0},addEventListener:()=>{},replaceTreasuryState:()=>{},setTreasurySaveStatus:()=>{},cloudSyncOnLocalSave:()=>{},treasuryRecoverySnapshot:()=>{}};
+          const sandbox={window,console,structuredClone,Date:FixedDate,setTimeout:()=>1,clearTimeout:()=>{},module:{exports:{}},exports:{}};vm.createContext(sandbox);
+          vm.runInContext(fs.readFileSync('card-cycle-v81.js','utf8'),sandbox);vm.runInContext(fs.readFileSync('revolving-to-full-v97.js','utf8'),sandbox);
+          const p=window.householdRevolvingToFullV97.projectedPayoff(state,state.masters.cards[0]);
+          if(p?.date!=='2026-12-10')throw new Error(`manual override payoff mismatch ${JSON.stringify(p)}`);
+          console.log('manual revolving override payoff calculation OK');
+          NODE
+
+      - name: No polling or observer loop
+        shell: bash
+        run: |
+          set -euo pipefail
+          ! grep -Eq 'setInterval|MutationObserver' revolving-to-full-v97.js

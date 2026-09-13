@@ -115,7 +115,17 @@
     try{window.renderPlanningUiV79?.();}catch{}
   }
 
+  function loadCardMasterV95(){
+    if(window.__cardMasterBaselineV95||document.querySelector('script[data-household-card-master-baseline-v95]'))return;
+    const script=document.createElement('script');
+    script.src='./card-master-baseline-v95.js?v=95';
+    script.async=false;
+    script.setAttribute('data-household-card-master-baseline-v95','1');
+    document.head.appendChild(script);
+  }
+
   install();
-  setTimeout(()=>{install();refresh();},0);
-  setTimeout(()=>{install();refresh();},150);
+  loadCardMasterV95();
+  setTimeout(()=>{install();refresh();loadCardMasterV95();},0);
+  setTimeout(()=>{install();refresh();loadCardMasterV95();},150);
 })();

@@ -20,8 +20,13 @@
       const m=(st.masters?.fixedExpenses||[]).find(x=>String(x.id)===String(box.dataset.v48Fixed)),sel=box.querySelector('[data-f-card]');if(!m||!sel)continue;
       const route=String(box.querySelector('[data-f-route]')?.value||m.paymentRoute||m.payment_route||'DIRECT').toUpperCase();
       const resolved=cycle()?.resolveCardName?.(m.paymentCard)||m.paymentCard||'';
-      const before=sel.value;sel.innerHTML='<option value="">未指定</option>'+cards.map(c=>`<option value="${String(c.name).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))}">${String(c.name).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))}</option>`).join('');
-      const desired=cards.find(c=>cycle()?.sameCard?.(c.name,resolved))?.name||cards.find(c=>String(c.name)===String(before))?.name||resolved;sel.value=cards.some(c=>String(c.name)===String(desired))?desired:'';sel.disabled=route!=='CARD';
+      const before=sel.value;
+      sel.innerHTML='<option value="">未指定</option>'+cards.map(c=>`<option value="${String(c.name).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))}">${String(c.name).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))}</option>`).join('');
+      // v97: a card selected in the open editor is a draft value. Preserve it until Save.
+      // Previously the persisted paymentCard won here, so annual rows snapped back to JAL/DC ~120ms after selecting Rakuten.
+      const draft=cards.find(c=>String(c.name)===String(before))?.name||cards.find(c=>cycle()?.sameCard?.(c.name,before))?.name||'';
+      const persisted=cards.find(c=>cycle()?.sameCard?.(c.name,resolved))?.name||cards.find(c=>String(c.name)===String(resolved))?.name||resolved;
+      const desired=draft||persisted;sel.value=cards.some(c=>String(c.name)===String(desired))?desired:'';sel.disabled=route!=='CARD';
       let info=box.querySelector('[data-v81-card-route-note]');if(!info){info=document.createElement('div');info.dataset.v81CardRouteNote='1';info.className='tiny';sel.parentElement?.appendChild(info)}if(info)info.textContent=route==='CARD'?(sel.value?`請求先: ${sel.value}`:'カード未指定'):'カード請求ではありません';
     }
   }

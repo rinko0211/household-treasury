@@ -116,6 +116,7 @@
   }
 
   function loadCardMasterV95(){
+    if(typeof document==='undefined')return;
     if(window.__cardMasterBaselineV95||document.querySelector('script[data-household-card-master-baseline-v95]'))return;
     const script=document.createElement('script');
     script.src='./card-master-baseline-v95.js?v=95';

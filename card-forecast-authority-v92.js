@@ -137,6 +137,43 @@
     return rows.sort((a,b) => String(a.date||'').localeCompare(String(b.date||'')) || String(a.name||'').localeCompare(String(b.name||''),'ja'));
   }
 
+  function recomputeCore(rows,st=stateNow()){
+    let bal = Number(st.settings?.cash) || 0, low = bal, lowDate = iso(new Date());
+    const out = [];
+    for (const original of rows || []) {
+      const e = {...original};
+      bal += Number(e.amount) || 0;
+      e.balance = bal;
+      out.push(e);
+      if (bal < low) { low = bal; lowDate = e.date || lowDate; }
+    }
+    return {rows:out,low,lowDate,endBalance:bal};
+  }
+
+  function patchForecast(){
+    if (typeof forecast !== 'function') return false;
+    if (forecast.__cardForecastAuthorityV93) return true;
+    const previousForecast = forecast;
+    const authoritativeForecast = function forecastCardAuthorityV93(days=90){
+      const requested = Math.max(0,Number(days)||90), st = stateNow();
+      const baseResult = previousForecast(requested) || {};
+      const core = recomputeCore(normalizeRows(baseResult.rows || [],requested),st);
+      let safeBaseLow = core.low;
+      if (requested < 180) {
+        const safeResult = previousForecast(180) || {};
+        safeBaseLow = recomputeCore(normalizeRows(safeResult.rows || [],180),st).low;
+      }
+      const safety = Math.max(0,Number(baseResult.safetyFloor ?? st.settings?.reserve)||0);
+      const reserved = Math.max(0,Number(baseResult.reservedSpecial ?? st.settings?.reservedSpecial)||0);
+      const shortTerm = Math.max(0,Number(baseResult.shortTermLiabilities)||0);
+      const safeToSpend = Math.max(0,safeBaseLow-safety-reserved-shortTerm);
+      return {...baseResult,...core,safeBaseLow,safeToSpend,cardForecastAuthorityVersion:93};
+    };
+    authoritativeForecast.__cardForecastAuthorityV93 = true;
+    forecast = authoritativeForecast;
+    return true;
+  }
+
   function enforceMasterPolicy(){
     const st = stateNow(), c = dCardMaster(st), base = baselineOf(c);
     if (!c || base <= 0) return false;
@@ -164,6 +201,11 @@
     p.__v92Patched = true;
   }
 
+  function refreshConsumers(){
+    try { window.renderMobileInteractionV70?.(); } catch {}
+    try { window.renderForecastV38?.(); } catch {}
+  }
+
   function install(){
     patchPlanningPolicy();
     enforceMasterPolicy();
@@ -182,9 +224,11 @@
         return plan;
       };
     }
-    window.householdCardForecastAuthorityV92 = { normalizeRows, enforceMasterPolicy, baselineOf, canonical, isDCard };
+    window.householdCardForecastAuthorityV92 = { normalizeRows, recomputeCore, patchForecast, enforceMasterPolicy, baselineOf, canonical, isDCard };
+    patchForecast();
   }
 
   install();
-  setTimeout(install,0);
+  setTimeout(() => { install(); refreshConsumers(); },0);
+  setTimeout(() => { patchForecast(); refreshConsumers(); },120);
 })();

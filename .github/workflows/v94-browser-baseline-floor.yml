@@ -1,0 +1,108 @@
+name: Browser Check v94 Card Baseline Floor
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  live-browser:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install Playwright Chromium
+        run: |
+          npm install --no-save playwright@1.55.0
+          npx playwright install --with-deps chromium
+      - name: Open deployed app and verify master edit -> floor behavior
+        shell: bash
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const {chromium}=require('playwright');
+          const fs=require('fs');
+          (async()=>{
+            const browser=await chromium.launch({headless:true});
+            const page=await browser.newPage({viewport:{width:390,height:844},deviceScaleFactor:1});
+            let release='';
+            for(let i=0;i<30;i++){
+              await page.goto(`https://rinko0211.github.io/household-treasury/?v94e2e=${Date.now()}-${i}`,{waitUntil:'domcontentloaded',timeout:30000});
+              await page.waitForTimeout(1200);
+              release=await page.evaluate(()=>window.__householdRuntimeRelease||'').catch(()=> '');
+              if(release==='v94'&&await page.evaluate(()=>!!window.householdCardBaselineFloorV94).catch(()=>false))break;
+              await page.waitForTimeout(3000);
+            }
+            if(release!=='v94')throw new Error(`deployed runtime is ${release||'unknown'}, expected v94`);
+            await page.waitForFunction(()=>typeof window.replaceTreasuryState==='function'&&typeof window.forecast==='function'&&!!window.householdCardBaselineFloorV94,{timeout:15000});
+
+            await page.evaluate(()=>{
+              const st=structuredClone((window.getTreasuryStateRaw||window.getTreasuryState)());
+              st.settings={...(st.settings||{}),cash:1000000,reserve:0,reservedSpecial:0,salary:0};
+              st.masters=st.masters||{};
+              st.masters.cards=[{id:'e2e-d',name:'Dカード',active:true,paymentMode:'FULL',payment_mode:'FULL',forecastMode:'BASELINE',forecast_mode:'BASELINE',monthlyBaselineAmount:18500,settlementDay:10,closingDay:15,statementClosingDay:15}];
+              st.masters.fixedExpenses=[];
+              st.cardSettlements=[];
+              st.cardCashflowOverrides=[];
+              st.purchaseEvents=[
+                {id:'p-low',purchase_date:'2026-09-13',billing_month:'2026-10',card:'Dカード',merchant_raw:'low known',original_amount:18500,payment_amount:18500},
+                {id:'p-high',purchase_date:'2026-09-13',billing_month:'2026-11',card:'Dカード',merchant_raw:'high known',original_amount:200000,payment_amount:200000}
+              ];
+              st.events=[];
+              st.rules=[];
+              window.replaceTreasuryState(st);
+            });
+
+            await page.click('[data-page="settings"]');
+            await page.waitForSelector('[data-v79-card-base-amount="e2e-d"]',{timeout:15000});
+            const baseline=page.locator('[data-v79-card-base-amount="e2e-d"]');
+            await baseline.fill('50000');
+            await baseline.dispatchEvent('change');
+            await page.waitForFunction(()=>{
+              const st=(window.getTreasuryStateRaw||window.getTreasuryState)();
+              const c=(st.masters?.cards||[]).find(x=>x.id==='e2e-d');
+              return Number(c?.monthlyBaselineAmount)===50000&&String(c?.forecastMode||c?.forecast_mode)==='BASELINE';
+            },{timeout:10000});
+
+            await page.click('[data-page="cashflow"]');
+            await page.waitForTimeout(800);
+            const model=await page.evaluate(()=>{
+              const rows=forecast(90).rows.filter(r=>r.type==='CARD_ESTIMATE'&&r.card==='Dカード');
+              return rows.map(r=>({ym:r.billing_month,amount:r.amount,name:r.name,method:r.forecast_method,balance:r.balance}));
+            });
+            const oct=model.find(r=>r.ym==='2026-10');
+            const nov=model.find(r=>r.ym==='2026-11');
+            const dec=model.find(r=>r.ym==='2026-12');
+            if(!oct||oct.amount!==-50000)throw new Error(`October floor failed: ${JSON.stringify(oct)}`);
+            if(!nov||nov.amount!==-200000)throw new Error(`November high amount failed: ${JSON.stringify(nov)}`);
+            if(!dec||dec.amount!==-50000)throw new Error(`December baseline failed: ${JSON.stringify(dec)}`);
+
+            await page.waitForSelector('#mobileCashflowRowsV60 .v60-row',{timeout:10000});
+            const text=await page.locator('#mobileCashflowRowsV60').innerText();
+            if(!text.includes('Dカード 見込請求'))throw new Error('Cash Flow DOM has no D-card estimate row');
+            if(!text.includes('¥50,000'))throw new Error(`Cash Flow DOM has no ¥50,000 row:\n${text}`);
+            if(!text.includes('¥200,000'))throw new Error(`Cash Flow DOM has no ¥200,000 row:\n${text}`);
+
+            await page.screenshot({path:'v94-browser-cashflow.png',fullPage:true});
+            fs.writeFileSync('v94-browser-result.json',JSON.stringify({release,model,domHas50000:text.includes('¥50,000'),domHas200000:text.includes('¥200,000')},null,2));
+            console.log('V94_BROWSER_RESULT',JSON.stringify({release,oct,nov,dec,domHas50000:true,domHas200000:true}));
+            await browser.close();
+          })().catch(e=>{console.error(e);process.exit(1)});
+          NODE
+      - name: Upload browser evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: v94-browser-evidence
+          path: |
+            v94-browser-cashflow.png
+            v94-browser-result.json
+          if-no-files-found: warn

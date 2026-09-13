@@ -4,7 +4,7 @@
 
   // v70 phase 2: data/model compatibility remains, but legacy hidden UI boots are disabled.
   window.__householdConsolidatedUiV70 = true;
-  window.__householdRuntimeRelease = 'v93';
+  window.__householdRuntimeRelease = 'v94';
 
   const DERIVED_KEYS = new Set([
     'updatedAt',
@@ -119,7 +119,7 @@
   injectClassic('./card-cashflow-edit-v75.js?v=91', 'data-household-card-cashflow-edit-v75');
   if (window.matchMedia?.('(min-width:821px)').matches) injectClassic('./desktop-interaction-v69.js?v=69', 'data-household-desktop-interaction-v69');
   injectClassic('./tab-router-v71.js?v=71', 'data-household-tab-router-v71');
-  // v79/v80 own the baseline policy. v91 makes d-card standard amount exact rather than a component floor.
+  // v79/v80 provide card baseline and component models; v94 is the final baseline-floor authority.
   injectClassic('./planning-model-v79.js?v=91', 'data-household-planning-model-v79');
   injectClassic('./planning-ui-v79.js?v=79', 'data-household-planning-ui-v79');
   injectClassic('./planning-model-v80.js?v=91', 'data-household-planning-model-v80');
@@ -128,7 +128,7 @@
   injectClassic('./card-cycle-v81.js?v=91', 'data-household-card-cycle-v81');
   injectClassic('./card-cycle-ui-v81.js?v=81', 'data-household-card-cycle-ui-v81');
   injectClassic('./dashboard-bank-v81.js?v=81', 'data-household-dashboard-bank-v81');
-  // v86 augments the existing v75 editor and follows the same v91 card forecast policy.
+  // v86 augments the existing v75 editor; v94 normalizes the final amount policy.
   injectClassic('./card-event-consistency-v86.js?v=91', 'data-household-card-event-consistency-v86');
   // v82 keeps only the import-review cleanup. Its one-off repayment flow UI is retired by the generic v83 account-transfer model.
   injectClassic('./import-review-cleanup-v82.js?v=82', 'data-household-import-review-cleanup-v82');
@@ -140,7 +140,7 @@
   injectClassic('./revolving-payoff-cap-v87.js?v=87', 'data-household-revolving-payoff-cap-v87');
   // v88 autosaves closing/baseline fields before v81/v79 can redraw them and repairs d-card baseline defaults.
   injectClassic('./card-settings-stability-v88.js?v=88', 'data-household-card-settings-stability-v88');
-  // v93 keeps v92 card normalization but also owns the final forecast result, balance recomputation, and post-load Cash Flow refresh.
-  injectClassic('./card-forecast-authority-v92.js?v=93', 'data-household-card-forecast-authority-v92');
-  // v90 overlay retired in v91: the source owners above now contain the behavior directly.
+  // v94: standard card amount is a floor, never an exact cap. Manual month override and actual bill retain priority.
+  injectClassic('./card-baseline-floor-v94.js?v=94', 'data-household-card-baseline-floor-v94');
+  // v92/v93 exact d-card overlay retired in v94.
 })();

@@ -1,4 +1,4 @@
-name: Check v92 Card Forecast Authority
+name: Check v93 Final Cash Flow Card Authority
 
 on:
   push:
@@ -19,10 +19,12 @@ jobs:
         run: |
           set -euo pipefail
           node --check card-forecast-authority-v92.js
-          grep -Fq "sync-state-sanitizer-v22.js?v=92" index.html
-          grep -Fq "card-forecast-authority-v92.js?v=92" sync-state-sanitizer-v22.js
-          grep -Fq "card-forecast-authority-v92.js?v=92" sw.js
-          grep -Fq 'household-treasury-v92-card-forecast-authority' sw.js
+          node --check sync-state-sanitizer-v22.js
+          grep -Fq "window.__householdRuntimeRelease = 'v93'" sync-state-sanitizer-v22.js
+          grep -Fq "sync-state-sanitizer-v22.js?v=93" index.html
+          grep -Fq "card-forecast-authority-v92.js?v=93" sync-state-sanitizer-v22.js
+          grep -Fq "card-forecast-authority-v92.js?v=93" sw.js
+          grep -Fq 'household-treasury-v93-final-cashflow-card-authority' sw.js
       - name: Exact d-card standard policy
         shell: bash
         run: |
@@ -31,17 +33,61 @@ jobs:
           grep -Fq "isDCard(c) && baselineOf(c) > 0 ? baselineOf(c)" card-forecast-authority-v92.js
           grep -Fq "D_CARD_STANDARD_EXACT_V92" card-forecast-authority-v92.js
           grep -Fq "標準見込み" card-forecast-authority-v92.js
-      - name: Priority and legacy normalization
+          grep -Fq "forecastCardAuthorityV93" card-forecast-authority-v92.js
+          grep -Fq "recomputeCore" card-forecast-authority-v92.js
+          grep -Fq "renderMobileInteractionV70" card-forecast-authority-v92.js
+      - name: Reproduce old 18500 row and verify final forecast 50000
+        shell: bash
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const fs=require('fs'),vm=require('vm');
+          const RealDate=Date;
+          class FakeDate extends RealDate {
+            constructor(...args){ super(...(args.length?args:['2026-09-13T12:00:00Z'])); }
+            static now(){ return new RealDate('2026-09-13T12:00:00Z').getTime(); }
+          }
+          const state={
+            settings:{cash:200000,reserve:0,reservedSpecial:0},
+            masters:{cards:[{id:'d1',name:'Dカード',active:true,paymentMode:'FULL',forecastMode:'BASELINE',monthlyBaselineAmount:50000,settlementDay:10}]},
+            cardSettlements:[],cardCashflowOverrides:[]
+          };
+          const baseForecast=days=>({
+            rows:[
+              {id:'old-d',date:'2026-11-10',name:'Dカード 見込請求',amount:-18500,balance:181500,type:'CARD_ESTIMATE',source:'card_estimate_v49',card:'Dカード',billing_month:'2026-11'},
+              {id:'kabu',date:'2026-11-10',name:'KABU& 見込請求',amount:-18000,balance:163500,type:'CARD_ESTIMATE',source:'card_estimate_v49',card:'KABU&',billing_month:'2026-11'}
+            ],
+            low:163500,lowDate:'2026-11-10',endBalance:163500,
+            safetyFloor:0,reservedSpecial:0,shortTermLiabilities:0,safeBaseLow:163500,safeToSpend:163500
+          });
+          const window={
+            getTreasuryStateRaw:()=>state,getTreasuryState:()=>state,
+            renderMobileInteractionV70:()=>{},renderForecastV38:()=>{}
+          };
+          const sandbox={window,structuredClone,console,Date:FakeDate,forecast:baseForecast,generated:()=>[],setTimeout:fn=>{fn();return 1;},clearTimeout:()=>{}};
+          vm.createContext(sandbox);
+          vm.runInContext(fs.readFileSync('card-forecast-authority-v92.js','utf8'),sandbox);
+          const out=sandbox.forecast(90);
+          const d=out.rows.find(r=>r.card==='Dカード'&&r.billing_month==='2026-11');
+          if(!d)throw new Error('November d-card row missing');
+          if(d.amount!==-50000)throw new Error(`expected -50000, got ${d.amount}`);
+          if(d.name!=='Dカード 標準見込み')throw new Error(`unexpected name ${d.name}`);
+          if(d.source!=='card_estimate_v92')throw new Error(`unexpected source ${d.source}`);
+          if(out.cardForecastAuthorityVersion!==93)throw new Error('final forecast authority not applied');
+          let bal=state.settings.cash;
+          for(const row of out.rows){
+            bal+=Number(row.amount)||0;
+            if(row.balance!==bal)throw new Error(`balance was not recomputed at ${row.date}: ${row.balance} vs ${bal}`);
+          }
+          const kabu=out.rows.find(r=>r.card==='KABU&');
+          if(!kabu||kabu.amount!==-18000)throw new Error('non-d-card forecast was changed');
+          if(d.balance===181500)throw new Error('old -18500 balance survived');
+          NODE
+      - name: Priority and no competing observer loop
         shell: bash
         run: |
           set -euo pipefail
           grep -Fq "meaningfulActual" card-forecast-authority-v92.js
           grep -Fq "manualOverride" card-forecast-authority-v92.js
-          grep -Fq "isEstimateLike" card-forecast-authority-v92.js
           grep -Fq "seen.has(ym)" card-forecast-authority-v92.js
-          grep -Fq "card_estimate_v92" card-forecast-authority-v92.js
-      - name: No competing observer loop
-        shell: bash
-        run: |
-          set -euo pipefail
           if grep -Eq "MutationObserver|setInterval" card-forecast-authority-v92.js; then exit 1; fi

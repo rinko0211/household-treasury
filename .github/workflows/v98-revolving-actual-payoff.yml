@@ -1,0 +1,112 @@
+name: Check v98 Revolving Actual Payoff
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Syntax and loader checks
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check revolving-actual-payoff-v98.js
+          node --check card-cycle-defaults-v96.js
+          grep -Fq "revolving-actual-payoff-v98.js?v=98" card-cycle-defaults-v96.js
+          grep -Fq "revolving-actual-payoff-v98.js?v=98" sw.js
+          grep -Fq 'household-treasury-v98-actual-revolving-payoff' sw.js
+
+      - name: Verify imported bank payoff clears revolving forecast
+        shell: bash
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const fs=require('fs'),vm=require('vm');
+          const RealDate=Date;
+          class FixedDate extends RealDate{
+            constructor(...args){super(...(args.length?args:['2026-09-16T07:08:00+09:00']))}
+            static now(){return new RealDate('2026-09-16T07:08:00+09:00').getTime()}
+          }
+          const state={
+            masters:{
+              cards:[
+                {id:'jal',name:'JALカード',active:true,paymentMode:'REVOLVING',revolvingBalance:210000,revolvingBalanceAsOf:'2026-09-10',revolvingMonthlyPayment:50000,closingDay:15,settlementDay:10,monthlyBaselineAmount:50000,forecastMode:'BASELINE'},
+                {id:'dc',name:'DCカード',active:true,paymentMode:'REVOLVING',revolvingBalance:60000,revolvingBalanceAsOf:'2026-09-10',revolvingMonthlyPayment:50000,closingDay:15,settlementDay:10}
+              ],
+              fixedExpenses:[
+                {id:'jal-oct',name:'臨時予定',active:true,forecastEnabled:true,paymentRoute:'CARD',paymentCard:'JALカード',cadence:'ANNUAL',dueMonth:10,dueDay:1,amount:200000}
+              ]
+            },
+            cashTransactions:[
+              {id:'rb-20260915',date:'2026-09-15',amount:-221823,description_raw:'三菱UFJ銀行 振込 ニコス（カ'}
+            ],
+            purchaseEvents:[],cardSettlements:[],cardCashflowOverrides:[],masterOccurrenceOverrides:[],assets:{revolvingBalance:270000}
+          };
+          const norm=s=>String(s??'').normalize('NFKC').replace(/[\s　()（）［］\[\]・\-_/\.]/g,'').toUpperCase();
+          const addMonths=(ym,n)=>{const[y,m]=String(ym).split('-').map(Number),d=new RealDate(y,m-1+n,1);return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`};
+          const dateFor=(ym,day)=>{const[y,m]=String(ym).split('-').map(Number),last=new RealDate(y,m,0).getDate();return `${ym}-${String(Math.min(Math.max(1,Number(day)||1),last)).padStart(2,'0')}`};
+          const cycle={
+            canonicalCard:s=>{const n=norm(s).replace(/カード|CARD/g,'');if(/JAL/.test(n))return'JAL';if(n==='DC'||n.startsWith('DC'))return'DC';return n},
+            sameCard:(a,b)=>norm(a).replace(/カード|CARD/g,'')===norm(b).replace(/カード|CARD/g,''),
+            addMonths,dateFor,closingDayValue:c=>Number(c.closingDay),settlementDayValue:c=>Number(c.settlementDay),
+            billingMonthForDate:(date,close)=>{const ym=String(date).slice(0,7),day=Number(String(date).slice(8,10));return addMonths(ym,day<=Number(close)?1:2)}
+          };
+          const window={
+            getTreasuryStateRaw:()=>state,getTreasuryState:()=>state,householdCardCycleV81:cycle,
+            addEventListener:()=>{},replaceTreasuryState:()=>{},setTreasurySaveStatus:()=>{},cloudSyncOnLocalSave:()=>{},treasuryRecoverySnapshot:()=>{}
+          };
+          const document={readyState:'loading'};
+          const sandbox={window,document,console,structuredClone,Date:FixedDate,setTimeout:()=>1,clearTimeout:()=>{}};
+          vm.createContext(sandbox);vm.runInContext(fs.readFileSync('revolving-actual-payoff-v98.js','utf8'),sandbox);
+          const api=window.householdRevolvingActualPayoffV98;
+          const result=api.reconcileActualPayoffs({persist:false,refresh:false});
+          if(result.matched!==1)throw new Error(`expected one payoff match ${JSON.stringify(result)}`);
+          const jal=state.masters.cards[0],dc=state.masters.cards[1],tx=state.cashTransactions[0];
+          if(jal.revolvingBalance!==0||jal.revolvingPaidOffAt!=='2026-09-15')throw new Error(`JAL not paid off ${JSON.stringify(jal)}`);
+          if(dc.revolvingBalance!==60000)throw new Error('DC should be untouched');
+          if(tx.revolving_payoff_card!=='JALカード')throw new Error(`transaction not linked ${JSON.stringify(tx)}`);
+          if(state.assets.revolvingBalance!==60000)throw new Error(`aggregate balance ${state.assets.revolvingBalance}`);
+
+          const full=api.fullRowsForPaidCard(state,jal,120);
+          const nov=full.find(r=>r.date==='2026-11-10');
+          if(!nov||Math.abs(nov.amount)!==200000||nov.source!=='card_estimate_v98')throw new Error(`post-payoff full forecast missing ${JSON.stringify(full)}`);
+
+          const rows=api.replaceRows([
+            {id:'old-revo',date:'2026-10-10',name:'JALカード リボ返済',amount:-50000,type:'CARD_REVOLVING_PAYMENT',source:'card_revolving_v66',card:'JALカード'},
+            {id:'old-est',date:'2026-11-10',name:'JALカード 見込請求（リボ完済後一括）',amount:-50000,type:'CARD_ESTIMATE',source:'card_estimate_v97',card:'JALカード',billing_month:'2026-11'}
+          ],120);
+          if(rows.some(r=>r.type==='CARD_REVOLVING_PAYMENT'&&r.card==='JALカード'))throw new Error(`revolving row survived ${JSON.stringify(rows)}`);
+          const replaced=rows.find(r=>r.card==='JALカード'&&r.date==='2026-11-10');
+          if(!replaced||Math.abs(replaced.amount)!==200000||replaced.source!=='card_estimate_v98')throw new Error(`v97 row not replaced ${JSON.stringify(rows)}`);
+          console.log('actual payoff -> zero balance -> no revo double count -> full forecast OK');
+          NODE
+
+      - name: Do not infer unrelated bank transfers
+        shell: bash
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const fs=require('fs'),vm=require('vm');
+          const state={masters:{cards:[{id:'jal',name:'JALカード',active:true,paymentMode:'REVOLVING',revolvingBalance:210000,revolvingBalanceAsOf:'2026-09-10',revolvingMonthlyPayment:50000}]},cashTransactions:[{id:'x',date:'2026-09-15',amount:-210000,description_raw:'家族への振込'}],assets:{}};
+          const window={getTreasuryStateRaw:()=>state,getTreasuryState:()=>state,addEventListener:()=>{}};
+          const document={readyState:'loading'};
+          const sandbox={window,document,console,structuredClone,Date,setTimeout:()=>1,clearTimeout:()=>{}};vm.createContext(sandbox);vm.runInContext(fs.readFileSync('revolving-actual-payoff-v98.js','utf8'),sandbox);
+          const r=window.householdRevolvingActualPayoffV98.reconcileActualPayoffs({persist:false,refresh:false});
+          if(r.matched!==0||state.masters.cards[0].revolvingBalance!==210000)throw new Error('unrelated transfer was incorrectly treated as payoff');
+          console.log('unrelated transfer guard OK');
+          NODE
+
+      - name: No polling or observer loop
+        shell: bash
+        run: |
+          set -euo pipefail
+          ! grep -Eq 'setInterval|MutationObserver' revolving-actual-payoff-v98.js

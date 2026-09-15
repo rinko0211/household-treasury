@@ -70,9 +70,20 @@
     return changed;
   }
 
+  function loadActualPayoffV98(){
+    if(typeof document==='undefined')return;
+    if(root.__revolvingActualPayoffV98||document.querySelector('script[data-household-revolving-actual-payoff-v98]'))return;
+    const script=document.createElement('script');
+    script.src='./revolving-actual-payoff-v98.js?v=98';
+    script.async=false;
+    script.setAttribute('data-household-revolving-actual-payoff-v98','1');
+    document.head.appendChild(script);
+  }
+
   function delayedApply(){setTimeout(()=>applyDefaults(),0)}
 
   applyDefaults();
+  loadActualPayoffV98();
   setTimeout(()=>applyDefaults(),250);
   setTimeout(()=>applyDefaults(),1000);
 

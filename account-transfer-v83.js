@@ -85,7 +85,9 @@
       if(impIdx>=0)used.add(impIdx);
       const manualValue=Number.isFinite(Number(a.balance))?Number(a.balance):null;
       const manualAsOf=String(a.balanceAsOf||a.balance_as_of||'');
-      const useManual=manualValue!==null && (!imp || (manualAsOf && manualAsOf>=String(imp.asOf||'')));
+      // Imported transaction/snapshot balances are authoritative whenever a matching source exists.
+      // Manual balances are seeds/fallbacks only, so transfer setup cannot mask a later imported balance_after.
+      const useManual=manualValue!==null && !imp;
       out.push({...a,currentBalance:useManual?manualValue:(imp?imp.value:manualValue),balanceAsOf:useManual?manualAsOf:(imp?.asOf||manualAsOf||''),balanceSource:useManual?'manual':imp?'import':'none',sourceKey:a.sourceKey||imp?.source||''});
     }
     imports.forEach((r,i)=>{
@@ -201,7 +203,7 @@
   }
   function ensureAccountModal(){
     if($('accountEditModalV83'))return;
-    ensureStyle();const m=document.createElement('div');m.id='accountEditModalV83';m.hidden=true;m.style.display='none';m.innerHTML=`<div class="v83-bg" data-v83-account-close></div><div class="card v83-modal"><div class="title" id="accountTitleV83">口座・資産</div><div class="form"><div class="field"><label>名称</label><input id="accountNameV83"></div><div class="field"><label>種別</label><select id="accountTypeV83"><option value="BANK">銀行</option><option value="BROKER">証券（預り金）</option><option value="CASH">現金</option><option value="OTHER">その他</option></select></div><div class="field"><label>現在残高</label><input id="accountBalanceV83" type="number" step="1"></div><div class="field"><label>残高基準日</label><input id="accountAsOfV83" type="date"></div></div><div class="tiny" style="margin-top:8px">CSV/資産残高の取込値より新しい基準日で手入力した場合は、手入力残高を現在値として使います。</div><div class="controls" style="margin-top:12px"><button type="button" class="btn" id="saveAccountV83">保存</button><button type="button" class="btn secondary" data-v83-account-close>キャンセル</button></div></div>`;document.body.appendChild(m);
+    ensureStyle();const m=document.createElement('div');m.id='accountEditModalV83';m.hidden=true;m.style.display='none';m.innerHTML=`<div class="v83-bg" data-v83-account-close></div><div class="card v83-modal"><div class="title" id="accountTitleV83">口座・資産</div><div class="form"><div class="field"><label>名称</label><input id="accountNameV83"></div><div class="field"><label>種別</label><select id="accountTypeV83"><option value="BANK">銀行</option><option value="BROKER">証券（預り金）</option><option value="CASH">現金</option><option value="OTHER">その他</option></select></div><div class="field"><label>現在残高</label><input id="accountBalanceV83" type="number" step="1"></div><div class="field"><label>残高基準日</label><input id="accountAsOfV83" type="date"></div></div><div class="tiny" style="margin-top:8px">CSV/資産残高の取込がある口座は、最新の取引後残高・預り金を現在値として優先します。手入力は取込がない口座の初期値として使います。</div><div class="controls" style="margin-top:12px"><button type="button" class="btn" id="saveAccountV83">保存</button><button type="button" class="btn secondary" data-v83-account-close>キャンセル</button></div></div>`;document.body.appendChild(m);
     m.querySelectorAll('[data-v83-account-close]').forEach(x=>x.onclick=closeAccount);$('saveAccountV83').onclick=saveAccount;
   }
   function show(id){const m=$(id);if(!m)return;m.hidden=false;m.style.display='block'}

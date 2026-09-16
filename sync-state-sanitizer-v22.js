@@ -4,7 +4,7 @@
 
   // v70 phase 2: data/model compatibility remains, but legacy hidden UI boots are disabled.
   window.__householdConsolidatedUiV70 = true;
-  window.__householdRuntimeRelease = 'v97';
+  window.__householdRuntimeRelease = 'v99';
 
   const DERIVED_KEYS = new Set([
     'updatedAt',
@@ -133,8 +133,8 @@
   injectClassic('./card-event-consistency-v86.js?v=91', 'data-household-card-event-consistency-v86');
   // v82 keeps only the import-review cleanup. Its one-off repayment flow UI is retired by the generic v83 account-transfer model.
   injectClassic('./import-review-cleanup-v82.js?v=82', 'data-household-import-review-cleanup-v82');
-  // v83 owns account-level balances and future internal transfers.
-  injectClassic('./account-transfer-v83.js?v=83', 'data-household-account-transfer-v83');
+  // v99: imported transaction-after/snapshot balances are authoritative; manual balances are fallback seeds only.
+  injectClassic('./account-transfer-v83.js?v=99', 'data-household-account-transfer-v83');
   // v84 adds direct edit/cancel actions to generated transfer events without adding another row renderer.
   injectClassic('./account-transfer-actions-v84.js?v=84', 'data-household-account-transfer-actions-v84');
   // v87 is the revolving forecast cap: known balance reaches zero => no further monthly revolving payment rows.

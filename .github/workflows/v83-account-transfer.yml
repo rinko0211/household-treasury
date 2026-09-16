@@ -1,4 +1,4 @@
-name: Check v84 Account Transfer Actions
+name: Check v99 Account Balance Authority
 
 on:
   push:
@@ -14,17 +14,17 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v6
-      - name: Check v83-v84 syntax and loaders
+      - name: Check v83-v99 syntax and loaders
         shell: bash
         run: |
           set -euo pipefail
           node --check account-transfer-v83.js
           node --check account-transfer-actions-v84.js
-          grep -Fq "account-transfer-v83.js?v=83" sync-state-sanitizer-v22.js
+          grep -Fq "account-transfer-v83.js?v=99" sync-state-sanitizer-v22.js
           grep -Fq "account-transfer-actions-v84.js?v=84" sync-state-sanitizer-v22.js
-          grep -Fq "account-transfer-v83.js?v=83" sw.js
+          grep -Fq "account-transfer-v83.js?v=99" sw.js
           grep -Fq "account-transfer-actions-v84.js?v=84" sw.js
-          grep -Fq "household-treasury-v84-transfer-actions" sw.js
+          grep -Fq "household-treasury-v99-imported-balance-authority" sw.js
       - name: Check account balance tracking
         shell: bash
         run: |
@@ -33,7 +33,55 @@ jobs:
           grep -Fq "balance_after" account-transfer-v83.js
           grep -Fq "projectedAccounts" account-transfer-v83.js
           grep -Fq "balanceAsOf" account-transfer-v83.js
+          grep -Fq "const useManual=manualValue!==null && !imp" account-transfer-v83.js
+          grep -Fq "最新の取引後残高・預り金を現在値として優先" account-transfer-v83.js
           grep -Fq "資産・口座残高" account-transfer-v83.js
+      - name: Verify imported balance overrides manual seed
+        shell: bash
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const fs=require('fs');
+          const vm=require('vm');
+          const state={
+            masters:{accounts:[
+              {id:'rakuten-bank',name:'楽天銀行',type:'BANK',active:true,balance:999999,balanceAsOf:'2099-12-31'},
+              {id:'cash',name:'現金',type:'CASH',active:true,balance:50000,balanceAsOf:'2026-09-16'}
+            ]},
+            accountTransfersV83:[],
+            cashTransactions:[
+              {date:'2026-09-16',source:'楽天銀行',balance_after:120000},
+              {date:'2026-09-16',source:'楽天銀行',balance_after:123456}
+            ],
+            assetSnapshots:[]
+          };
+          const context={
+            console,Intl,Date,Map,Set,Number,String,Math,
+            crypto:{randomUUID:()=> 'uuid'},
+            setTimeout,clearTimeout,
+            getTreasuryStateRaw:()=>state,
+            addEventListener:()=>{},
+            document:{
+              readyState:'loading',
+              addEventListener:()=>{},
+              getElementById:()=>null,
+              querySelector:()=>null,
+              createElement:()=>({style:{},setAttribute(){},appendChild(){},querySelectorAll(){return[]}}),
+              head:{appendChild(){}},body:{appendChild(){}}
+            }
+          };
+          context.window=context;
+          vm.createContext(context);
+          vm.runInContext(fs.readFileSync('account-transfer-v83.js','utf8'),context);
+          const rows=context.householdAccountTransferV83.currentAccounts(state);
+          const bank=rows.find(x=>x.id==='rakuten-bank');
+          const cash=rows.find(x=>x.id==='cash');
+          if(!bank)throw new Error('Rakuten bank account missing');
+          if(bank.currentBalance!==123456)throw new Error(`imported balance_after not authoritative: ${bank.currentBalance}`);
+          if(bank.balanceSource!=='import')throw new Error(`expected import source, got ${bank.balanceSource}`);
+          if(bank.balanceAsOf!=='2026-09-16')throw new Error(`unexpected import as-of ${bank.balanceAsOf}`);
+          if(!cash||cash.currentBalance!==50000||cash.balanceSource!=='manual')throw new Error('manual-only account fallback broken');
+          NODE
       - name: Check transfer event semantics
         shell: bash
         run: |

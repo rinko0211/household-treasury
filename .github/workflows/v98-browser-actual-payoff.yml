@@ -1,0 +1,148 @@
+name: Browser Check v98 Actual Revolving Payoff
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  live-browser:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install Playwright Chromium
+        run: |
+          npm install --no-save playwright@1.55.0
+          npx playwright install --with-deps chromium
+
+      - name: Open deployed app and verify actual payoff reconciliation
+        shell: bash
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const {chromium}=require('playwright');
+          const fs=require('fs');
+
+          (async()=>{
+            const browser=await chromium.launch({headless:true});
+            const page=await browser.newPage({viewport:{width:390,height:844},deviceScaleFactor:1});
+
+            let ready=false;
+            for(let i=0;i<40;i++){
+              await page.goto(`https://rinko0211.github.io/household-treasury/?v98payoffe2e=${Date.now()}-${i}`,{
+                waitUntil:'domcontentloaded',timeout:30000
+              });
+              await page.waitForTimeout(1200);
+              ready=await page.evaluate(()=>!!window.householdRevolvingActualPayoffV98).catch(()=>false);
+              if(ready)break;
+              await page.waitForTimeout(3000);
+            }
+            if(!ready)throw new Error('deployed app did not expose householdRevolvingActualPayoffV98');
+
+            await page.waitForFunction(()=>{
+              const api=window.householdRevolvingActualPayoffV98;
+              return !!api && typeof api.reconcileActualPayoffs==='function' && typeof api.fullRowsForPaidCard==='function' && typeof api.replaceRows==='function';
+            },{timeout:15000});
+
+            await page.screenshot({path:'v98-browser-live-app.png',fullPage:true});
+
+            const result=await page.evaluate(()=>{
+              const api=window.householdRevolvingActualPayoffV98;
+              const originalRaw=window.getTreasuryStateRaw;
+              const originalGet=window.getTreasuryState;
+
+              // Isolated in-memory regression state. Do not persist or sync this to the user's data.
+              const state={
+                masters:{
+                  cards:[
+                    {id:'jal-e2e',name:'JALカード',active:true,paymentMode:'REVOLVING',payment_mode:'REVOLVING',revolvingBalance:210000,revolvingBalanceAsOf:'2026-09-10',revolvingMonthlyPayment:50000,closingDay:15,statementClosingDay:15,settlementDay:10,monthlyBaselineAmount:50000,forecastMode:'BASELINE',forecast_mode:'BASELINE'},
+                    {id:'dc-e2e',name:'DCカード',active:true,paymentMode:'REVOLVING',payment_mode:'REVOLVING',revolvingBalance:60000,revolvingBalanceAsOf:'2026-09-10',revolvingMonthlyPayment:50000,closingDay:15,statementClosingDay:15,settlementDay:10}
+                  ],
+                  fixedExpenses:[
+                    {id:'jal-oct-e2e',name:'臨時予定',active:true,forecastEnabled:true,paymentRoute:'CARD',paymentCard:'JALカード',cadence:'ANNUAL',dueMonth:10,dueDay:1,amount:200000}
+                  ]
+                },
+                cashTransactions:[
+                  {id:'rb-20260915-e2e',date:'2026-09-15',amount:-221823,description_raw:'三菱UFJ銀行 振込 ニコス（カ'}
+                ],
+                purchaseEvents:[],
+                cardSettlements:[],
+                cardCashflowOverrides:[],
+                masterOccurrenceOverrides:[],
+                assets:{revolvingBalance:270000}
+              };
+
+              window.getTreasuryStateRaw=()=>state;
+              window.getTreasuryState=()=>state;
+
+              try{
+                const reconcile=api.reconcileActualPayoffs({persist:false,refresh:false});
+                const jal=state.masters.cards.find(c=>c.id==='jal-e2e');
+                const dc=state.masters.cards.find(c=>c.id==='dc-e2e');
+                const tx=state.cashTransactions.find(t=>t.id==='rb-20260915-e2e');
+
+                const full=api.fullRowsForPaidCard(state,jal,120);
+                const nov=full.find(r=>r.card==='JALカード'&&r.date==='2026-11-10');
+
+                const forecastRows=api.replaceRows([
+                  {id:'old-revo',date:'2026-10-10',name:'JALカード リボ返済',amount:-50000,type:'CARD_REVOLVING_PAYMENT',source:'card_revolving_v66',card:'JALカード'},
+                  {id:'old-v97',date:'2026-11-10',name:'JALカード 見込請求（リボ完済後一括）',amount:-50000,type:'CARD_ESTIMATE',source:'card_estimate_v97',card:'JALカード',billing_month:'2026-11'}
+                ],120);
+
+                const actualPayoffRows=state.cashTransactions.filter(t=>t.id==='rb-20260915-e2e'&&t.date==='2026-09-15'&&Number(t.amount)===-221823);
+                const futureRevoRows=forecastRows.filter(r=>r.card==='JALカード'&&r.type==='CARD_REVOLVING_PAYMENT'&&r.date>='2026-09-15');
+                const futureFull=forecastRows.find(r=>r.card==='JALカード'&&r.date==='2026-11-10'&&r.type==='CARD_ESTIMATE');
+
+                return {
+                  reconcile,
+                  jal:{balance:jal.revolvingBalance,paidOffAt:jal.revolvingPaidOffAt,source:jal.revolvingPayoffSourceV98,autoFull:jal.forecastAutoFullAfterPayoff},
+                  dc:{balance:dc.revolvingBalance},
+                  tx:{amount:tx.amount,linkedCard:tx.revolving_payoff_card,reconciled:tx.revolving_payoff_reconciled_v98},
+                  aggregateBalance:state.assets.revolvingBalance,
+                  actualPayoffCount:actualPayoffRows.length,
+                  futureRevoCount:futureRevoRows.length,
+                  novFull:nov?{date:nov.date,amount:nov.amount,source:nov.source}:null,
+                  replacedFull:futureFull?{date:futureFull.date,amount:futureFull.amount,source:futureFull.source}:null
+                };
+              } finally {
+                window.getTreasuryStateRaw=originalRaw;
+                window.getTreasuryState=originalGet;
+              }
+            });
+
+            if(result.reconcile?.matched!==1)throw new Error(`expected exactly one actual payoff match: ${JSON.stringify(result)}`);
+            if(result.actualPayoffCount!==1)throw new Error(`actual bank payoff was not retained exactly once: ${JSON.stringify(result)}`);
+            if(result.jal?.balance!==0||result.jal?.paidOffAt!=='2026-09-15'||result.jal?.source!=='BANK_ACTUAL_MATCH'||result.jal?.autoFull!==true)throw new Error(`JAL payoff state mismatch: ${JSON.stringify(result)}`);
+            if(result.dc?.balance!==60000)throw new Error(`DC balance must remain untouched: ${JSON.stringify(result)}`);
+            if(result.tx?.amount!==-221823||result.tx?.linkedCard!=='JALカード'||result.tx?.reconciled!==true)throw new Error(`bank actual was not linked correctly: ${JSON.stringify(result)}`);
+            if(result.aggregateBalance!==60000)throw new Error(`aggregate revolving balance mismatch: ${JSON.stringify(result)}`);
+            if(result.futureRevoCount!==0)throw new Error(`future revolving repayment still double-counted: ${JSON.stringify(result)}`);
+            if(!result.novFull||Math.abs(result.novFull.amount)!==200000||result.novFull.source!=='card_estimate_v98')throw new Error(`post-payoff full-payment forecast missing: ${JSON.stringify(result)}`);
+            if(!result.replacedFull||Math.abs(result.replacedFull.amount)!==200000||result.replacedFull.source!=='card_estimate_v98')throw new Error(`old forecast was not replaced by v98 full-payment forecast: ${JSON.stringify(result)}`);
+
+            fs.writeFileSync('v98-browser-result.json',JSON.stringify(result,null,2));
+            console.log('V98_BROWSER_RESULT',JSON.stringify(result));
+            await browser.close();
+          })().catch(e=>{console.error(e);process.exit(1)});
+          NODE
+
+      - name: Upload browser evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: v98-browser-actual-payoff-evidence
+          path: |
+            v98-browser-live-app.png
+            v98-browser-result.json
+          if-no-files-found: warn

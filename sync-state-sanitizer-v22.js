@@ -4,7 +4,7 @@
 
   // v70 phase 2: data/model compatibility remains, but legacy hidden UI boots are disabled.
   window.__householdConsolidatedUiV70 = true;
-  window.__householdRuntimeRelease = 'v99';
+  window.__householdRuntimeRelease = 'v100';
 
   const DERIVED_KEYS = new Set([
     'updatedAt',
@@ -70,6 +70,8 @@
   injectClassic('./import-engine-v28.js?v=28', 'data-household-import-v28');
   injectClassic('./csv-parser-v73.js?v=73', 'data-household-csv-parser-v73');
   injectClassic('./asset-snapshot-v85.js?v=85', 'data-household-asset-snapshot-v85');
+  // v100 renders imported assetSnapshots directly on Wealth; no manual monthly snapshot required.
+  injectClassic('./asset-chart-v100.js?v=100', 'data-household-asset-chart-v100');
   injectClassic('./date-normalizer-v75.js?v=75', 'data-household-date-normalizer-v75');
   injectClassic('./mobile-import-v73.js?v=73', 'data-household-mobile-import-v73');
   injectClassic('./mufg-import-integrity-v65.js?v=65', 'data-household-mufg-import-v65');

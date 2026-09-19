@@ -24,7 +24,7 @@ jobs:
           grep -Fq "cashflow-rollover-v101.js?v=101" sw.js
           grep -Fq 'household-treasury-v101-cashflow-rollover' sw.js
           grep -Fq 'sync-state-sanitizer-v22.js?v=101' index.html
-          node <<'NODE'
+          TZ=Asia/Tokyo node <<'NODE'
           const fs=require('fs'),vm=require('vm');
           let state;
           const doc={
@@ -98,7 +98,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          node <<'NODE'
+          TZ=Asia/Tokyo node <<'NODE'
           const {chromium}=require('playwright');
           const fs=require('fs');
           (async()=>{

@@ -1,0 +1,153 @@
+name: Check v101 Cashflow Rollover
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  model:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+      - name: Check v101 syntax, loader and rollover model
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check cashflow-rollover-v101.js
+          grep -Fq "window.__householdRuntimeRelease = 'v101'" sync-state-sanitizer-v22.js
+          grep -Fq "cashflow-rollover-v101.js?v=101" sync-state-sanitizer-v22.js
+          grep -Fq "cashflow-rollover-v101.js?v=101" sw.js
+          grep -Fq 'household-treasury-v101-cashflow-rollover' sw.js
+          grep -Fq 'sync-state-sanitizer-v22.js?v=101' index.html
+          node <<'NODE'
+          const fs=require('fs'),vm=require('vm');
+          let state;
+          const doc={
+            getElementById:()=>null,
+            querySelector:()=>null,
+            createElement:()=>({}),
+            addEventListener:()=>{}
+          };
+          const window={
+            getTreasuryStateRaw:()=>state,
+            getTreasuryState:()=>state,
+            addEventListener:()=>{},
+            replaceTreasuryState:n=>{state=structuredClone(n)},
+            cloudSyncOnLocalSave:()=>{},
+            setTreasurySaveStatus:()=>{}
+          };
+          const context={
+            window,document:doc,console,Intl,structuredClone,
+            setTimeout:()=>0,clearTimeout:()=>{},
+            forecast:(days=90)=>({rows:[{date:'2026-09-25',name:'future',amount:-10000,balance:390000}],low:390000,lowDate:'2026-09-25',endBalance:390000,safeBaseLow:390000,safetyFloor:0,reservedSpecial:0,shortTermLiabilities:0,safeToSpend:390000}),
+            generated:()=>[]
+          };
+          window.window=window;
+          vm.createContext(context);
+          vm.runInContext(fs.readFileSync('cashflow-rollover-v101.js','utf8'),context);
+          const api=window.householdCashflowRolloverV101;
+          if(!api)throw new Error('v101 API missing');
+
+          state={
+            settings:{cash:400000,salary:520000,salaryDay:18,reserve:0,reservedSpecial:0},
+            cashTransactions:[{date:'2026-09-15',balance_after:400000,source:'Rakuten Bank',account:'main'}],
+            masters:{fixedExpenses:[{id:'rent',name:'固定費',active:true,forecastEnabled:true,paymentRoute:'DIRECT',cadence:'MONTHLY',dueDay:19,amount:10000}]},
+            events:[],rules:[],overrides:[],cardSettlements:[],
+            cashflowRolloverV101:{version:101,pending:[],history:[]}
+          };
+          const backfill=api.backfillCandidates(state,'2026-09-15','2026-09-20');
+          const salary=backfill.find(x=>x.date==='2026-09-18'&&x.type==='SALARY');
+          const fixed=backfill.find(x=>x.date==='2026-09-19'&&x.master_id==='rent');
+          if(!salary||salary.amount!==520000)throw new Error('elapsed salary was not backfilled');
+          if(!fixed||fixed.amount!==-10000)throw new Error('elapsed fixed cost was not backfilled');
+
+          state.cashflowRolloverV101.history=backfill;
+          const rolled=api.currentBalanceFromState(state,'2026-09-20');
+          if(rolled!==910000)throw new Error(`rollforward balance expected 910000, got ${rolled}`);
+
+          const f=context.forecast(30);
+          if(f.rollforwardStartBalanceV101!==910000)throw new Error(`forecast start expected 910000, got ${f.rollforwardStartBalanceV101}`);
+          if(f.rows[0].balance!==900000||f.endBalance!==900000)throw new Error(`forecast balances were not shifted: ${JSON.stringify(f)}`);
+
+          state.cashTransactions.push({date:'2026-09-19',balance_after:905000,source:'Rakuten Bank',account:'main'});
+          const reconciled=api.currentBalanceFromState(state,'2026-09-20');
+          if(reconciled!==905000)throw new Error(`new imported balance must absorb elapsed plan without double count; got ${reconciled}`);
+          console.log('V101_MODEL_PASS',JSON.stringify({rolled,reconciled,backfill:backfill.map(x=>({date:x.date,name:x.name,amount:x.amount}))}));
+          NODE
+
+  live-browser:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install Playwright Chromium
+        run: |
+          npm install --no-save playwright@1.55.0
+          npx playwright install --with-deps chromium
+      - name: Verify deployed v101 rollover in Chromium
+        shell: bash
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const {chromium}=require('playwright');
+          const fs=require('fs');
+          (async()=>{
+            const browser=await chromium.launch({headless:true});
+            const page=await browser.newPage({viewport:{width:390,height:844},deviceScaleFactor:1});
+            let ready=false,release='';
+            for(let i=0;i<45;i++){
+              await page.goto(`https://rinko0211.github.io/household-treasury/?v101roll=${Date.now()}-${i}`,{waitUntil:'domcontentloaded',timeout:30000});
+              await page.waitForTimeout(1200);
+              ({ready,release}=await page.evaluate(()=>({ready:!!window.householdCashflowRolloverV101,release:window.__householdRuntimeRelease||''})).catch(()=>({ready:false,release:''})));
+              if(ready&&release==='v101')break;
+              await page.waitForTimeout(3000);
+            }
+            if(!ready||release!=='v101')throw new Error(`deployed runtime not ready: release=${release}, api=${ready}`);
+            await page.click('[data-page="cashflow"]');
+            await page.waitForSelector('#cashflowRolloverCardV101',{state:'visible',timeout:15000});
+            const title=await page.locator('#cashflowRolloverCardV101').innerText();
+            if(!title.includes('経過済み予定ログ')||!title.includes('v101'))throw new Error(`v101 ledger UI missing: ${title}`);
+
+            const result=await page.evaluate(()=>{
+              const api=window.householdCashflowRolloverV101;
+              const st={
+                settings:{cash:400000,salary:520000,salaryDay:18,reserve:0,reservedSpecial:0},
+                cashTransactions:[{date:'2026-09-15',balance_after:400000,source:'Rakuten Bank',account:'main'}],
+                masters:{fixedExpenses:[{id:'rent',name:'固定費',active:true,forecastEnabled:true,paymentRoute:'DIRECT',cadence:'MONTHLY',dueDay:19,amount:10000}]},
+                events:[],rules:[],overrides:[],cardSettlements:[],
+                cashflowRolloverV101:{version:101,pending:[],history:[]}
+              };
+              const history=api.backfillCandidates(st,'2026-09-15','2026-09-20');
+              st.cashflowRolloverV101.history=history;
+              const rolled=api.currentBalanceFromState(st,'2026-09-20');
+              st.cashTransactions.push({date:'2026-09-19',balance_after:905000,source:'Rakuten Bank',account:'main'});
+              const reconciled=api.currentBalanceFromState(st,'2026-09-20');
+              return {rolled,reconciled,history:history.map(x=>({date:x.date,name:x.name,amount:x.amount,type:x.type}))};
+            });
+            if(result.rolled!==910000)throw new Error(`browser rollforward expected 910000: ${JSON.stringify(result)}`);
+            if(result.reconciled!==905000)throw new Error(`browser reconciliation double counted: ${JSON.stringify(result)}`);
+            await page.screenshot({path:'v101-browser-cashflow.png',fullPage:true});
+            fs.writeFileSync('v101-browser-result.json',JSON.stringify({release,title,result},null,2));
+            console.log('V101_BROWSER_PASS',JSON.stringify(result));
+            await browser.close();
+          })().catch(e=>{console.error(e);process.exit(1)});
+          NODE
+      - name: Upload browser evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: v101-browser-evidence
+          path: |
+            v101-browser-cashflow.png
+            v101-browser-result.json
+          if-no-files-found: warn

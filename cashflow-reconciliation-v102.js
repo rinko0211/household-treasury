@@ -31,6 +31,48 @@
     return cur;
   }
 
+  const EVIDENCE_KEYS=['cashTransactions','purchaseEvents','cardSettlements','investmentEvents','assetSnapshots','imports'];
+
+  function recoveryEvidenceCandidates(){
+    if(typeof localStorage==='undefined')return[];
+    const out=[];
+    try{
+      const history=JSON.parse(localStorage.getItem('householdTreasuryRecoveryHistoryV1')||'[]');
+      if(Array.isArray(history))for(const x of history)if(x?.state&&typeof x.state==='object')out.push(x.state);
+    }catch{}
+    for(const key of ['householdTreasuryConflictBackup','householdTreasuryRemoteConflictBackup']){
+      try{
+        const x=JSON.parse(localStorage.getItem(key)||'null');
+        if(x?.state&&typeof x.state==='object')out.push(x.state);
+      }catch{}
+    }
+    return out;
+  }
+
+  function salvageCanonicalEvidence(st){
+    const api=window.householdTreasuryEvidenceMergeV104;
+    if(!api?.mergeEvidenceArray)return {changed:false,recovered:0,sources:0};
+    let changed=false,recovered=0,sources=0;
+    for(const cand of recoveryEvidenceCandidates()){
+      let used=false;
+      for(const kind of EVIDENCE_KEYS){
+        const before=Array.isArray(st[kind])?st[kind]:[];
+        const merged=api.mergeEvidenceArray(kind,before,cand?.[kind]);
+        if(merged.length!==before.length||JSON.stringify(merged)!==JSON.stringify(before)){
+          recovered+=Math.max(0,merged.length-before.length);
+          st[kind]=merged;
+          changed=true;used=true;
+        }
+      }
+      if(used)sources++;
+    }
+    if(changed){
+      st.recoveredCanonicalEvidenceV104={at:new Date().toISOString(),recovered,sources};
+      try{window.repairTreasuryBankBalances?.()}catch{}
+    }
+    return {changed,recovered,sources};
+  }
+
   function mainBankRows(st) {
     return (st.cashTransactions || []).map((t,index)=>({t,index})).filter(({t})=>{
       if (!t?.date || t.balance_after === null || t.balance_after === '' || !Number.isFinite(Number(t.balance_after))) return false;
@@ -377,6 +419,7 @@
 
   function reconcile({persist=true,refresh=true,rebuildDerived=false}={}) {
     const st=stateNow(),model=ensureModel(st),now=today(),before=serializeComparable(model);
+    const salvage=salvageCanonicalEvidence(st);
     const anchor=anchorFor(st,now);
     const importedStart=earliestImportedDate(st);
     const needsLoadMigration=!!importedStart&&Number(model.loadRebuildVersion||0)<LOAD_REBUILD_VERSION;
@@ -415,9 +458,9 @@
     model.pending=generatedSnapshot();
     model.lastReconciledAt=new Date().toISOString();
     model.lastAnchor={...anchor};
-    model.lastReconciliation={...reconciliation,archivedEvents,archivedTotal:(st.eventArchiveV104||[]).length,repairedCurrentMonthHistory,actualTransactions:mainBankRows(st).length,at:new Date().toISOString()};
+    model.lastReconciliation={...reconciliation,archivedEvents,archivedTotal:(st.eventArchiveV104||[]).length,repairedCurrentMonthHistory,recoveredEvidence:salvage.recovered,recoverySources:salvage.sources,actualTransactions:mainBankRows(st).length,at:new Date().toISOString()};
 
-    const after=serializeComparable(model),changed=before!==after||archivedEvents>0||repairedCurrentMonthHistory;
+    const after=serializeComparable(model),changed=before!==after||archivedEvents>0||repairedCurrentMonthHistory||salvage.changed;
     if(changed&&persist&&typeof window.replaceTreasuryState==='function') {
       internalWrite=true;
       try {
@@ -428,7 +471,7 @@
       } finally { internalWrite=false; }
     }
     if(refresh)refreshUi();
-    return {changed,anchor,current:currentBalanceFromState(st,now),planningStart:planningStartBalanceFromState(st,now),reconciliation,archivedEvents,repairedCurrentMonthHistory,history:model.history,pending:model.pending};
+    return {changed,anchor,current:currentBalanceFromState(st,now),planningStart:planningStartBalanceFromState(st,now),reconciliation,archivedEvents,repairedCurrentMonthHistory,salvage,history:model.history,pending:model.pending};
   }
 
   function activeElapsed(st,now=today()) {
@@ -481,7 +524,7 @@
     const actual=anchor.balance,delta=rows.reduce((a,x)=>a+Number(x.amount||0),0),planning=actual+delta;
     const rec=model.lastReconciliation||{matched:0,absorbed:0,awaiting:rows.length,actualTransactions:mainBankRows(st).length};
     const card=ensureUi(),summary=$('cashflowReconciliationSummaryV102'),host=$('cashflowReconciliationRowsV102');
-    if(card&&summary)summary.innerHTML=`<div class="row"><div><b>銀行実績残高</b><div class="tiny">${esc(anchor.date)} · ${esc(anchor.label)} · 取引後残高</div></div><b class="amt">${yen(actual)}</b></div><div class="row"><span>CSV以降の未照合予定</span><b class="amt ${delta<0?'bad':delta>0?'good':''}">${delta>0?'+':''}${yen(delta)}</b></div><div class="row"><span>将来予測の開始残高</span><b class="amt">${yen(planning)}</b></div><div class="tiny" style="margin-top:6px">現在高は銀行CSVの最新「取引後残高」をそのまま表示します。CSVより後に期限が過ぎた予定は現在高へ混ぜず、将来予測だけに暫定反映します。次回CSV取込時に実績へ吸収・照合されます。</div><div class="tiny" style="margin-top:6px">照合: 実績一致 ${Number(rec.matched)||0}件 · 残高に包含 ${Number(rec.absorbed)||0}件 · 未照合 ${Number(rec.awaiting)||0}件 · 照合済み履歴 ${Number(rec.archivedTotal)||0}件 · 銀行実績 ${Number(rec.actualTransactions)||0}件</div>`;
+    if(card&&summary)summary.innerHTML=`<div class="row"><div><b>銀行実績残高</b><div class="tiny">${esc(anchor.date)} · ${esc(anchor.label)} · 取引後残高</div></div><b class="amt">${yen(actual)}</b></div><div class="row"><span>CSV以降の未照合予定</span><b class="amt ${delta<0?'bad':delta>0?'good':''}">${delta>0?'+':''}${yen(delta)}</b></div><div class="row"><span>将来予測の開始残高</span><b class="amt">${yen(planning)}</b></div><div class="tiny" style="margin-top:6px">現在高は銀行CSVの最新「取引後残高」をそのまま表示します。CSVより後に期限が過ぎた予定は現在高へ混ぜず、将来予測だけに暫定反映します。次回CSV取込時に実績へ吸収・照合されます。</div><div class="tiny" style="margin-top:6px">照合: 実績一致 ${Number(rec.matched)||0}件 · 残高に包含 ${Number(rec.absorbed)||0}件 · 未照合 ${Number(rec.awaiting)||0}件 · 照合済み履歴 ${Number(rec.archivedTotal)||0}件 · 復旧原記録 ${Number(rec.recoveredEvidence)||0}件 · 銀行実績 ${Number(rec.actualTransactions)||0}件</div>`;
     if(host){
       const recent=[...(model.history||[])].filter(x=>x.date<now).slice(-40).reverse();
       host.innerHTML=recent.length?recent.map(x=>{
@@ -536,6 +579,7 @@
     reconcileHistoryStatuses,
     generatedSnapshot,
     semanticKey,
+    salvageCanonicalEvidence,
     archiveSettledEvents,
     repairCurrentMonthHistory,
     refreshUi,

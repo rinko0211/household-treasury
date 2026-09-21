@@ -137,7 +137,7 @@
       if(e.amount===null||e.amount===''||!Number.isFinite(Number(e.amount)))continue;
       const rec=String(e.recurring||'NONE').toUpperCase();
       if(rec==='NONE') {
-        if(inElapsedRange(base,fromExclusive,toExclusive)) out.push(compact({...e,source:e.source||'future_event'},'BACKFILL_EVENT'));
+        if(inElapsedRange(base,fromExclusive,toExclusive)) out.push(compact({...e,parent_event_id:e.parent_event_id||e.id,source:e.source||'future_event'},'BACKFILL_EVENT'));
         continue;
       }
       let d=base,guard=0;

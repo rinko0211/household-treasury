@@ -3,7 +3,7 @@
   window.__cashflowReconciliationV102 = true;
 
   const VERSION = 102;
-  const LOAD_REBUILD_VERSION = 103;
+  const LOAD_REBUILD_VERSION = 104;
   const HORIZON_DAYS = 400;
   const $ = id => document.getElementById(id);
   const stateNow = () => (window.getTreasuryStateRaw || window.getTreasuryState)?.() || {};
@@ -133,7 +133,8 @@
 
   function eventOccurrences(st,fromExclusive,toExclusive) {
     const out=[];
-    for(const e of st.events||[]) {
+    const archived=(Array.isArray(st.eventArchiveV104)?st.eventArchiveV104:[]).map(x=>({...x,id:x.source_event_id||x.id}));
+    for(const e of [...(st.events||[]),...archived]) {
       const base=String(e.date||'');
       if(!/^\d{4}-\d{2}-\d{2}$/.test(base))continue;
       if(e.amount===null||e.amount===''||!Number.isFinite(Number(e.amount)))continue;
@@ -295,6 +296,58 @@
     return {matched:rows.filter(x=>x.status==='MATCHED_ACTUAL').length,absorbed:rows.filter(x=>x.status==='ANCHOR_ABSORBED').length,awaiting:rows.filter(x=>x.status==='AWAITING_IMPORT').length};
   }
 
+  function archiveSettledEvents(st,model,anchor) {
+    st.eventArchiveV104=Array.isArray(st.eventArchiveV104)?st.eventArchiveV104:[];
+    const archivedById=new Map(st.eventArchiveV104.map(x=>[String(x.source_event_id||x.id||''),x]));
+    const historyByEvent=new Map();
+    for(const x of model.history||[]){
+      const id=String(x.parent_event_id||'');
+      if(id)historyByEvent.set(id,x);
+    }
+    const keep=[];let archived=0;
+    for(const e of st.events||[]){
+      const id=String(e?.id||''),date=String(e?.date||''),rec=String(e?.recurring||'NONE').toUpperCase();
+      const h=historyByEvent.get(id);
+      const settled=h&&(h.status==='MATCHED_ACTUAL'||h.status==='ANCHOR_ABSORBED');
+      if(!id||rec!=='NONE'||!date||date>anchor.date||!settled){keep.push(e);continue}
+      const recRow={
+        ...structuredClone(e),
+        source_event_id:id,
+        archivedAt:new Date().toISOString(),
+        reconciliation_status:h.status,
+        actual_transaction_id:h.actual_transaction_id||'',
+        actual_date:h.actual_date||'',
+        actual_description:h.actual_description||'',
+        actual_amount:Number.isFinite(Number(h.actual_amount))?Number(h.actual_amount):null,
+        anchor_date:anchor.date,
+        anchor_balance:anchor.balance
+      };
+      const old=archivedById.get(id);
+      if(old)Object.assign(old,recRow);
+      else{st.eventArchiveV104.push(recRow);archivedById.set(id,recRow)}
+      archived++;
+    }
+    if(archived)st.events=keep;
+    return archived;
+  }
+
+  function repairCurrentMonthHistory(st) {
+    if(!Array.isArray(st.history)||!st.history.length)return false;
+    const month=today().slice(0,7),row=st.history.find(x=>String(x?.month||'')===month);
+    if(!row)return false;
+    const next={
+      bank:Number(st.assets?.bank??st.settings?.cash)||0,
+      investment:Number(st.assets?.investment)||0,
+      ideco:Number(st.assets?.ideco)||0,
+      other:Number(st.assets?.other)||0,
+      liabilities:Number(st.assets?.liabilities)||0
+    };
+    let changed=false;
+    for(const [k,v] of Object.entries(next))if(Number(row[k]||0)!==v){row[k]=v;changed=true}
+    if(changed)row.reconciledAt=new Date().toISOString();
+    return changed;
+  }
+
   function generatedSnapshot() {
     try {
       if(typeof generated!=='function')return[];
@@ -350,12 +403,14 @@
       .sort((a,b)=>String(a.date).localeCompare(String(b.date))||String(a.name||'').localeCompare(String(b.name||''),'ja'))
       .slice(-1200);
     const reconciliation=reconcileHistoryStatuses(st,model,anchor,now);
+    const archivedEvents=archiveSettledEvents(st,model,anchor);
+    const repairedCurrentMonthHistory=repairCurrentMonthHistory(st);
     model.pending=generatedSnapshot();
     model.lastReconciledAt=new Date().toISOString();
     model.lastAnchor={...anchor};
-    model.lastReconciliation={...reconciliation,actualTransactions:mainBankRows(st).length,at:new Date().toISOString()};
+    model.lastReconciliation={...reconciliation,archivedEvents,repairedCurrentMonthHistory,actualTransactions:mainBankRows(st).length,at:new Date().toISOString()};
 
-    const after=serializeComparable(model),changed=before!==after;
+    const after=serializeComparable(model),changed=before!==after||archivedEvents>0||repairedCurrentMonthHistory;
     if(changed&&persist&&typeof window.replaceTreasuryState==='function') {
       internalWrite=true;
       try {
@@ -366,7 +421,7 @@
       } finally { internalWrite=false; }
     }
     if(refresh)refreshUi();
-    return {changed,anchor,current:currentBalanceFromState(st,now),planningStart:planningStartBalanceFromState(st,now),reconciliation,history:model.history,pending:model.pending};
+    return {changed,anchor,current:currentBalanceFromState(st,now),planningStart:planningStartBalanceFromState(st,now),reconciliation,archivedEvents,repairedCurrentMonthHistory,history:model.history,pending:model.pending};
   }
 
   function activeElapsed(st,now=today()) {
@@ -419,7 +474,7 @@
     const actual=anchor.balance,delta=rows.reduce((a,x)=>a+Number(x.amount||0),0),planning=actual+delta;
     const rec=model.lastReconciliation||{matched:0,absorbed:0,awaiting:rows.length,actualTransactions:mainBankRows(st).length};
     const card=ensureUi(),summary=$('cashflowReconciliationSummaryV102'),host=$('cashflowReconciliationRowsV102');
-    if(card&&summary)summary.innerHTML=`<div class="row"><div><b>銀行実績残高</b><div class="tiny">${esc(anchor.date)} · ${esc(anchor.label)} · 取引後残高</div></div><b class="amt">${yen(actual)}</b></div><div class="row"><span>CSV以降の未照合予定</span><b class="amt ${delta<0?'bad':delta>0?'good':''}">${delta>0?'+':''}${yen(delta)}</b></div><div class="row"><span>将来予測の開始残高</span><b class="amt">${yen(planning)}</b></div><div class="tiny" style="margin-top:6px">現在高は銀行CSVの最新「取引後残高」をそのまま表示します。CSVより後に期限が過ぎた予定は現在高へ混ぜず、将来予測だけに暫定反映します。次回CSV取込時に実績へ吸収・照合されます。</div><div class="tiny" style="margin-top:6px">照合: 実績一致 ${Number(rec.matched)||0}件 · 残高に包含 ${Number(rec.absorbed)||0}件 · 未照合 ${Number(rec.awaiting)||0}件 · 銀行実績 ${Number(rec.actualTransactions)||0}件</div>`;
+    if(card&&summary)summary.innerHTML=`<div class="row"><div><b>銀行実績残高</b><div class="tiny">${esc(anchor.date)} · ${esc(anchor.label)} · 取引後残高</div></div><b class="amt">${yen(actual)}</b></div><div class="row"><span>CSV以降の未照合予定</span><b class="amt ${delta<0?'bad':delta>0?'good':''}">${delta>0?'+':''}${yen(delta)}</b></div><div class="row"><span>将来予測の開始残高</span><b class="amt">${yen(planning)}</b></div><div class="tiny" style="margin-top:6px">現在高は銀行CSVの最新「取引後残高」をそのまま表示します。CSVより後に期限が過ぎた予定は現在高へ混ぜず、将来予測だけに暫定反映します。次回CSV取込時に実績へ吸収・照合されます。</div><div class="tiny" style="margin-top:6px">照合: 実績一致 ${Number(rec.matched)||0}件 · 残高に包含 ${Number(rec.absorbed)||0}件 · 未照合 ${Number(rec.awaiting)||0}件 · 過去イベント退役 ${Number(rec.archivedEvents)||0}件 · 銀行実績 ${Number(rec.actualTransactions)||0}件</div>`;
     if(host){
       const recent=[...(model.history||[])].filter(x=>x.date<now).slice(-40).reverse();
       host.innerHTML=recent.length?recent.map(x=>{
@@ -474,6 +529,8 @@
     reconcileHistoryStatuses,
     generatedSnapshot,
     semanticKey,
+    archiveSettledEvents,
+    repairCurrentMonthHistory,
     refreshUi,
     reconcileLoadedState:()=>{window.__treasuryLoadedStateNeedsRebuild=true;return reconcile({persist:true,refresh:true,rebuildDerived:true})}
   };

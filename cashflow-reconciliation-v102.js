@@ -331,10 +331,11 @@
     return archived;
   }
 
-  function repairCurrentMonthHistory(st) {
-    if(!Array.isArray(st.history)||!st.history.length)return false;
-    const month=today().slice(0,7),row=st.history.find(x=>String(x?.month||'')===month);
-    if(!row)return false;
+  function repairCurrentMonthHistory(st,anchor) {
+    if(anchor?.source!=='BANK_IMPORT')return false;
+    st.history=Array.isArray(st.history)?st.history:[];
+    const month=today().slice(0,7);
+    let row=st.history.find(x=>String(x?.month||'')===month);
     const next={
       bank:Number(st.assets?.bank??st.settings?.cash)||0,
       investment:Number(st.assets?.investment)||0,
@@ -343,6 +344,12 @@
       liabilities:Number(st.assets?.liabilities)||0
     };
     let changed=false;
+    if(!row){
+      row={month,...next,autoReconciled:true,reconciledAt:new Date().toISOString()};
+      st.history.push(row);
+      st.history.sort((a,b)=>String(a.month||'').localeCompare(String(b.month||'')));
+      return true;
+    }
     for(const [k,v] of Object.entries(next))if(Number(row[k]||0)!==v){row[k]=v;changed=true}
     if(changed)row.reconciledAt=new Date().toISOString();
     return changed;
@@ -404,11 +411,11 @@
       .slice(-1200);
     const reconciliation=reconcileHistoryStatuses(st,model,anchor,now);
     const archivedEvents=archiveSettledEvents(st,model,anchor);
-    const repairedCurrentMonthHistory=repairCurrentMonthHistory(st);
+    const repairedCurrentMonthHistory=repairCurrentMonthHistory(st,anchor);
     model.pending=generatedSnapshot();
     model.lastReconciledAt=new Date().toISOString();
     model.lastAnchor={...anchor};
-    model.lastReconciliation={...reconciliation,archivedEvents,repairedCurrentMonthHistory,actualTransactions:mainBankRows(st).length,at:new Date().toISOString()};
+    model.lastReconciliation={...reconciliation,archivedEvents,archivedTotal:(st.eventArchiveV104||[]).length,repairedCurrentMonthHistory,actualTransactions:mainBankRows(st).length,at:new Date().toISOString()};
 
     const after=serializeComparable(model),changed=before!==after||archivedEvents>0||repairedCurrentMonthHistory;
     if(changed&&persist&&typeof window.replaceTreasuryState==='function') {
@@ -463,7 +470,7 @@
     let card=$('cashflowReconciliationCardV102');
     if(card)return card;
     card=document.createElement('div');card.id='cashflowReconciliationCardV102';card.className='card full';
-    card.innerHTML='<div class="title">実績・予定の照合 <span class="tag">v102</span></div><div id="cashflowReconciliationSummaryV102"></div><details style="margin-top:8px"><summary class="tiny">過去予定の照合結果を表示</summary><div id="cashflowReconciliationRowsV102" style="margin-top:8px"></div></details>';
+    card.innerHTML='<div class="title">実績・予定の照合 <span class="tag">v104</span></div><div id="cashflowReconciliationSummaryV102"></div><details style="margin-top:8px"><summary class="tiny">過去予定の照合結果を表示</summary><div id="cashflowReconciliationRowsV102" style="margin-top:8px"></div></details>';
     const mobile=$('mobileCashflowV60');
     if(mobile&&mobile.parentElement===grid)mobile.after(card);else grid.prepend(card);
     return card;
@@ -474,7 +481,7 @@
     const actual=anchor.balance,delta=rows.reduce((a,x)=>a+Number(x.amount||0),0),planning=actual+delta;
     const rec=model.lastReconciliation||{matched:0,absorbed:0,awaiting:rows.length,actualTransactions:mainBankRows(st).length};
     const card=ensureUi(),summary=$('cashflowReconciliationSummaryV102'),host=$('cashflowReconciliationRowsV102');
-    if(card&&summary)summary.innerHTML=`<div class="row"><div><b>銀行実績残高</b><div class="tiny">${esc(anchor.date)} · ${esc(anchor.label)} · 取引後残高</div></div><b class="amt">${yen(actual)}</b></div><div class="row"><span>CSV以降の未照合予定</span><b class="amt ${delta<0?'bad':delta>0?'good':''}">${delta>0?'+':''}${yen(delta)}</b></div><div class="row"><span>将来予測の開始残高</span><b class="amt">${yen(planning)}</b></div><div class="tiny" style="margin-top:6px">現在高は銀行CSVの最新「取引後残高」をそのまま表示します。CSVより後に期限が過ぎた予定は現在高へ混ぜず、将来予測だけに暫定反映します。次回CSV取込時に実績へ吸収・照合されます。</div><div class="tiny" style="margin-top:6px">照合: 実績一致 ${Number(rec.matched)||0}件 · 残高に包含 ${Number(rec.absorbed)||0}件 · 未照合 ${Number(rec.awaiting)||0}件 · 過去イベント退役 ${Number(rec.archivedEvents)||0}件 · 銀行実績 ${Number(rec.actualTransactions)||0}件</div>`;
+    if(card&&summary)summary.innerHTML=`<div class="row"><div><b>銀行実績残高</b><div class="tiny">${esc(anchor.date)} · ${esc(anchor.label)} · 取引後残高</div></div><b class="amt">${yen(actual)}</b></div><div class="row"><span>CSV以降の未照合予定</span><b class="amt ${delta<0?'bad':delta>0?'good':''}">${delta>0?'+':''}${yen(delta)}</b></div><div class="row"><span>将来予測の開始残高</span><b class="amt">${yen(planning)}</b></div><div class="tiny" style="margin-top:6px">現在高は銀行CSVの最新「取引後残高」をそのまま表示します。CSVより後に期限が過ぎた予定は現在高へ混ぜず、将来予測だけに暫定反映します。次回CSV取込時に実績へ吸収・照合されます。</div><div class="tiny" style="margin-top:6px">照合: 実績一致 ${Number(rec.matched)||0}件 · 残高に包含 ${Number(rec.absorbed)||0}件 · 未照合 ${Number(rec.awaiting)||0}件 · 照合済み履歴 ${Number(rec.archivedTotal)||0}件 · 銀行実績 ${Number(rec.actualTransactions)||0}件</div>`;
     if(host){
       const recent=[...(model.history||[])].filter(x=>x.date<now).slice(-40).reverse();
       host.innerHTML=recent.length?recent.map(x=>{

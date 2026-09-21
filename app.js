@@ -233,7 +233,14 @@ function importRuleSpec(obj){
 
 $('drop').onclick=()=>$('csvInput').click();$('csvInput').onchange=e=>readCsv(e.target.files);$('drop').ondragover=e=>e.preventDefault();$('drop').ondrop=e=>{e.preventDefault();readCsv(e.dataTransfer.files)};
 $('exportJson').onclick=()=>{const b=new Blob([JSON.stringify(state,null,2)],{type:'application/json'}),a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='household-treasury-backup.json';a.click();URL.revokeObjectURL(a.href)};
-$('importJson').onclick=()=>$('jsonInput').click();$('jsonInput').onchange=e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{const obj=JSON.parse(r.result);if(!importRuleSpec(obj)){state=obj;normalize();save();render()}}catch{alert('JSONを読み込めませんでした')}};r.readAsText(f)};
+function importBackupState(obj){
+  if(typeof window.replaceTreasuryState==='function')window.replaceTreasuryState(obj);
+  else{state=obj;normalize();save();render()}
+  try{window.repairTreasuryBankBalances?.()}catch{}
+  try{window.householdCashflowReconciliationV102?.reconcile?.({persist:true,refresh:true})}catch{}
+}
+$('importJson').onclick=()=>$('jsonInput').click();
+$('jsonInput').onchange=e=>{const input=e.target,f=input.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{const obj=JSON.parse(r.result);if(!importRuleSpec(obj))importBackupState(obj)}catch{alert('JSONを読み込めませんでした')}finally{input.value=''}};r.readAsText(f)};
 document.querySelectorAll('.tab').forEach(b=>b.onclick=()=>{document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));document.querySelectorAll('.page').forEach(x=>x.classList.remove('active'));b.classList.add('active');$(b.dataset.page).classList.add('active');render()});
 window.getTreasuryState=()=>structuredClone(state);window.replaceTreasuryState=n=>{state=structuredClone(n);normalize();localStorage.setItem(KEY,JSON.stringify(state));injectUi();render()};window.setTreasurySaveStatus=t=>$('saveStatus').textContent=t;
 load();render();

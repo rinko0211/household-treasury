@@ -1,4 +1,4 @@
-name: Check v101 Cashflow Rollover
+name: Check v102 Bank Reconciliation
 
 on:
   push:
@@ -14,16 +14,17 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v6
-      - name: Check v101 syntax, loader and rollover model
+      - name: Check v102 syntax, loader and reconciliation model
         shell: bash
         run: |
           set -euo pipefail
-          node --check cashflow-rollover-v101.js
-          grep -Fq "window.__householdRuntimeRelease = 'v101'" sync-state-sanitizer-v22.js
-          grep -Fq "cashflow-rollover-v101.js?v=101" sync-state-sanitizer-v22.js
-          grep -Fq "cashflow-rollover-v101.js?v=101" sw.js
-          grep -Fq 'household-treasury-v101-cashflow-rollover' sw.js
-          grep -Fq 'sync-state-sanitizer-v22.js?v=101' index.html
+          node --check cashflow-reconciliation-v102.js
+          grep -Fq "window.__householdRuntimeRelease = 'v102'" sync-state-sanitizer-v22.js
+          grep -Fq "cashflow-reconciliation-v102.js?v=102" sync-state-sanitizer-v22.js
+          grep -Fq "cashflow-reconciliation-v102.js?v=102" sw.js
+          grep -Fq 'household-treasury-v102-bank-reconciliation' sw.js
+          grep -Fq 'sync-state-sanitizer-v22.js?v=102' index.html
+          ! grep -Fq "injectClassic('./cashflow-rollover-v101.js" sync-state-sanitizer-v22.js
           TZ=Asia/Tokyo node <<'NODE'
           const fs=require('fs'),vm=require('vm');
           let state;
@@ -42,42 +43,59 @@ jobs:
             setTreasurySaveStatus:()=>{}
           };
           const context={
-            window,document:doc,console,Intl,structuredClone,
+            window,document:doc,console,Intl,structuredClone,Date,
             setTimeout:()=>0,clearTimeout:()=>{},
-            forecast:(days=90)=>({rows:[{date:'2026-09-25',name:'future',amount:-10000,balance:390000}],low:390000,lowDate:'2026-09-25',endBalance:390000,safeBaseLow:390000,safetyFloor:0,reservedSpecial:0,shortTermLiabilities:0,safeToSpend:390000}),
+            forecast:(days=90)=>({rows:[{date:'2026-09-25',name:'future',amount:-10000,balance:113456}],low:113456,lowDate:'2026-09-25',endBalance:113456,safeBaseLow:113456,safetyFloor:0,reservedSpecial:0,shortTermLiabilities:0,safeToSpend:113456}),
             generated:()=>[]
           };
           window.window=window;
           vm.createContext(context);
-          vm.runInContext(fs.readFileSync('cashflow-rollover-v101.js','utf8'),context);
-          const api=window.householdCashflowRolloverV101;
-          if(!api)throw new Error('v101 API missing');
+          vm.runInContext(fs.readFileSync('cashflow-reconciliation-v102.js','utf8'),context);
+          const api=window.householdCashflowReconciliationV102;
+          if(!api)throw new Error('v102 API missing');
 
           state={
-            settings:{cash:400000,salary:520000,salaryDay:18,reserve:0,reservedSpecial:0},
-            cashTransactions:[{date:'2026-09-15',balance_after:400000,source:'Rakuten Bank',account:'main'}],
-            masters:{fixedExpenses:[{id:'rent',name:'固定費',active:true,forecastEnabled:true,paymentRoute:'DIRECT',cadence:'MONTHLY',dueDay:19,amount:10000}]},
-            events:[],rules:[],overrides:[],cardSettlements:[],
-            cashflowRolloverV101:{version:101,pending:[],history:[]}
+            settings:{cash:123456,salary:540288,salaryDay:18,reserve:0,reservedSpecial:0},
+            cashTransactions:[
+              {id:'b1',date:'2026-08-22',amount:-30000,balance_after:401878,source:'Rakuten Bank',account:'main',description_raw:'カード出金'},
+              {id:'b2',date:'2026-09-15',amount:225000,balance_after:487841,source:'Rakuten Bank',account:'main',description_raw:'楽天証券',cashflow_type:'INTERNAL_TRANSFER',is_transfer:true},
+              {id:'b3',date:'2026-09-15',amount:-221823,balance_after:266018,source:'Rakuten Bank',account:'main',description_raw:'三菱UFJニコス',cashflow_type:'DEBT_PRINCIPAL'},
+              {id:'b4',date:'2026-09-18',amount:-12000,balance_after:254018,source:'Rakuten Bank',account:'main',description_raw:'振込'},
+              {id:'b5',date:'2026-09-18',amount:-48000,balance_after:206018,source:'Rakuten Bank',account:'main',description_raw:'振込'},
+              {id:'b6',date:'2026-09-18',amount:540288,balance_after:746306,source:'Rakuten Bank',account:'main',description_raw:'給与',cashflow_type:'INCOME_SALARY'},
+              {id:'b7',date:'2026-09-18',amount:-260000,balance_after:486306,source:'Rakuten Bank',account:'main',description_raw:'振込'},
+              {id:'b8',date:'2026-09-18',amount:-145,balance_after:486161,source:'Rakuten Bank',account:'main',description_raw:'振込手数料'}
+            ],
+            masters:{fixedExpenses:[{id:'after-anchor',name:'未取込固定費',active:true,forecastEnabled:true,paymentRoute:'DIRECT',cadence:'MONTHLY',dueDay:20,amount:10000}]},
+            events:[{id:'payoff',date:'2026-09-15',name:'JAL/DCリボ完済',amount:-221823,type:'DEBT',recurring:'NONE'}],
+            rules:[],overrides:[],cardSettlements:[],
+            cashflowReconciliationV102:{version:102,pending:[],history:[]}
           };
-          const backfill=api.backfillCandidates(state,'2026-09-15','2026-09-20');
-          const salary=backfill.find(x=>x.date==='2026-09-18'&&x.type==='SALARY');
-          const fixed=backfill.find(x=>x.date==='2026-09-19'&&x.master_id==='rent');
-          if(!salary||salary.amount!==520000)throw new Error('elapsed salary was not backfilled');
-          if(!fixed||fixed.amount!==-10000)throw new Error('elapsed fixed cost was not backfilled');
 
-          state.cashflowRolloverV101.history=backfill;
-          const rolled=api.currentBalanceFromState(state,'2026-09-20');
-          if(rolled!==910000)throw new Error(`rollforward balance expected 910000, got ${rolled}`);
+          const anchor=api.latestImportedAnchor(state);
+          if(anchor.date!=='2026-09-18'||anchor.balance!==486161)throw new Error('latest balance_after must be authoritative: '+JSON.stringify(anchor));
+          if(api.earliestImportedDate(state)!=='2026-08-22')throw new Error('statement range start missing');
+
+          const history=api.backfillCandidates(state,'2026-08-21','2026-09-21');
+          state.cashflowReconciliationV102.history=history;
+          const rec=api.reconcileHistoryStatuses(state,state.cashflowReconciliationV102,anchor,'2026-09-21');
+          const salary=state.cashflowReconciliationV102.history.find(x=>x.type==='SALARY'&&x.date==='2026-09-18');
+          const payoff=state.cashflowReconciliationV102.history.find(x=>x.parent_event_id==='payoff'||x.key.includes('payoff'));
+          const waiting=state.cashflowReconciliationV102.history.find(x=>x.master_id==='after-anchor'&&x.date==='2026-09-20');
+          if(!salary||salary.status!=='MATCHED_ACTUAL'||salary.actual_transaction_id!=='b6')throw new Error('salary plan must match bank actual: '+JSON.stringify(salary));
+          if(!payoff||payoff.status!=='MATCHED_ACTUAL'||payoff.actual_transaction_id!=='b3')throw new Error('payoff plan must match bank actual: '+JSON.stringify(payoff));
+          if(!waiting||waiting.status!=='AWAITING_IMPORT')throw new Error('post-anchor elapsed plan must await next import: '+JSON.stringify(waiting));
+
+          const actual=api.currentBalanceFromState(state,'2026-09-21');
+          const planning=api.planningStartBalanceFromState(state,'2026-09-21');
+          if(actual!==486161)throw new Error('actual current balance must stay at imported balance_after, got '+actual);
+          if(planning!==476161)throw new Error('planning start should include only unverified post-anchor plan, got '+planning);
 
           const f=context.forecast(30);
-          if(f.rollforwardStartBalanceV101!==910000)throw new Error(`forecast start expected 910000, got ${f.rollforwardStartBalanceV101}`);
-          if(f.rows[0].balance!==900000||f.endBalance!==900000)throw new Error(`forecast balances were not shifted: ${JSON.stringify(f)}`);
-
-          state.cashTransactions.push({date:'2026-09-19',balance_after:905000,source:'Rakuten Bank',account:'main'});
-          const reconciled=api.currentBalanceFromState(state,'2026-09-20');
-          if(reconciled!==905000)throw new Error(`new imported balance must absorb elapsed plan without double count; got ${reconciled}`);
-          console.log('V101_MODEL_PASS',JSON.stringify({rolled,reconciled,backfill:backfill.map(x=>({date:x.date,name:x.name,amount:x.amount}))}));
+          if(f.actualBalanceV102!==486161)throw new Error('forecast must expose actual imported balance');
+          if(f.planningStartBalanceV102!==476161)throw new Error('forecast planning start mismatch: '+JSON.stringify(f));
+          if(f.rows[0].balance!==466161)throw new Error('future balance should start from planning balance: '+JSON.stringify(f.rows[0]));
+          console.log('V102_MODEL_PASS',JSON.stringify({anchor,actual,planning,rec,salary:salary.status,payoff:payoff.status,waiting:waiting.status}));
           NODE
 
   live-browser:
@@ -94,7 +112,7 @@ jobs:
         run: |
           npm install --no-save playwright@1.55.0
           npx playwright install --with-deps chromium
-      - name: Verify deployed v101 rollover in Chromium
+      - name: Verify deployed v102 reconciliation in Chromium
         shell: bash
         run: |
           set -euo pipefail
@@ -106,39 +124,45 @@ jobs:
             const page=await browser.newPage({viewport:{width:390,height:844},deviceScaleFactor:1});
             let ready=false,release='';
             for(let i=0;i<45;i++){
-              await page.goto(`https://rinko0211.github.io/household-treasury/?v101roll=${Date.now()}-${i}`,{waitUntil:'domcontentloaded',timeout:30000});
+              await page.goto(`https://rinko0211.github.io/household-treasury/?v102reconcile=${Date.now()}-${i}`,{waitUntil:'domcontentloaded',timeout:30000});
               await page.waitForTimeout(1200);
-              ({ready,release}=await page.evaluate(()=>({ready:!!window.householdCashflowRolloverV101,release:window.__householdRuntimeRelease||''})).catch(()=>({ready:false,release:''})));
-              if(ready&&release==='v101')break;
+              ({ready,release}=await page.evaluate(()=>({ready:!!window.householdCashflowReconciliationV102,release:window.__householdRuntimeRelease||''})).catch(()=>({ready:false,release:''})));
+              if(ready&&release==='v102')break;
               await page.waitForTimeout(3000);
             }
-            if(!ready||release!=='v101')throw new Error(`deployed runtime not ready: release=${release}, api=${ready}`);
-            await page.click('[data-page="cashflow"]');
-            await page.waitForSelector('#cashflowRolloverCardV101',{state:'visible',timeout:15000});
-            const title=await page.locator('#cashflowRolloverCardV101').innerText();
-            if(!title.includes('経過済み予定ログ')||!title.includes('v101'))throw new Error(`v101 ledger UI missing: ${title}`);
+            if(!ready||release!=='v102')throw new Error(`deployed runtime not ready: release=${release}, api=${ready}`);
 
             const result=await page.evaluate(()=>{
-              const api=window.householdCashflowRolloverV101;
+              const api=window.householdCashflowReconciliationV102;
               const st={
-                settings:{cash:400000,salary:520000,salaryDay:18,reserve:0,reservedSpecial:0},
-                cashTransactions:[{date:'2026-09-15',balance_after:400000,source:'Rakuten Bank',account:'main'}],
-                masters:{fixedExpenses:[{id:'rent',name:'固定費',active:true,forecastEnabled:true,paymentRoute:'DIRECT',cadence:'MONTHLY',dueDay:19,amount:10000}]},
-                events:[],rules:[],overrides:[],cardSettlements:[],
-                cashflowRolloverV101:{version:101,pending:[],history:[]}
+                settings:{cash:123456,salary:540288,salaryDay:18,reserve:0,reservedSpecial:0},
+                cashTransactions:[
+                  {id:'b1',date:'2026-08-22',amount:-30000,balance_after:401878,source:'Rakuten Bank',account:'main'},
+                  {id:'b3',date:'2026-09-15',amount:-221823,balance_after:266018,source:'Rakuten Bank',account:'main',description_raw:'三菱UFJニコス',cashflow_type:'DEBT_PRINCIPAL'},
+                  {id:'b6',date:'2026-09-18',amount:540288,balance_after:746306,source:'Rakuten Bank',account:'main',description_raw:'給与',cashflow_type:'INCOME_SALARY'},
+                  {id:'b8',date:'2026-09-18',amount:-145,balance_after:486161,source:'Rakuten Bank',account:'main'}
+                ],
+                masters:{fixedExpenses:[{id:'after-anchor',name:'未取込固定費',active:true,forecastEnabled:true,paymentRoute:'DIRECT',cadence:'MONTHLY',dueDay:20,amount:10000}]},
+                events:[{id:'payoff',date:'2026-09-15',name:'JAL/DCリボ完済',amount:-221823,type:'DEBT',recurring:'NONE'}],
+                rules:[],overrides:[],cardSettlements:[],
+                cashflowReconciliationV102:{version:102,pending:[],history:[]}
               };
-              const history=api.backfillCandidates(st,'2026-09-15','2026-09-20');
-              st.cashflowRolloverV101.history=history;
-              const rolled=api.currentBalanceFromState(st,'2026-09-20');
-              st.cashTransactions.push({date:'2026-09-19',balance_after:905000,source:'Rakuten Bank',account:'main'});
-              const reconciled=api.currentBalanceFromState(st,'2026-09-20');
-              return {rolled,reconciled,history:history.map(x=>({date:x.date,name:x.name,amount:x.amount,type:x.type}))};
+              const anchor=api.latestImportedAnchor(st);
+              const history=api.backfillCandidates(st,'2026-08-21','2026-09-21');
+              st.cashflowReconciliationV102.history=history;
+              const rec=api.reconcileHistoryStatuses(st,st.cashflowReconciliationV102,anchor,'2026-09-21');
+              return {anchor,actual:api.currentBalanceFromState(st,'2026-09-21'),planning:api.planningStartBalanceFromState(st,'2026-09-21'),rec,statuses:st.cashflowReconciliationV102.history.map(x=>({date:x.date,name:x.name,status:x.status,actual:x.actual_transaction_id||''}))};
             });
-            if(result.rolled!==910000)throw new Error(`browser rollforward expected 910000: ${JSON.stringify(result)}`);
-            if(result.reconciled!==905000)throw new Error(`browser reconciliation double counted: ${JSON.stringify(result)}`);
-            await page.screenshot({path:'v101-browser-cashflow.png',fullPage:true});
-            fs.writeFileSync('v101-browser-result.json',JSON.stringify({release,title,result},null,2));
-            console.log('V101_BROWSER_PASS',JSON.stringify(result));
+            if(result.actual!==486161||result.planning!==476161)throw new Error('browser balance separation failed: '+JSON.stringify(result));
+            if(!result.statuses.some(x=>x.status==='MATCHED_ACTUAL')||!result.statuses.some(x=>x.status==='AWAITING_IMPORT'))throw new Error('browser reconciliation statuses missing: '+JSON.stringify(result));
+
+            await page.click('[data-page="cashflow"]');
+            await page.waitForSelector('#cashflowReconciliationCardV102',{state:'visible',timeout:15000});
+            const title=await page.locator('#cashflowReconciliationCardV102').innerText();
+            if(!title.includes('実績・予定の照合')||!title.includes('v102'))throw new Error('v102 UI missing: '+title);
+            await page.screenshot({path:'v102-browser-reconciliation.png',fullPage:true});
+            fs.writeFileSync('v102-browser-result.json',JSON.stringify({release,title,result},null,2));
+            console.log('V102_BROWSER_PASS',JSON.stringify(result));
             await browser.close();
           })().catch(e=>{console.error(e);process.exit(1)});
           NODE
@@ -146,8 +170,8 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: v101-browser-evidence
+          name: v102-browser-evidence
           path: |
-            v101-browser-cashflow.png
-            v101-browser-result.json
+            v102-browser-reconciliation.png
+            v102-browser-result.json
           if-no-files-found: warn

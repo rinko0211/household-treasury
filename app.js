@@ -282,6 +282,7 @@ function prepareImportedBackup(obj){
   }
   return out;
 }
+window.householdTreasuryEvidenceMergeV104={mergeEvidenceArray,evidenceKey,hasCanonicalLocalEvidence};
 function importBackupState(obj){
   const prepared=prepareImportedBackup(obj);
   window.__treasuryLoadedStateNeedsRebuild=true;

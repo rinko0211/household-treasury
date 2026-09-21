@@ -16,6 +16,7 @@
   const esc = s => String(s ?? '').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
   let internalWrite = false;
   let timer = null;
+  let rebuildPending = false;
 
   function ensureModel(st) {
     const legacy = st.cashflowRolloverV101 && typeof st.cashflowRolloverV101 === 'object' ? st.cashflowRolloverV101 : null;
@@ -312,9 +313,20 @@
     });
   }
 
-  function reconcile({persist=true,refresh=true}={}) {
+  function reconcile({persist=true,refresh=true,rebuildDerived=false}={}) {
     const st=stateNow(),model=ensureModel(st),now=today(),before=serializeComparable(model);
-    const anchor=anchorFor(st,now),hist=historyMap(model);
+    const anchor=anchorFor(st,now);
+    const importedStart=earliestImportedDate(st);
+    const rebuild=!!rebuildDerived||!!window.__treasuryLoadedStateNeedsRebuild;
+    if(rebuild){
+      // pending/history are derived state. On an external load, never trust stale
+      // unverified rows inside the imported JSON. Preserve only history older than
+      // the bank-statement coverage; rebuild the auditable period from canonical data.
+      model.pending=[];
+      if(importedStart)model.history=(model.history||[]).filter(x=>String(x?.date||'')<importedStart);
+      window.__treasuryLoadedStateNeedsRebuild=false;
+    }
+    const hist=historyMap(model);
 
     for(const p of model.pending||[]) {
       if(!p?.date||p.date>=now)continue;
@@ -323,7 +335,6 @@
       if(!hist.has(key))hist.set(key,{...p,key,rolledAt:new Date().toISOString(),status:'ELAPSED_PLANNED'});
     }
 
-    const importedStart=earliestImportedDate(st);
     const backfillStart=importedStart ? addDaysDate(importedStart,-1) : anchor.date;
     for(const x of backfillCandidates(st,backfillStart,now)) {
       if(!hist.has(x.key))hist.set(x.key,{...x,rolledAt:new Date().toISOString(),status:'ELAPSED_PLANNED'});
@@ -414,14 +425,27 @@
     const kpi=$('kpiCash');if(kpi)kpi.textContent=yen(actual);
   }
 
-  function schedule(ms=120){clearTimeout(timer);timer=setTimeout(()=>reconcile({persist:true,refresh:true}),ms);}
+  function schedule(ms=120,{rebuildDerived=false}={}){
+    if(rebuildDerived)rebuildPending=true;
+    clearTimeout(timer);
+    timer=setTimeout(()=>{
+      const rebuild=rebuildPending||!!window.__treasuryLoadedStateNeedsRebuild;
+      rebuildPending=false;
+      reconcile({persist:true,refresh:true,rebuildDerived:rebuild});
+    },ms);
+  }
 
   const previousReplace=window.replaceTreasuryState;
   if(typeof previousReplace==='function'&&!window.__cashflowReconciliationReplaceV102){
     window.__cashflowReconciliationReplaceV102=true;
     window.replaceTreasuryState=function(next){
+      const externalLoad=!!window.__treasuryApplyingRemote||!!window.__treasuryRecoveryRestoring||!!window.__treasuryImportingBackup;
+      if(externalLoad)window.__treasuryLoadedStateNeedsRebuild=true;
       const result=previousReplace(next);
-      if(!internalWrite)schedule(120);
+      if(!internalWrite){
+        try{window.repairTreasuryBankBalances?.()}catch{}
+        schedule(externalLoad?0:120,{rebuildDerived:externalLoad});
+      }
       return result;
     };
   }
@@ -445,8 +469,9 @@
     reconcileHistoryStatuses,
     generatedSnapshot,
     semanticKey,
-    refreshUi
+    refreshUi,
+    reconcileLoadedState:()=>{window.__treasuryLoadedStateNeedsRebuild=true;return reconcile({persist:true,refresh:true,rebuildDerived:true})}
   };
 
-  setTimeout(()=>reconcile({persist:true,refresh:true}),0);
+  setTimeout(()=>reconcile({persist:true,refresh:true,rebuildDerived:!!window.__treasuryLoadedStateNeedsRebuild}),0);
 })();

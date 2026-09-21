@@ -233,12 +233,62 @@ function importRuleSpec(obj){
 
 $('drop').onclick=()=>$('csvInput').click();$('csvInput').onchange=e=>readCsv(e.target.files);$('drop').ondragover=e=>e.preventDefault();$('drop').ondrop=e=>{e.preventDefault();readCsv(e.dataTransfer.files)};
 $('exportJson').onclick=()=>{const b=new Blob([JSON.stringify(state,null,2)],{type:'application/json'}),a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='household-treasury-backup.json';a.click();URL.revokeObjectURL(a.href)};
+function legacySeedHistory(obj){
+  return Array.isArray(obj?.wealth)?obj.wealth.map(r=>({month:r[0],bank:+r[1]||0,investment:+r[2]||0,ideco:0,liabilities:+r[3]||0,other:(+r[4]||0)-(+r[1]||0)-(+r[2]||0)+(+r[3]||0)})):[];
+}
+function isLegacyBootstrapState(obj){
+  return !!obj&&typeof obj==='object'&&!obj.schemaVersion&&Array.isArray(obj.wealth)&&!Array.isArray(obj.cashTransactions);
+}
+function hasCanonicalLocalEvidence(st){
+  return ['cashTransactions','purchaseEvents','cardSettlements','investmentEvents','assetSnapshots','imports'].some(k=>Array.isArray(st?.[k])&&st[k].length>0);
+}
+function mergeRecordScore(x){
+  if(!x||typeof x!=='object')return 0;
+  return Object.values(x).reduce((n,v)=>n+(v!==null&&v!==''&&v!==undefined?1:0),0);
+}
+function evidenceKey(kind,x){
+  if(!x||typeof x!=='object')return JSON.stringify(x);
+  if(kind==='cashTransactions')return String(x.id||[x.source||'',x.account||'',x.date||'',Number(x.amount)||0,normalizeText(x.description_raw||x.description||'')].join('|'));
+  if(kind==='purchaseEvents')return String(x.purchase_id||[x.card||'',x.purchase_date||'',normalizeText(x.merchant_raw||''),Number(x.original_amount)||0,Number(x.occurrence_index)||1].join('|'));
+  if(kind==='cardSettlements')return String(x.settlement_id||x.id||[x.card||'',x.due_date||'',Number(x.amount)||0].join('|'));
+  if(kind==='investmentEvents')return String(x.investment_id||x.id||[x.date||'',x.asset_type||'',x.security_name||'',x.side||'',Number(x.amount)||0,Number(x.quantity)||0].join('|'));
+  if(kind==='assetSnapshots')return [x.snapshot_date||x.date||'',x.institution||x.source||'',x.source_file||'',Number(x.market_value)||0,Number(x.cash_balance)||0].join('|');
+  if(kind==='imports')return String(x.sha256||[x.file||'',x.type||'',x.at||''].join('|'));
+  return JSON.stringify(x);
+}
+function mergeEvidenceArray(kind,localRows,incomingRows){
+  const map=new Map();
+  for(const row of [...(Array.isArray(incomingRows)?incomingRows:[]),...(Array.isArray(localRows)?localRows:[])]){
+    const key=evidenceKey(kind,row),old=map.get(key);
+    if(!old||mergeRecordScore(row)>mergeRecordScore(old))map.set(key,structuredClone(row));
+  }
+  return [...map.values()];
+}
+function prepareImportedBackup(obj){
+  const local=structuredClone(state||{});
+  if(isLegacyBootstrapState(obj)&&hasCanonicalLocalEvidence(local)){
+    // PRIVATE_IMPORT is a bootstrap seed, not a destructive restore. Once bank/card/
+    // asset evidence exists, keep the live state and only fill missing old wealth months.
+    const out=local;
+    const byMonth=new Map((Array.isArray(out.history)?out.history:[]).map(x=>[String(x.month||''),x]));
+    for(const h of legacySeedHistory(obj))if(h.month&&!byMonth.has(h.month))byMonth.set(h.month,h);
+    out.history=[...byMonth.values()].sort((a,b)=>String(a.month||'').localeCompare(String(b.month||'')));
+    out.lastLegacyBootstrapMergeAt=new Date().toISOString();
+    return out;
+  }
+  const out=structuredClone(obj);
+  for(const kind of ['cashTransactions','purchaseEvents','cardSettlements','investmentEvents','assetSnapshots','imports']){
+    out[kind]=mergeEvidenceArray(kind,local[kind],out[kind]);
+  }
+  return out;
+}
 function importBackupState(obj){
+  const prepared=prepareImportedBackup(obj);
   window.__treasuryLoadedStateNeedsRebuild=true;
   window.__treasuryImportingBackup=true;
   try{
-    if(typeof window.replaceTreasuryState==='function')window.replaceTreasuryState(obj);
-    else{state=obj;normalize();save();render()}
+    if(typeof window.replaceTreasuryState==='function')window.replaceTreasuryState(prepared);
+    else{state=prepared;normalize();save();render()}
   }finally{window.__treasuryImportingBackup=false}
   try{window.repairTreasuryBankBalances?.()}catch{}
 }

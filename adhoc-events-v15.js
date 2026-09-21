@@ -12,8 +12,9 @@
     card.className = 'card full';
     card.innerHTML = `
       <div class="title">臨時イベント一覧</div>
-      <div class="tiny" style="margin-bottom:10px">予測期間に関係なく、登録済みの臨時イベントをすべて編集・削除できます。固定費ルールは対象外です。</div>
-      <div id="adhocEventListV15"></div>`;
+      <div class="tiny" style="margin-bottom:10px">未決済・将来の臨時イベントを編集できます。銀行実績に吸収済みの過去イベントは自動で「照合済み履歴」へ移動します。</div>
+      <div id="adhocEventListV15"></div>
+      <details id="adhocArchiveDetailsV16" style="margin-top:10px"><summary class="tiny">照合済み履歴</summary><div id="adhocArchiveV16" style="margin-top:8px"></div></details>`;
     grid.appendChild(card);
   }
 
@@ -92,21 +93,34 @@
 
   function renderAdhocList(){
     ensureAdhocCard();
-    const box = $('adhocEventListV15');
+    const box = $('adhocEventListV15'),archiveBox=$('adhocArchiveV16'),details=$('adhocArchiveDetailsV16');
     if(!box) return;
     const rows = [...(state.events || [])].sort((a,b) => String(a.date||'').localeCompare(String(b.date||'')) || String(a.name||'').localeCompare(String(b.name||''),'ja'));
-    if(!rows.length){ box.innerHTML = '<div class="muted">臨時イベントはありません。</div>'; return; }
     const now = typeof today === 'function' ? today() : '';
-    box.innerHTML = rows.map(e => {
+    box.innerHTML = rows.length ? rows.map(e => {
       const past = now && e.date < now;
       const estimate = e.estimated ? ' · 暫定' : '';
+      const waiting = past ? ' · 未照合' : '';
       return `<div class="row" style="align-items:flex-start;gap:12px">
-        <div style="min-width:0;flex:1"><b>${esc2(e.name)}</b><div class="tiny">${esc2(e.date||'日付未設定')} · ${esc2(e.type||'')}${estimate}${past?' · 過去':''}</div></div>
+        <div style="min-width:0;flex:1"><b>${esc2(e.name)}</b><div class="tiny">${esc2(e.date||'日付未設定')} · ${esc2(e.type||'')}${estimate}${waiting}</div></div>
         <div class="controls" style="flex-wrap:wrap;justify-content:flex-end">
           <span class="amt ${Number(e.amount)<0?'bad':'good'}">${Number(e.amount)>0?'+':''}${yen2(e.amount)}</span>
           <button class="btn secondary" onclick='openAdhocEditorV15(${JSON.stringify(String(e.id))})'>編集</button>
           <button class="btn danger" onclick='deleteAdhocEventV15(${JSON.stringify(String(e.id))})'>削除</button>
         </div>
+      </div>`;
+    }).join('') : '<div class="muted">未決済・将来の臨時イベントはありません。</div>';
+
+    const archived=[...(state.eventArchiveV104||[])].sort((a,b)=>String(b.date||'').localeCompare(String(a.date||''))||String(a.name||'').localeCompare(String(b.name||''),'ja'));
+    if(details)details.style.display=archived.length?'block':'none';
+    if(archiveBox)archiveBox.innerHTML=archived.map(e=>{
+      const matched=e.reconciliation_status==='MATCHED_ACTUAL';
+      const status=matched
+        ? `実績一致${e.actual_date?' '+esc2(e.actual_date):''}${e.actual_description?' · '+esc2(e.actual_description):''}`
+        : '最新銀行残高に包含';
+      return `<div class="row" style="align-items:flex-start;gap:12px">
+        <div style="min-width:0;flex:1"><b>${esc2(e.name||'過去イベント')}</b><div class="tiny">${esc2(e.date||'')} · ${status}</div></div>
+        <span class="amt ${Number(e.amount)<0?'bad':'good'}">${Number(e.amount)>0?'+':''}${yen2(e.amount)}</span>
       </div>`;
     }).join('');
   }

@@ -248,10 +248,10 @@ function mergeRecordScore(x){
 }
 function evidenceKey(kind,x){
   if(!x||typeof x!=='object')return JSON.stringify(x);
-  if(kind==='cashTransactions')return String(x.id||[x.source||'',x.account||'',x.date||'',Number(x.amount)||0,normalizeText(x.description_raw||x.description||'')].join('|'));
-  if(kind==='purchaseEvents')return String(x.purchase_id||[x.card||'',x.purchase_date||'',normalizeText(x.merchant_raw||''),Number(x.original_amount)||0,Number(x.occurrence_index)||1].join('|'));
+  if(kind==='cashTransactions')return [x.source||'',x.account||'',x.date||'',Number(x.amount)||0,normalizeText(x.description_raw||x.description||'')].join('|');
+  if(kind==='purchaseEvents')return [x.card||'',x.purchase_date||'',normalizeText(x.merchant_raw||''),Number(x.original_amount)||0,Number(x.occurrence_index)||1,x.billing_month||'',Number(x.installment_number)||0].join('|');
   if(kind==='cardSettlements')return String(x.settlement_id||x.id||[x.card||'',x.due_date||'',Number(x.amount)||0].join('|'));
-  if(kind==='investmentEvents')return String(x.investment_id||x.id||[x.date||'',x.asset_type||'',x.security_name||'',x.side||'',Number(x.amount)||0,Number(x.quantity)||0].join('|'));
+  if(kind==='investmentEvents')return [x.date||'',x.asset_type||'',x.security_name||'',x.side||'',Number(x.amount)||0,Number(x.quantity)||0,x.account_type||''].join('|');
   if(kind==='assetSnapshots')return [x.snapshot_date||x.date||'',x.institution||x.source||'',x.source_file||'',Number(x.market_value)||0,Number(x.cash_balance)||0].join('|');
   if(kind==='imports')return String(x.sha256||[x.file||'',x.type||'',x.at||''].join('|'));
   return JSON.stringify(x);

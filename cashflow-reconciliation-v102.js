@@ -476,7 +476,7 @@
       try {
         window.treasuryRecoverySnapshot?.('銀行実績と過去予定の照合直前');
         window.replaceTreasuryState(st);
-        window.setTreasurySaveStatus?.('銀行実績と過去予定を照合済み・同期中');
+        window.setTreasurySaveStatus?.(salvage.recovered>0?`整合修復済み · 原記録 ${salvage.recovered}件復旧・同期中`:'銀行実績と過去予定を照合済み・同期中');
         window.cloudSyncOnLocalSave?.();
       } finally { internalWrite=false; }
     }
@@ -523,7 +523,13 @@
     let card=$('cashflowReconciliationCardV102');
     if(card)return card;
     card=document.createElement('div');card.id='cashflowReconciliationCardV102';card.className='card full';
-    card.innerHTML='<div class="title">実績・予定の照合 <span class="tag">v104</span></div><div id="cashflowReconciliationSummaryV102"></div><details style="margin-top:8px"><summary class="tiny">過去予定の照合結果を表示</summary><div id="cashflowReconciliationRowsV102" style="margin-top:8px"></div></details>';
+    card.innerHTML='<div class="title">実績・予定の照合 <span class="tag">v104</span></div><div class="controls" style="margin-bottom:8px"><button type="button" class="btn secondary" id="reconcileNowV104">整合修復を実行</button></div><div id="cashflowReconciliationSummaryV102"></div><details style="margin-top:8px"><summary class="tiny">過去予定の照合結果を表示</summary><div id="cashflowReconciliationRowsV102" style="margin-top:8px"></div></details>';
+    card.querySelector('#reconcileNowV104').onclick=()=>{
+      window.__treasuryLoadedStateNeedsRebuild=true;
+      const r=reconcile({persist:true,refresh:true,rebuildDerived:true});
+      const recovered=Number(r.salvage?.recovered)||0,archived=Number(r.archivedEvents)||0;
+      window.setTreasurySaveStatus?.(`整合修復済み · 原記録 ${recovered}件復旧 · 過去イベント ${archived}件整理`);
+    };
     const mobile=$('mobileCashflowV60');
     if(mobile&&mobile.parentElement===grid)mobile.after(card);else grid.prepend(card);
     return card;

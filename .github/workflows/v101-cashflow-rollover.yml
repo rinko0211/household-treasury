@@ -34,6 +34,7 @@ jobs:
           grep -Fq 'adhoc-events-v15.js?v=16' index.html
           grep -Fq 'adhoc-events-v15.js?v=16' sw.js
           grep -Fq 'archiveSettledEvents' cashflow-reconciliation-v102.js
+          grep -Fq '実績・予定の照合 <span class="tag">v104</span>' cashflow-reconciliation-v102.js
           grep -Fq 'eventArchiveV104' cashflow-reconciliation-v102.js
           ! grep -Fq "injectClassic('./cashflow-rollover-v101.js" sync-state-sanitizer-v22.js
           TZ=Asia/Tokyo node <<'NODE'
@@ -68,7 +69,7 @@ jobs:
           state={
             settings:{cash:123456,salary:540288,salaryDay:18,reserve:0,reservedSpecial:0},
             assets:{bank:486161,investment:5000000,ideco:100000,other:0,liabilities:0},
-            history:[{month:'2026-09',bank:1,investment:5000000,ideco:100000,other:0,liabilities:0}],
+            history:[],
             cashTransactions:[
               {id:'b1',date:'2026-08-22',amount:-30000,balance_after:401878,source:'Rakuten Bank',account:'main',description_raw:'カード出金'},
               {id:'b2',date:'2026-09-15',amount:225000,balance_after:487841,source:'Rakuten Bank',account:'main',description_raw:'楽天証券',cashflow_type:'INTERNAL_TRANSFER',is_transfer:true},

@@ -36,6 +36,9 @@ jobs:
           grep -Fq 'archiveSettledEvents' cashflow-reconciliation-v102.js
           grep -Fq '実績・予定の照合 <span class="tag">v104</span>' cashflow-reconciliation-v102.js
           grep -Fq 'eventArchiveV104' cashflow-reconciliation-v102.js
+          grep -Fq 'recoveredCanonicalEvidenceV104' cashflow-reconciliation-v102.js
+          grep -Fq 'reconcileNowV104' cashflow-reconciliation-v102.js
+          grep -Fq 'householdTreasuryEvidenceMergeV104' app.js
           ! grep -Fq "injectClassic('./cashflow-rollover-v101.js" sync-state-sanitizer-v22.js
           TZ=Asia/Tokyo node <<'NODE'
           const fs=require('fs'),vm=require('vm');

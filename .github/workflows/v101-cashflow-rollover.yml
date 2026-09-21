@@ -1,4 +1,4 @@
-name: Check v103 Load Reconciliation
+name: Check v104 Event History Reconciliation
 
 on:
   push:
@@ -14,21 +14,27 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v6
-      - name: Check v103 load path and v102 reconciliation model
+      - name: Check v104 import protection, event archive and reconciliation model
         shell: bash
         run: |
           set -euo pipefail
           node --check app.js
           node --check cashflow-reconciliation-v102.js
-          grep -Fq "window.__householdRuntimeRelease = 'v103'" sync-state-sanitizer-v22.js
-          grep -Fq "cashflow-reconciliation-v102.js?v=103" sync-state-sanitizer-v22.js
-          grep -Fq "cashflow-reconciliation-v102.js?v=103" sw.js
-          grep -Fq 'household-treasury-v103-load-reconcile' sw.js
-          grep -Fq 'sync-state-sanitizer-v22.js?v=103' index.html
-          grep -Fq 'app.js?v=9' index.html
-          grep -Fq 'app.js?v=9' sw.js
+          grep -Fq "window.__householdRuntimeRelease = 'v104'" sync-state-sanitizer-v22.js
+          grep -Fq "cashflow-reconciliation-v102.js?v=104" sync-state-sanitizer-v22.js
+          grep -Fq "cashflow-reconciliation-v102.js?v=104" sw.js
+          grep -Fq 'household-treasury-v104-event-history-reconcile' sw.js
+          grep -Fq 'sync-state-sanitizer-v22.js?v=104' index.html
+          grep -Fq 'app.js?v=10' index.html
+          grep -Fq 'app.js?v=10' sw.js
           grep -Fq '__treasuryImportingBackup=true' app.js
           grep -Fq '__treasuryLoadedStateNeedsRebuild=true' app.js
+          grep -Fq 'prepareImportedBackup' app.js
+          grep -Fq 'hasCanonicalLocalEvidence' app.js
+          grep -Fq 'adhoc-events-v15.js?v=16' index.html
+          grep -Fq 'adhoc-events-v15.js?v=16' sw.js
+          grep -Fq 'archiveSettledEvents' cashflow-reconciliation-v102.js
+          grep -Fq 'eventArchiveV104' cashflow-reconciliation-v102.js
           ! grep -Fq "injectClassic('./cashflow-rollover-v101.js" sync-state-sanitizer-v22.js
           TZ=Asia/Tokyo node <<'NODE'
           const fs=require('fs'),vm=require('vm');
@@ -61,6 +67,8 @@ jobs:
 
           state={
             settings:{cash:123456,salary:540288,salaryDay:18,reserve:0,reservedSpecial:0},
+            assets:{bank:486161,investment:5000000,ideco:100000,other:0,liabilities:0},
+            history:[{month:'2026-09',bank:1,investment:5000000,ideco:100000,other:0,liabilities:0}],
             cashTransactions:[
               {id:'b1',date:'2026-08-22',amount:-30000,balance_after:401878,source:'Rakuten Bank',account:'main',description_raw:'カード出金'},
               {id:'b2',date:'2026-09-15',amount:225000,balance_after:487841,source:'Rakuten Bank',account:'main',description_raw:'楽天証券',cashflow_type:'INTERNAL_TRANSFER',is_transfer:true},
@@ -107,9 +115,14 @@ jobs:
           const rebuilt=api.reconcileLoadedState();
           if(state.cashflowReconciliationV102.history.some(x=>String(x.key).startsWith('STALE')))throw new Error('external load must discard stale derived rows inside imported coverage');
           if(state.cashflowReconciliationV102.pending.some(x=>String(x.key).startsWith('STALE')))throw new Error('external load must rebuild pending rows');
-          if(Number(state.cashflowReconciliationV102.loadRebuildVersion)!==103)throw new Error('v103 load migration marker missing');
+          if(Number(state.cashflowReconciliationV102.loadRebuildVersion)!==104)throw new Error('v104 load migration marker missing');
           if(rebuilt.planningStart!==476161)throw new Error('rebuilt planning balance mismatch: '+JSON.stringify(rebuilt));
-          console.log('V102_MODEL_PASS',JSON.stringify({anchor,actual,planning,rec,salary:salary.status,payoff:payoff.status,waiting:waiting.status}));
+          if(state.events.some(x=>x.id==='payoff'))throw new Error('settled one-off event must leave active events');
+          const archivedPayoff=(state.eventArchiveV104||[]).find(x=>x.source_event_id==='payoff');
+          if(!archivedPayoff||archivedPayoff.reconciliation_status!=='MATCHED_ACTUAL'||archivedPayoff.actual_transaction_id!=='b3')throw new Error('settled event archive missing actual link: '+JSON.stringify(archivedPayoff));
+          const sep=state.history.find(x=>x.month==='2026-09');
+          if(!sep||sep.bank!==486161)throw new Error('current month wealth history must align with authoritative bank balance: '+JSON.stringify(sep));
+          console.log('V104_MODEL_PASS',JSON.stringify({anchor,actual,planning,rec,archivedPayoff,sep}));
           NODE
 
   live-browser:
@@ -126,7 +139,7 @@ jobs:
         run: |
           npm install --no-save playwright@1.55.0
           npx playwright install --with-deps chromium
-      - name: Verify deployed v103 load reconciliation in Chromium
+      - name: Verify deployed v104 event-history reconciliation in Chromium
         shell: bash
         run: |
           set -euo pipefail
@@ -138,13 +151,13 @@ jobs:
             const page=await browser.newPage({viewport:{width:390,height:844},deviceScaleFactor:1});
             let ready=false,release='';
             for(let i=0;i<45;i++){
-              await page.goto(`https://rinko0211.github.io/household-treasury/?v103load=${Date.now()}-${i}`,{waitUntil:'domcontentloaded',timeout:30000});
+              await page.goto(`https://rinko0211.github.io/household-treasury/?v104reconcile=${Date.now()}-${i}`,{waitUntil:'domcontentloaded',timeout:30000});
               await page.waitForTimeout(1200);
               ({ready,release}=await page.evaluate(()=>({ready:!!window.householdCashflowReconciliationV102,release:window.__householdRuntimeRelease||''})).catch(()=>({ready:false,release:''})));
-              if(ready&&release==='v103')break;
+              if(ready&&release==='v104')break;
               await page.waitForTimeout(3000);
             }
-            if(!ready||release!=='v103')throw new Error(`deployed runtime not ready: release=${release}, api=${ready}`);
+            if(!ready||release!=='v104')throw new Error(`deployed runtime not ready: release=${release}, api=${ready}`);
 
             const result=await page.evaluate(()=>{
               const api=window.householdCashflowReconciliationV102;
@@ -184,7 +197,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: v103-browser-evidence
+          name: v104-browser-evidence
           path: |
             v102-browser-reconciliation.png
             v102-browser-result.json

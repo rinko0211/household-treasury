@@ -52,25 +52,35 @@
   function salvageCanonicalEvidence(st){
     const api=window.householdTreasuryEvidenceMergeV104;
     if(!api?.mergeEvidenceArray)return {changed:false,recovered:0,sources:0};
-    let changed=false,recovered=0,sources=0;
-    for(const cand of recoveryEvidenceCandidates()){
-      let used=false;
-      for(const kind of EVIDENCE_KEYS){
-        const before=Array.isArray(st[kind])?st[kind]:[];
-        const merged=api.mergeEvidenceArray(kind,before,cand?.[kind]);
-        if(merged.length!==before.length||JSON.stringify(merged)!==JSON.stringify(before)){
-          recovered+=Math.max(0,merged.length-before.length);
-          st[kind]=merged;
-          changed=true;used=true;
-        }
+    const currentDate=mainBankRows(st).at(-1)?.t?.date||'';
+    const ranked=recoveryEvidenceCandidates().map(cand=>({
+      cand,
+      bankDate:mainBankRows(cand).at(-1)?.t?.date||'',
+      evidenceCount:EVIDENCE_KEYS.reduce((n,k)=>n+(Array.isArray(cand?.[k])?cand[k].length:0),0)
+    })).filter(x=>x.bankDate&&x.bankDate>currentDate)
+      .sort((a,b)=>String(b.bankDate).localeCompare(String(a.bankDate))||b.evidenceCount-a.evidenceCount);
+    const best=ranked[0];
+    if(!best)return {changed:false,recovered:0,sources:0};
+    let changed=false,recovered=0;
+    for(const kind of EVIDENCE_KEYS){
+      const before=Array.isArray(st[kind])?st[kind]:[];
+      const merged=api.mergeEvidenceArray(kind,before,best.cand?.[kind]);
+      if(merged.length!==before.length||JSON.stringify(merged)!==JSON.stringify(before)){
+        recovered+=Math.max(0,merged.length-before.length);
+        st[kind]=merged;
+        changed=true;
       }
-      if(used)sources++;
     }
     if(changed){
-      st.recoveredCanonicalEvidenceV104={at:new Date().toISOString(),recovered,sources};
+      st.recoveredCanonicalEvidenceV104={
+        at:new Date().toISOString(),
+        recovered,
+        sources:1,
+        fromBankDate:best.bankDate
+      };
       try{window.repairTreasuryBankBalances?.()}catch{}
     }
-    return {changed,recovered,sources};
+    return {changed,recovered,sources:changed?1:0,fromBankDate:best.bankDate};
   }
 
   function mainBankRows(st) {

@@ -234,10 +234,14 @@ function importRuleSpec(obj){
 $('drop').onclick=()=>$('csvInput').click();$('csvInput').onchange=e=>readCsv(e.target.files);$('drop').ondragover=e=>e.preventDefault();$('drop').ondrop=e=>{e.preventDefault();readCsv(e.dataTransfer.files)};
 $('exportJson').onclick=()=>{const b=new Blob([JSON.stringify(state,null,2)],{type:'application/json'}),a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='household-treasury-backup.json';a.click();URL.revokeObjectURL(a.href)};
 function importBackupState(obj){
-  if(typeof window.replaceTreasuryState==='function')window.replaceTreasuryState(obj);
-  else{state=obj;normalize();save();render()}
+  window.__treasuryLoadedStateNeedsRebuild=true;
+  window.__treasuryImportingBackup=true;
+  try{
+    if(typeof window.replaceTreasuryState==='function')window.replaceTreasuryState(obj);
+    else{state=obj;normalize();save();render()}
+  }finally{window.__treasuryImportingBackup=false}
   try{window.repairTreasuryBankBalances?.()}catch{}
-  try{window.householdCashflowReconciliationV102?.reconcile?.({persist:true,refresh:true})}catch{}
+  if(!window.householdCashflowReconciliationV102)try{save();render()}catch{}
 }
 $('importJson').onclick=()=>$('jsonInput').click();
 $('jsonInput').onchange=e=>{const input=e.target,f=input.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{const obj=JSON.parse(r.result);if(!importRuleSpec(obj))importBackupState(obj)}catch{alert('JSONを読み込めませんでした')}finally{input.value=''}};r.readAsText(f)};

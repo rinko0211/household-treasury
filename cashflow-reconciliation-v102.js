@@ -3,6 +3,7 @@
   window.__cashflowReconciliationV102 = true;
 
   const VERSION = 102;
+  const LOAD_REBUILD_VERSION = 103;
   const HORIZON_DAYS = 400;
   const $ = id => document.getElementById(id);
   const stateNow = () => (window.getTreasuryStateRaw || window.getTreasuryState)?.() || {};
@@ -309,7 +310,8 @@
       pending:(model.pending||[]).map(x=>[x.key,x.date,x.amount,x.name,x.type,x.card,x.billing_month]),
       history:(model.history||[]).map(x=>[x.key,x.date,x.amount,x.name,x.type,x.origin,x.status,x.actual_transaction_id||'']),
       manualAnchorDate:model.manualAnchorDate||'',
-      manualAnchorBalance:Number(model.manualAnchorBalance)||0
+      manualAnchorBalance:Number(model.manualAnchorBalance)||0,
+      loadRebuildVersion:Number(model.loadRebuildVersion)||0
     });
   }
 
@@ -317,13 +319,16 @@
     const st=stateNow(),model=ensureModel(st),now=today(),before=serializeComparable(model);
     const anchor=anchorFor(st,now);
     const importedStart=earliestImportedDate(st);
-    const rebuild=!!rebuildDerived||!!window.__treasuryLoadedStateNeedsRebuild;
+    const needsLoadMigration=!!importedStart&&Number(model.loadRebuildVersion||0)<LOAD_REBUILD_VERSION;
+    const rebuild=!!rebuildDerived||!!window.__treasuryLoadedStateNeedsRebuild||needsLoadMigration;
     if(rebuild){
       // pending/history are derived state. On an external load, never trust stale
       // unverified rows inside the imported JSON. Preserve only history older than
       // the bank-statement coverage; rebuild the auditable period from canonical data.
       model.pending=[];
       if(importedStart)model.history=(model.history||[]).filter(x=>String(x?.date||'')<importedStart);
+      model.loadRebuildVersion=LOAD_REBUILD_VERSION;
+      model.lastLoadRebuildAt=new Date().toISOString();
       window.__treasuryLoadedStateNeedsRebuild=false;
     }
     const hist=historyMap(model);

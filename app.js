@@ -241,7 +241,6 @@ function importBackupState(obj){
     else{state=obj;normalize();save();render()}
   }finally{window.__treasuryImportingBackup=false}
   try{window.repairTreasuryBankBalances?.()}catch{}
-  if(!window.householdCashflowReconciliationV102)try{save();render()}catch{}
 }
 $('importJson').onclick=()=>$('jsonInput').click();
 $('jsonInput').onchange=e=>{const input=e.target,f=input.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{const obj=JSON.parse(r.result);if(!importRuleSpec(obj))importBackupState(obj)}catch{alert('JSONを読み込めませんでした')}finally{input.value=''}};r.readAsText(f)};

@@ -4,7 +4,7 @@
 
   // v70 phase 2: data/model compatibility remains, but legacy hidden UI boots are disabled.
   window.__householdConsolidatedUiV70 = true;
-  window.__householdRuntimeRelease = 'v103';
+  window.__householdRuntimeRelease = 'v104';
 
   const DERIVED_KEYS = new Set([
     'updatedAt',
@@ -148,6 +148,6 @@
   // v97: JAL/DC with a known revolving payoff automatically use full-payment forecasting for spends on/after the projected payoff date.
   injectClassic('./revolving-to-full-v97.js?v=97', 'data-household-revolving-to-full-v97');
   // v102: imported balance_after is the actual current balance. Elapsed plans after the last import stay unverified and affect forecast only.
-  injectClassic('./cashflow-reconciliation-v102.js?v=103', 'data-household-cashflow-reconciliation-v102');
+  injectClassic('./cashflow-reconciliation-v102.js?v=104', 'data-household-cashflow-reconciliation-v102');
   // v92/v93 exact d-card overlay retired in v94.
 })();

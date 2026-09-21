@@ -107,6 +107,7 @@ jobs:
           const rebuilt=api.reconcileLoadedState();
           if(state.cashflowReconciliationV102.history.some(x=>String(x.key).startsWith('STALE')))throw new Error('external load must discard stale derived rows inside imported coverage');
           if(state.cashflowReconciliationV102.pending.some(x=>String(x.key).startsWith('STALE')))throw new Error('external load must rebuild pending rows');
+          if(Number(state.cashflowReconciliationV102.loadRebuildVersion)!==103)throw new Error('v103 load migration marker missing');
           if(rebuilt.planningStart!==476161)throw new Error('rebuilt planning balance mismatch: '+JSON.stringify(rebuilt));
           console.log('V102_MODEL_PASS',JSON.stringify({anchor,actual,planning,rec,salary:salary.status,payoff:payoff.status,waiting:waiting.status}));
           NODE

@@ -258,7 +258,7 @@ function evidenceKey(kind,x){
 }
 function mergeEvidenceArray(kind,localRows,incomingRows){
   const map=new Map();
-  for(const row of [...(Array.isArray(incomingRows)?incomingRows:[]),...(Array.isArray(localRows)?localRows:[])]){
+  for(const row of [...(Array.isArray(localRows)?localRows:[]),...(Array.isArray(incomingRows)?incomingRows:[])]){
     const key=evidenceKey(kind,row),old=map.get(key);
     if(!old||mergeRecordScore(row)>mergeRecordScore(old))map.set(key,structuredClone(row));
   }

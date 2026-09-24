@@ -136,6 +136,38 @@ jobs:
           if(!sep||sep.bank!==777777)throw new Error('current month history must align with Dashboard current balance: '+JSON.stringify(sep));
           console.log('V105_MODEL_PASS',JSON.stringify({anchor,actual,planning,rec,archivedPayoff,sep}));
           NODE
+          TZ=Asia/Tokyo node <<'NODE'
+          const fs=require('fs'),vm=require('vm');
+          function runCase(state){
+            const document={getElementById:()=>null,createElement:()=>({}),querySelector:()=>null};
+            const localStorage={getItem:()=>null,setItem:()=>{}};
+            const window={setTreasurySaveStatus:()=>{}};
+            const context={state,KEY:'householdTreasuryMVP',document,localStorage,window,console,Intl,structuredClone,Date};
+            window.window=window;
+            vm.createContext(context);
+            vm.runInContext(fs.readFileSync('import-history-hotfix.js','utf8'),context);
+            context.window.repairTreasuryBankBalances();
+            return context.state;
+          }
+          const account=runCase({
+            settings:{cash:486161},
+            assets:{bank:486161},
+            masters:{accounts:[{id:'rb',name:'楽天銀行',type:'BANK',active:true,balance:912345,balanceAsOf:'2026-09-24',sourceKey:'Rakuten Bank'}]},
+            cashTransactions:[{source:'Rakuten Bank',account:'main',date:'2026-09-18',amount:-145,balance_after:486161,description_raw:'振込手数料'}]
+          });
+          if(account.settings.cash!==912345||account.settings.cashAsOf!=='2026-09-24'||account.settings.cashSource!=='account')
+            throw new Error('newer dated account balance must beat stale CSV: '+JSON.stringify(account.settings));
+
+          const manual=runCase({
+            settings:{cash:777777,cashAsOf:'2026-09-24',cashSource:'manual'},
+            assets:{bank:777777},
+            masters:{accounts:[]},
+            cashTransactions:[{source:'Rakuten Bank',account:'main',date:'2026-09-18',amount:-145,balance_after:486161,description_raw:'振込手数料'}]
+          });
+          if(manual.settings.cash!==777777||manual.settings.cashSource!=='manual')
+            throw new Error('newer Settings current balance must beat stale CSV: '+JSON.stringify(manual.settings));
+          console.log('V105_BALANCE_AUTHORITY_PASS',JSON.stringify({account:account.settings,manual:manual.settings}));
+          NODE
 
   live-browser:
     runs-on: ubuntu-latest

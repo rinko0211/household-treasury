@@ -1,6 +1,7 @@
 (() => {
   const BANK_SOURCES = new Set(['Rakuten Bank', 'Yucho']);
   const SOURCE_LABELS = {'Rakuten Bank':'楽天銀行','Yucho':'ゆうちょ'};
+  const norm=s=>String(s??'').normalize('NFKC').replace(/[\s　()（）［］\[\]・\-_/\.]/g,'').toUpperCase();
 
   function isFiniteBalance(v){return v!==null&&v!==''&&Number.isFinite(Number(v))}
   // 現段階では「金融機関」単位。口座番号・支店・複数口座は明示データが来るまで分割しない。
@@ -23,6 +24,15 @@
     return {key:'Rakuten Bank',source:'Rakuten Bank',label:'楽天銀行',balance:Number(r.latestBalance),asOf:String(r.sourceAsOf),legacy:true,latest:null};
   }
 
+  function manualMatchesInstitution(a,x){
+    const an=norm(a?.sourceKey||a?.name),sn=norm(x?.source||x?.label);
+    if(!an||!sn)return false;
+    if(an===sn||an.includes(sn)||sn.includes(an))return true;
+    if(an.includes('楽天銀行')&&(sn.includes('RAKUTENBANK')||sn.includes('楽天銀行')))return true;
+    if((an.includes('ゆうちょ')||an.includes('郵貯'))&&(sn.includes('YUCHO')||sn.includes('ゆうちょ')||sn.includes('郵貯')))return true;
+    return false;
+  }
+
   function computeLatestBankState(){
     if(typeof state==='undefined')return null;
     const groups=new Map();
@@ -35,14 +45,59 @@
     const institutions=[];
     for(const [key,items] of groups.entries()){
       const latest=latestTransactionForInstitution(items);if(!latest)continue;
-      institutions.push({key,source:latest.source,label:institutionLabel(latest.source),balance:Number(latest.balance_after),asOf:latest.date,legacy:false,latest});
+      institutions.push({key,source:latest.source,label:institutionLabel(latest.source),balance:Number(latest.balance_after),asOf:latest.date,legacy:false,latest,balanceSource:'import'});
     }
-    if(!institutions.some(x=>x.source==='Rakuten Bank')){const fallback=legacyRakutenFallback();if(fallback)institutions.push(fallback)}
+    if(!institutions.some(x=>x.source==='Rakuten Bank')){const fallback=legacyRakutenFallback();if(fallback)institutions.push({...fallback,balanceSource:'legacy'})}
+
+    const accounts=Array.isArray(state.masters?.accounts)?state.masters.accounts.filter(a=>a&&a.active!==false):[];
+    const usedManual=new Set();
+    for(const inst of institutions){
+      let best=null,bestIdx=-1;
+      accounts.forEach((a,i)=>{
+        const type=String(a?.type||'').toUpperCase();
+        if(type!=='BANK'||!isFiniteBalance(a.balance)||!a.balanceAsOf||!manualMatchesInstitution(a,inst))return;
+        if(!best||String(a.balanceAsOf)>=String(best.balanceAsOf)){best=a;bestIdx=i}
+      });
+      if(best&&String(best.balanceAsOf)>=String(inst.asOf||'')){
+        inst.balance=Number(best.balance);
+        inst.asOf=String(best.balanceAsOf);
+        inst.balanceSource='manual_account';
+        inst.manualAccountId=String(best.id||'');
+        usedManual.add(bestIdx);
+      }
+    }
+    accounts.forEach((a,i)=>{
+      const type=String(a?.type||'').toUpperCase();
+      if(!['BANK','CASH'].includes(type)||!isFiniteBalance(a.balance)||!a.balanceAsOf||usedManual.has(i))return;
+      if(type==='BANK'&&institutions.some(x=>manualMatchesInstitution(a,x)))return;
+      institutions.push({
+        key:`manual:${String(a.id||i)}`,
+        source:String(a.sourceKey||a.name||type),
+        label:String(a.name||type==='CASH'?'現金':'銀行'),
+        balance:Number(a.balance),
+        asOf:String(a.balanceAsOf),
+        legacy:false,
+        latest:null,
+        balanceSource:'manual_account',
+        manualAccountId:String(a.id||'')
+      });
+    });
+
     if(!institutions.length)return null;
     institutions.sort((a,b)=>a.label.localeCompare(b.label,'ja'));
-    const cash=institutions.reduce((sum,x)=>sum+x.balance,0);
-    const asOf=institutions.reduce((m,x)=>String(x.asOf)>m?String(x.asOf):m,'');
-    return {cash,asOf,institutions};
+    let cash=institutions.reduce((sum,x)=>sum+x.balance,0);
+    let asOf=institutions.reduce((m,x)=>String(x.asOf)>m?String(x.asOf):m,'');
+    let source='accounts_or_import';
+
+    const manualTotalDate=String(state.settings?.cashAsOf||'');
+    const manualTotal=Number(state.settings?.cash);
+    const manualTotalActive=state.settings?.cashSource==='manual'&&manualTotalDate&&Number.isFinite(manualTotal)&&manualTotalDate>=asOf;
+    if(manualTotalActive){
+      cash=manualTotal;
+      asOf=manualTotalDate;
+      source='manual_total';
+    }
+    return {cash,asOf,institutions,source,manualTotalActive};
   }
 
   function ensureBankBreakdownUi(){
@@ -57,14 +112,19 @@
     ensureBankBreakdownUi();const box=document.getElementById('bankBalanceBreakdown');if(!box)return;
     const cashLabel=document.getElementById('kpiCash')?.parentElement?.querySelector('.muted');if(cashLabel)cashLabel.textContent='銀行残高 合計';
     if(!latest){box.innerHTML='<div class="muted">銀行CSVを取り込むと金融機関別残高を表示します。既存の合計額から銀行別残高は推測しません。</div>';return}
-    const rows=latest.institutions.map(x=>`<div class="row"><div><b>${x.label}</b><div class="tiny">${x.asOf} 時点${x.legacy?' · 旧楽天取込から救済':''}</div></div><span class="amt">${formatYen(x.balance)}</span></div>`).join('');
-    box.innerHTML=`${rows}<div class="row"><div><b>合計</b><div class="tiny">CSVで識別済みの金融機関だけを合算</div></div><span class="amt good">${formatYen(latest.cash)}</span></div>`;
+    const rows=latest.institutions.map(x=>`<div class="row"><div><b>${x.label}</b><div class="tiny">${x.asOf} 時点 · ${x.balanceSource==='manual_account'?'手入力':x.legacy?'旧楽天取込から救済':'CSV'}</div></div><span class="amt">${formatYen(x.balance)}</span></div>`).join('');
+    const totalNote=latest.manualTotalActive?'Settingsの手入力現在残高を優先':'各口座の最新日付を比較して合算';
+    box.innerHTML=`${rows}<div class="row"><div><b>現在残高</b><div class="tiny">${totalNote}</div></div><span class="amt good">${formatYen(latest.cash)}</span></div>`;
   }
 
   function repairCurrentCash({persist=true}={}){
     const latest=computeLatestBankState();if(!latest){renderBankBreakdown(null);return null}
-    const changed=Number(state.settings?.cash)!==latest.cash||Number(state.assets?.bank)!==latest.cash;
-    state.settings=state.settings||{};state.assets=state.assets||{};state.settings.cash=latest.cash;state.assets.bank=latest.cash;state.bankBalanceAsOf=latest.asOf;
+    const changed=Number(state.settings?.cash)!==latest.cash||Number(state.assets?.bank)!==latest.cash||String(state.settings?.cashAsOf||'')!==String(latest.asOf||'');
+    state.settings=state.settings||{};state.assets=state.assets||{};
+    state.settings.cash=latest.cash;
+    state.settings.cashAsOf=latest.asOf;
+    if(!latest.manualTotalActive)state.settings.cashSource=latest.institutions.some(x=>x.balanceSource==='manual_account')?'account':'import';
+    state.assets.bank=latest.cash;state.bankBalanceAsOf=latest.asOf;
     state.bankInstitutionBalances=Object.fromEntries(latest.institutions.map(x=>[x.key,{source:x.source,label:x.label,balance:x.balance,asOf:x.asOf,legacy:!!x.legacy}]));
     // 旧 account-based キャッシュは今後の誤用を防ぐため削除。既存残高からの口座推測はしない。
     delete state.bankAccountBalances;

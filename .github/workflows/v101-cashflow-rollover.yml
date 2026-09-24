@@ -1,4 +1,4 @@
-name: Check v104 Event History Reconciliation
+name: Check v105 Current Balance Authority
 
 on:
   push:
@@ -14,19 +14,26 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v6
-      - name: Check v104 import protection, event archive and reconciliation model
+      - name: Check v105 current-balance authority and reconciliation model
         shell: bash
         run: |
           set -euo pipefail
           node --check app.js
           node --check cashflow-reconciliation-v102.js
-          grep -Fq "window.__householdRuntimeRelease = 'v104'" sync-state-sanitizer-v22.js
-          grep -Fq "cashflow-reconciliation-v102.js?v=104" sync-state-sanitizer-v22.js
-          grep -Fq "cashflow-reconciliation-v102.js?v=104" sw.js
-          grep -Fq 'household-treasury-v104-event-history-reconcile' sw.js
-          grep -Fq 'sync-state-sanitizer-v22.js?v=104' index.html
-          grep -Fq 'app.js?v=10' index.html
-          grep -Fq 'app.js?v=10' sw.js
+          grep -Fq "window.__householdRuntimeRelease = 'v105'" sync-state-sanitizer-v22.js
+          grep -Fq "cashflow-reconciliation-v102.js?v=105" sync-state-sanitizer-v22.js
+          grep -Fq "cashflow-reconciliation-v102.js?v=105" sw.js
+          grep -Fq 'household-treasury-v105-current-balance-authority' sw.js
+          grep -Fq 'sync-state-sanitizer-v22.js?v=105' index.html
+          grep -Fq 'app.js?v=11' index.html
+          grep -Fq 'app.js?v=11' sw.js
+          grep -Fq 'import-history-hotfix.js?v=12' index.html
+          grep -Fq 'import-history-hotfix.js?v=12' sw.js
+          grep -Fq 'account-transfer-v83.js?v=105' sync-state-sanitizer-v22.js
+          grep -Fq 'account-transfer-v83.js?v=105' sw.js
+          grep -Fq "cashSource='manual'" app.js
+          grep -Fq 'manualTotalActive' import-history-hotfix.js
+          grep -Fq "manualAsOf>=String(imp.asOf||'')" account-transfer-v83.js
           grep -Fq '__treasuryImportingBackup=true' app.js
           grep -Fq '__treasuryLoadedStateNeedsRebuild=true' app.js
           grep -Fq 'prepareImportedBackup' app.js
@@ -34,7 +41,7 @@ jobs:
           grep -Fq 'adhoc-events-v15.js?v=16' index.html
           grep -Fq 'adhoc-events-v15.js?v=16' sw.js
           grep -Fq 'archiveSettledEvents' cashflow-reconciliation-v102.js
-          grep -Fq '実績・予定の照合 <span class="tag">v104</span>' cashflow-reconciliation-v102.js
+          grep -Fq '実績・予定の照合 <span class="tag">v105</span>' cashflow-reconciliation-v102.js
           grep -Fq 'eventArchiveV104' cashflow-reconciliation-v102.js
           grep -Fq 'recoveredCanonicalEvidenceV104' cashflow-reconciliation-v102.js
           grep -Fq 'reconcileNowV104' cashflow-reconciliation-v102.js
@@ -60,7 +67,7 @@ jobs:
           const context={
             window,document:doc,console,Intl,structuredClone,Date,
             setTimeout:()=>0,clearTimeout:()=>{},
-            forecast:(days=90)=>({rows:[{date:'2026-09-25',name:'future',amount:-10000,balance:113456}],low:113456,lowDate:'2026-09-25',endBalance:113456,safeBaseLow:113456,safetyFloor:0,reservedSpecial:0,shortTermLiabilities:0,safeToSpend:113456}),
+            forecast:(days=90)=>({rows:[{date:'2026-09-25',name:'future',amount:-10000,balance:767777}],low:767777,lowDate:'2026-09-25',endBalance:767777,safeBaseLow:767777,safetyFloor:0,reservedSpecial:0,shortTermLiabilities:0,safeToSpend:767777}),
             generated:()=>[]
           };
           window.window=window;
@@ -70,8 +77,8 @@ jobs:
           if(!api)throw new Error('v102 API missing');
 
           state={
-            settings:{cash:123456,salary:540288,salaryDay:18,reserve:0,reservedSpecial:0},
-            assets:{bank:486161,investment:5000000,ideco:100000,other:0,liabilities:0},
+            settings:{cash:777777,cashAsOf:'2026-09-21',cashSource:'manual',salary:540288,salaryDay:18,reserve:0,reservedSpecial:0},
+            assets:{bank:777777,investment:5000000,ideco:100000,other:0,liabilities:0},
             history:[],
             cashTransactions:[
               {id:'b1',date:'2026-08-22',amount:-30000,balance_after:401878,source:'Rakuten Bank',account:'main',description_raw:'カード出金'},
@@ -105,13 +112,14 @@ jobs:
 
           const actual=api.currentBalanceFromState(state,'2026-09-21');
           const planning=api.planningStartBalanceFromState(state,'2026-09-21');
-          if(actual!==486161)throw new Error('actual current balance must stay at imported balance_after, got '+actual);
-          if(planning!==476161)throw new Error('planning start should include only unverified post-anchor plan, got '+planning);
+          if(actual!==777777)throw new Error('actual current balance must equal Dashboard current cash, got '+actual);
+          if(planning!==777777)throw new Error('planning start must equal Dashboard current cash, got '+planning);
 
           const f=context.forecast(30);
-          if(f.actualBalanceV102!==486161)throw new Error('forecast must expose actual imported balance');
-          if(f.planningStartBalanceV102!==476161)throw new Error('forecast planning start mismatch: '+JSON.stringify(f));
-          if(f.rows[0].balance!==466161)throw new Error('future balance should start from planning balance: '+JSON.stringify(f.rows[0]));
+          if(f.actualBalanceV102!==777777)throw new Error('forecast must expose Dashboard current balance');
+          if(f.planningStartBalanceV102!==777777)throw new Error('forecast planning start mismatch: '+JSON.stringify(f));
+          if(f.rows[0].balance!==767777)throw new Error('future row must remain based on Dashboard current balance: '+JSON.stringify(f.rows[0]));
+          if(f.unverifiedElapsedImpactV102!==0)throw new Error('elapsed unverified rows must not alter current start balance');
 
           state.cashflowReconciliationV102.history.push({key:'STALE|2026-09-20',date:'2026-09-20',name:'旧バックアップの未照合予定',amount:-99999,type:'OTHER',status:'AWAITING_IMPORT'});
           state.cashflowReconciliationV102.pending.push({key:'STALE-PENDING',date:'2026-09-20',name:'旧pending',amount:-88888,type:'OTHER'});
@@ -119,14 +127,14 @@ jobs:
           const rebuilt=api.reconcileLoadedState();
           if(state.cashflowReconciliationV102.history.some(x=>String(x.key).startsWith('STALE')))throw new Error('external load must discard stale derived rows inside imported coverage');
           if(state.cashflowReconciliationV102.pending.some(x=>String(x.key).startsWith('STALE')))throw new Error('external load must rebuild pending rows');
-          if(Number(state.cashflowReconciliationV102.loadRebuildVersion)!==104)throw new Error('v104 load migration marker missing');
-          if(rebuilt.planningStart!==476161)throw new Error('rebuilt planning balance mismatch: '+JSON.stringify(rebuilt));
+          if(Number(state.cashflowReconciliationV102.loadRebuildVersion)!==105)throw new Error('v105 load migration marker missing');
+          if(rebuilt.planningStart!==777777)throw new Error('rebuilt planning balance mismatch: '+JSON.stringify(rebuilt));
           if(state.events.some(x=>x.id==='payoff'))throw new Error('settled one-off event must leave active events');
           const archivedPayoff=(state.eventArchiveV104||[]).find(x=>x.source_event_id==='payoff');
           if(!archivedPayoff||archivedPayoff.reconciliation_status!=='MATCHED_ACTUAL'||archivedPayoff.actual_transaction_id!=='b3')throw new Error('settled event archive missing actual link: '+JSON.stringify(archivedPayoff));
           const sep=state.history.find(x=>x.month==='2026-09');
-          if(!sep||sep.bank!==486161)throw new Error('current month wealth history must align with authoritative bank balance: '+JSON.stringify(sep));
-          console.log('V104_MODEL_PASS',JSON.stringify({anchor,actual,planning,rec,archivedPayoff,sep}));
+          if(!sep||sep.bank!==777777)throw new Error('current month history must align with Dashboard current balance: '+JSON.stringify(sep));
+          console.log('V105_MODEL_PASS',JSON.stringify({anchor,actual,planning,rec,archivedPayoff,sep}));
           NODE
 
   live-browser:
@@ -143,7 +151,7 @@ jobs:
         run: |
           npm install --no-save playwright@1.55.0
           npx playwright install --with-deps chromium
-      - name: Verify deployed v104 event-history reconciliation in Chromium
+      - name: Verify deployed v105 current-balance authority in Chromium
         shell: bash
         run: |
           set -euo pipefail
@@ -155,18 +163,18 @@ jobs:
             const page=await browser.newPage({viewport:{width:390,height:844},deviceScaleFactor:1});
             let ready=false,release='';
             for(let i=0;i<45;i++){
-              await page.goto(`https://rinko0211.github.io/household-treasury/?v104reconcile=${Date.now()}-${i}`,{waitUntil:'domcontentloaded',timeout:30000});
+              await page.goto(`https://rinko0211.github.io/household-treasury/?v105balance=${Date.now()}-${i}`,{waitUntil:'domcontentloaded',timeout:30000});
               await page.waitForTimeout(1200);
               ({ready,release}=await page.evaluate(()=>({ready:!!window.householdCashflowReconciliationV102,release:window.__householdRuntimeRelease||''})).catch(()=>({ready:false,release:''})));
-              if(ready&&release==='v104')break;
+              if(ready&&release==='v105')break;
               await page.waitForTimeout(3000);
             }
-            if(!ready||release!=='v104')throw new Error(`deployed runtime not ready: release=${release}, api=${ready}`);
+            if(!ready||release!=='v105')throw new Error(`deployed runtime not ready: release=${release}, api=${ready}`);
 
             const result=await page.evaluate(()=>{
               const api=window.householdCashflowReconciliationV102;
               const st={
-                settings:{cash:123456,salary:540288,salaryDay:18,reserve:0,reservedSpecial:0},
+                settings:{cash:777777,cashAsOf:'2026-09-21',cashSource:'manual',salary:540288,salaryDay:18,reserve:0,reservedSpecial:0},
                 cashTransactions:[
                   {id:'b1',date:'2026-08-22',amount:-30000,balance_after:401878,source:'Rakuten Bank',account:'main'},
                   {id:'b3',date:'2026-09-15',amount:-221823,balance_after:266018,source:'Rakuten Bank',account:'main',description_raw:'三菱UFJニコス',cashflow_type:'DEBT_PRINCIPAL'},
@@ -184,7 +192,7 @@ jobs:
               const rec=api.reconcileHistoryStatuses(st,st.cashflowReconciliationV102,anchor,'2026-09-21');
               return {anchor,actual:api.currentBalanceFromState(st,'2026-09-21'),planning:api.planningStartBalanceFromState(st,'2026-09-21'),rec,statuses:st.cashflowReconciliationV102.history.map(x=>({date:x.date,name:x.name,status:x.status,actual:x.actual_transaction_id||''}))};
             });
-            if(result.actual!==486161||result.planning!==476161)throw new Error('browser balance separation failed: '+JSON.stringify(result));
+            if(result.actual!==777777||result.planning!==777777)throw new Error('browser current/start balance authority failed: '+JSON.stringify(result));
             if(!result.statuses.some(x=>x.status==='MATCHED_ACTUAL')||!result.statuses.some(x=>x.status==='AWAITING_IMPORT'))throw new Error('browser reconciliation statuses missing: '+JSON.stringify(result));
 
             await page.click('[data-page="cashflow"]');
@@ -193,7 +201,7 @@ jobs:
             if(!title.includes('実績・予定の照合')||!title.includes('v102'))throw new Error('v102 UI missing: '+title);
             await page.screenshot({path:'v102-browser-reconciliation.png',fullPage:true});
             fs.writeFileSync('v102-browser-result.json',JSON.stringify({release,title,result},null,2));
-            console.log('V102_BROWSER_PASS',JSON.stringify(result));
+            console.log('V105_BROWSER_PASS',JSON.stringify(result));
             await browser.close();
           })().catch(e=>{console.error(e);process.exit(1)});
           NODE
@@ -201,7 +209,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: v104-browser-evidence
+          name: v105-browser-evidence
           path: |
             v102-browser-reconciliation.png
             v102-browser-result.json

@@ -230,9 +230,9 @@ jobs:
             await page.click('[data-page="cashflow"]');
             await page.waitForSelector('#cashflowReconciliationCardV102',{state:'visible',timeout:15000});
             const title=await page.locator('#cashflowReconciliationCardV102').innerText();
-            if(!title.includes('実績・予定の照合')||!title.includes('v102'))throw new Error('v102 UI missing: '+title);
-            await page.screenshot({path:'v102-browser-reconciliation.png',fullPage:true});
-            fs.writeFileSync('v102-browser-result.json',JSON.stringify({release,title,result},null,2));
+            if(!title.includes('実績・予定の照合')||!title.includes('v105'))throw new Error('v105 UI missing: '+title);
+            await page.screenshot({path:'v105-browser-reconciliation.png',fullPage:true});
+            fs.writeFileSync('v105-browser-result.json',JSON.stringify({release,title,result},null,2));
             console.log('V105_BROWSER_PASS',JSON.stringify(result));
             await browser.close();
           })().catch(e=>{console.error(e);process.exit(1)});
@@ -243,6 +243,6 @@ jobs:
         with:
           name: v105-browser-evidence
           path: |
-            v102-browser-reconciliation.png
-            v102-browser-result.json
+            v105-browser-reconciliation.png
+            v105-browser-result.json
           if-no-files-found: warn

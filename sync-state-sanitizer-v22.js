@@ -4,7 +4,7 @@
 
   // v70 phase 2: data/model compatibility remains, but legacy hidden UI boots are disabled.
   window.__householdConsolidatedUiV70 = true;
-  window.__householdRuntimeRelease = 'v104';
+  window.__householdRuntimeRelease = 'v105';
 
   const DERIVED_KEYS = new Set([
     'updatedAt',
@@ -136,7 +136,7 @@
   // v82 keeps only the import-review cleanup. Its one-off repayment flow UI is retired by the generic v83 account-transfer model.
   injectClassic('./import-review-cleanup-v82.js?v=82', 'data-household-import-review-cleanup-v82');
   // v99: imported transaction-after/snapshot balances are authoritative; manual balances are fallback seeds only.
-  injectClassic('./account-transfer-v83.js?v=99', 'data-household-account-transfer-v83');
+  injectClassic('./account-transfer-v83.js?v=105', 'data-household-account-transfer-v83');
   // v84 adds direct edit/cancel actions to generated transfer events without adding another row renderer.
   injectClassic('./account-transfer-actions-v84.js?v=84', 'data-household-account-transfer-actions-v84');
   // v87 is the revolving forecast cap: known balance reaches zero => no further monthly revolving payment rows.
@@ -148,6 +148,6 @@
   // v97: JAL/DC with a known revolving payoff automatically use full-payment forecasting for spends on/after the projected payoff date.
   injectClassic('./revolving-to-full-v97.js?v=97', 'data-household-revolving-to-full-v97');
   // v102: imported balance_after is the actual current balance. Elapsed plans after the last import stay unverified and affect forecast only.
-  injectClassic('./cashflow-reconciliation-v102.js?v=104', 'data-household-cashflow-reconciliation-v102');
+  injectClassic('./cashflow-reconciliation-v102.js?v=105', 'data-household-cashflow-reconciliation-v102');
   // v92/v93 exact d-card overlay retired in v94.
 })();

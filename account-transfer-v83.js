@@ -85,9 +85,9 @@
       if(impIdx>=0)used.add(impIdx);
       const manualValue=Number.isFinite(Number(a.balance))?Number(a.balance):null;
       const manualAsOf=String(a.balanceAsOf||a.balance_as_of||'');
-      // Imported transaction/snapshot balances are authoritative whenever a matching source exists.
-      // Manual balances are seeds/fallbacks only, so transfer setup cannot mask a later imported balance_after.
-      const useManual=manualValue!==null && !imp;
+      // Use the newest dated value. A current balance entered after the last CSV must
+      // remain authoritative until a newer CSV/snapshot arrives.
+      const useManual=manualValue!==null && (!imp || (!!manualAsOf && manualAsOf>=String(imp.asOf||'')));
       out.push({...a,currentBalance:useManual?manualValue:(imp?imp.value:manualValue),balanceAsOf:useManual?manualAsOf:(imp?.asOf||manualAsOf||''),balanceSource:useManual?'manual':imp?'import':'none',sourceKey:a.sourceKey||imp?.source||''});
     }
     imports.forEach((r,i)=>{

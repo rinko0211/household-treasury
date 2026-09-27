@@ -5,7 +5,7 @@ const empty=()=>({
   settings:{cash:0,reserve:0,salary:0,salaryDay:18,reservedSpecial:0},
   assets:{bank:0,investment:0,ideco:0,other:0,liabilities:0,revolvingBalance:0},
   rules:[],events:[],overrides:[],history:[],imports:[],
-  cashTransactions:[],purchaseEvents:[],cardSettlements:[],investmentEvents:[],assetSnapshots:[],reviewQueue:[],
+  cashTransactions:[],cashExpenses:[],purchaseEvents:[],cardSettlements:[],investmentEvents:[],assetSnapshots:[],reviewQueue:[],
   importRules:null
 });
 let state=empty();
@@ -24,7 +24,7 @@ function normalize(){
   if(Array.isArray(state.importHistory)&&!Array.isArray(state.imports))state.imports=state.importHistory;
   state.settings={...empty().settings,...state.settings};
   state.assets={...empty().assets,...legacyAssets,bank:legacyAssets.bank??legacyAssets.workingCash??state.settings.cash??0,other:legacyAssets.other??legacyAssets.otherBank??0,liabilities:legacyAssets.liabilities??legacyAssets.liability??0};
-  for(const k of ['rules','events','overrides','history','imports','cashTransactions','purchaseEvents','cardSettlements','investmentEvents','assetSnapshots','reviewQueue'])if(!Array.isArray(state[k]))state[k]=[];
+  for(const k of ['rules','events','overrides','history','imports','cashTransactions','cashExpenses','purchaseEvents','cardSettlements','investmentEvents','assetSnapshots','reviewQueue'])if(!Array.isArray(state[k]))state[k]=[];
   if(!state.assets.bank&&state.settings.cash)state.assets.bank=state.settings.cash;
   state.schemaVersion=SCHEMA_VERSION;
 }
@@ -240,7 +240,7 @@ function isLegacyBootstrapState(obj){
   return !!obj&&typeof obj==='object'&&!obj.schemaVersion&&Array.isArray(obj.wealth)&&!Array.isArray(obj.cashTransactions);
 }
 function hasCanonicalLocalEvidence(st){
-  return ['cashTransactions','purchaseEvents','cardSettlements','investmentEvents','assetSnapshots','imports'].some(k=>Array.isArray(st?.[k])&&st[k].length>0);
+  return ['cashTransactions','cashExpenses','purchaseEvents','cardSettlements','investmentEvents','assetSnapshots','imports'].some(k=>Array.isArray(st?.[k])&&st[k].length>0);
 }
 function mergeRecordScore(x){
   if(!x||typeof x!=='object')return 0;
@@ -249,6 +249,7 @@ function mergeRecordScore(x){
 function evidenceKey(kind,x){
   if(!x||typeof x!=='object')return JSON.stringify(x);
   if(kind==='cashTransactions')return [x.source||'',x.account||'',x.date||'',Number(x.amount)||0,normalizeText(x.description_raw||x.description||'')].join('|');
+  if(kind==='cashExpenses')return [x.date||'',normalizeText(x.description||x.description_raw||''),Number(x.amount)||0,x.category||'',x.spending_class||x.expense_scope||''].join('|');
   if(kind==='purchaseEvents')return [x.card||'',x.purchase_date||'',normalizeText(x.merchant_raw||''),Number(x.original_amount)||0,Number(x.occurrence_index)||1,x.billing_month||'',Number(x.installment_number)||0].join('|');
   if(kind==='cardSettlements')return String(x.settlement_id||x.id||[x.card||'',x.due_date||'',Number(x.amount)||0].join('|'));
   if(kind==='investmentEvents')return [x.date||'',x.asset_type||'',x.security_name||'',x.side||'',Number(x.amount)||0,Number(x.quantity)||0,x.account_type||''].join('|');
@@ -277,7 +278,7 @@ function prepareImportedBackup(obj){
     return out;
   }
   const out=structuredClone(obj);
-  for(const kind of ['cashTransactions','purchaseEvents','cardSettlements','investmentEvents','assetSnapshots','imports']){
+  for(const kind of ['cashTransactions','cashExpenses','purchaseEvents','cardSettlements','investmentEvents','assetSnapshots','imports']){
     out[kind]=mergeEvidenceArray(kind,local[kind],out[kind]);
   }
   return out;

@@ -70,6 +70,11 @@
     $('dashboardDecisionV39').innerHTML=cells.map(([k,v,meta],i)=>`<div><span class="muted">${k}</span><b class="${i===4?(Number(v)>0?'good':'bad'):''}" style="display:block;font-size:${i===4?'24':'20'}px;margin-top:5px">${yen(v)}</b>${meta&&meta!=='safe'?`<div class="tiny">${meta}</div>`:''}</div>`).join('');
   }
   function renderMonth(st){
+    const analytics=window.householdExpenseAnalyticsV106;
+    if(analytics?.renderDashboardMonth){
+      $('dashboardMonthV39').innerHTML=analytics.renderDashboardMonth(st,todayIso().slice(0,7));
+      return;
+    }
     const t=monthTotals(st),rows=[['NORMAL',t.ordinary??t.normal??0],['SPECIAL',t.special||0],['INVESTMENT',t.investment||0],['DEBT',t.debt||0],['TRANSFER',t.transfer||0]];
     $('dashboardMonthV39').innerHTML=rows.map(([k,v])=>`<div class="row"><span>${k}</span><b>${yen(v)}</b></div>`).join('')+`<div class="controls" style="margin-top:8px"><button class="btn secondary" data-dashboard-go="imports">明細・区分を見る</button></div>`;
   }

@@ -20,9 +20,9 @@ jobs:
           set -euo pipefail
           node --check account-transfer-v83.js
           node --check account-transfer-actions-v84.js
-          grep -Fq "account-transfer-v83.js?v=99" sync-state-sanitizer-v22.js
+          grep -Fq "account-transfer-v83.js?v=105" sync-state-sanitizer-v22.js
           grep -Fq "account-transfer-actions-v84.js?v=84" sync-state-sanitizer-v22.js
-          grep -Fq "account-transfer-v83.js?v=99" sw.js
+          grep -Fq "account-transfer-v83.js?v=105" sw.js
           grep -Fq "account-transfer-actions-v84.js?v=84" sw.js
           grep -Fq "household-treasury-v99-imported-balance-authority" sw.js
       - name: Check account balance tracking

@@ -1,0 +1,88 @@
+
+name: Check v106 Cash Expense Analytics
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  v106:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+      - name: Static checks
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check cash-expense-analytics-v106.js
+          grep -Fq "cash-expense-analytics-v106.js?v=106" sync-state-sanitizer-v22.js
+          grep -Fq "cash-expense-analytics-v106.js?v=106" sw.js
+          grep -Fq "dashboard-v39.js?v=106" sync-state-sanitizer-v22.js
+          grep -Fq "householdExpenseAnalyticsV106" dashboard-v39.js
+          grep -Fq "cashExpenses" app.js
+          grep -Fq "household-treasury-v106-cash-expense-analytics" sw.js
+          grep -Fq "__householdRuntimeRelease = 'v106'" sync-state-sanitizer-v22.js
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install Playwright Chromium
+        run: |
+          npm install --no-save playwright@1.55.0
+          npx playwright install --with-deps chromium
+      - name: Browser test cash CSV and category drilldown
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m http.server 4173 >/tmp/v106-http.log 2>&1 &
+          SERVER_PID=$!
+          trap 'kill $SERVER_PID || true' EXIT
+          sleep 1
+          node <<'NODE'
+          const {chromium}=require('playwright');
+          (async()=>{
+            const browser=await chromium.launch({headless:true});
+            const page=await browser.newPage({viewport:{width:390,height:844}});
+            await page.goto('http://127.0.0.1:4173/?v106e2e=1',{waitUntil:'domcontentloaded'});
+            await page.waitForFunction(()=>window.__householdRuntimeRelease==='v106'&&!!window.householdExpenseAnalyticsV106,{timeout:15000});
+            await page.evaluate(()=>{
+              const st=structuredClone((window.getTreasuryStateRaw||window.getTreasuryState)());
+              st.cashExpenses=[];
+              st.imports=[];
+              st.purchaseEvents=[
+                {purchase_id:'card-food',purchase_date:'2026-09-20',merchant_raw:'カードスーパー',original_amount:3000,card:'Rakuten',economic_type:'EXPENSE',spending_class:'NORMAL',category:'FOOD'}
+              ];
+              st.cashTransactions=[
+                {id:'atm',date:'2026-09-21',amount:-10000,description_raw:'カード出金',cashflow_type:'CASH_WITHDRAWAL_UNCLASSIFIED',economic_type:'EXPENSE',spending_class:'NORMAL',category:'OTHER'},
+                {id:'settle',date:'2026-09-22',amount:-50000,description_raw:'楽天カード',cashflow_type:'CARD_SETTLEMENT',economic_type:'TRANSFER',spending_class:null,category:null},
+                {id:'clinic',date:'2026-09-23',amount:-1070,description_raw:'クリニック',cashflow_type:'UNKNOWN',economic_type:'EXPENSE',spending_class:'NORMAL',category:'MEDICAL'}
+              ];
+              window.replaceTreasuryState(st);
+            });
+            await page.click('[data-page="imports"]');
+            const csv='日付,内容,金額,カテゴリー,区分,メモ\n2026-09-24,現金スーパー,3888,食費,通常費,\n2026-09-25,現金旅行用品,6000,旅行,特別費,\n';
+            await page.setInputFiles('#csvInput',{name:'cash-expenses-test.csv',mimeType:'text/csv',buffer:Buffer.from(csv,'utf8')});
+            await page.waitForFunction(()=>((window.getTreasuryStateRaw||window.getTreasuryState)().cashExpenses||[]).length===2,{timeout:10000});
+            const model=await page.evaluate(()=>window.householdExpenseAnalyticsV106.summarize((window.getTreasuryStateRaw||window.getTreasuryState)(),'2026-09'));
+            if(model.totals.NORMAL!==7958)throw new Error('NORMAL total '+model.totals.NORMAL+' expected 7958');
+            if(model.totals.SPECIAL!==6000)throw new Error('SPECIAL total '+model.totals.SPECIAL+' expected 6000');
+            if(model.rows.some(r=>r.name==='カード出金'||r.name==='楽天カード'))throw new Error('ATM/card settlement leaked into spending rows');
+            await page.click('[data-page="dashboard"]');
+            await page.waitForTimeout(300);
+            const txt=await page.locator('#dashboardMonthV39').innerText();
+            if(!txt.includes('通常費')||!txt.includes('特別費')||!txt.includes('食費')||!txt.includes('旅行'))throw new Error('dashboard grouping missing: '+txt);
+            await page.locator('[data-expense-detail="1"][data-expense-scope="NORMAL"][data-expense-category="FOOD"]').click();
+            await page.waitForSelector('#expenseDetailModalV106',{state:'visible'});
+            const detail=await page.locator('#expenseDetailRowsV106').innerText();
+            if(!detail.includes('カードスーパー')||!detail.includes('現金スーパー'))throw new Error('food detail missing rows: '+detail);
+            if(detail.includes('カード出金')||detail.includes('楽天カード'))throw new Error('excluded rows appeared in detail');
+            console.log('V106_OK',JSON.stringify({normal:model.totals.NORMAL,special:model.totals.SPECIAL,cash:model.rows.filter(r=>r.kind==='cash').length}));
+            await browser.close();
+          })().catch(e=>{console.error(e);process.exit(1)});
+          NODE

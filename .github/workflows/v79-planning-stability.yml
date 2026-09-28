@@ -20,9 +20,9 @@ jobs:
           set -euo pipefail
           node --check planning-model-v79.js
           node --check planning-ui-v79.js
-          grep -Fq "planning-model-v79.js?v=91" sync-state-sanitizer-v22.js
+          grep -Fq "planning-model-v79.js?v=110" sync-state-sanitizer-v22.js
           grep -Fq "planning-ui-v79.js?v=107" sync-state-sanitizer-v22.js
-          grep -Fq "planning-model-v79.js?v=91" sw.js
+          grep -Fq "planning-model-v79.js?v=110" sw.js
           grep -Fq "planning-ui-v79.js?v=107" sw.js
           grep -Fq "household-treasury-v79-planning-stability" sw.js
       - name: Check stable single-path UI behavior

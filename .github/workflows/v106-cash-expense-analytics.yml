@@ -108,6 +108,8 @@ jobs:
             await page.locator('[data-expense-close="1"]').click();
 
             // Historical bank transaction can be edited later from the raw dashboard detail.
+            if(!(await normalList.isVisible()))await spend.locator('[data-expense-scope-toggle="1"][data-expense-scope="NORMAL"]').click();
+            await spend.locator('[data-expense-detail="1"][data-expense-scope="NORMAL"][data-expense-category="OTHER"]').waitFor({state:'visible'});
             await spend.locator('[data-expense-detail="1"][data-expense-scope="NORMAL"][data-expense-category="OTHER"]').click();
             await page.waitForSelector('#expenseDetailModalV106',{state:'visible'});
             await page.locator('[data-expense-edit="1"][data-expense-edit-kind="cash"][data-expense-edit-id="funding"]').click();

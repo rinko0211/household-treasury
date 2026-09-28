@@ -20,6 +20,7 @@
     TAX:{label:'税・公的負担',defaultSpending:'SPECIAL',subs:['TAX','FEE','OTHER']},
     FINANCIAL_FEES:{label:'金融手数料',defaultSpending:'NORMAL',subs:['INTEREST','FEE','OTHER']},
     PERSONAL:{label:'個人',defaultSpending:'NORMAL',subs:['BEAUTY','FITNESS','OTHER']},
+    GIFTS_EVENTS:{label:'イベント・贈答',defaultSpending:'SPECIAL',subs:['GIFT','EVENT','CEREMONY','OTHER']},
     OTHER:{label:'その他',defaultSpending:'NORMAL',subs:['OTHER']}
   };
   const CATEGORY_ALIASES={
@@ -40,6 +41,8 @@
     TAX:'TAX',TAXES:'TAX',
     FINANCIAL_FEES:'FINANCIAL_FEES',FEE:'FINANCIAL_FEES',INTEREST:'FINANCIAL_FEES',
     PERSONAL:'PERSONAL',BEAUTY:'PERSONAL',FITNESS:'PERSONAL',
+    GIFTS_EVENTS:'GIFTS_EVENTS',GIFTS:'GIFTS_EVENTS',GIFT:'GIFTS_EVENTS','イベント・贈答':'GIFTS_EVENTS','贈答':'GIFTS_EVENTS','プレゼント':'GIFTS_EVENTS',
+    'レジャー':'ENTERTAINMENT','外食':'FOOD','ガソリン':'CAR','食費':'FOOD','日用品':'DAILY_GOODS','医療':'MEDICAL',
     OTHER:'OTHER',UNKNOWN:'OTHER'
   };
   const INTERNAL_CATEGORY_TOKENS=new Set([
@@ -63,8 +66,16 @@
     return defaultValue;
   };
   function inferCategory(name,existing){
+    const rawExisting=String(existing??'').trim().normalize('NFKC'),n=norm(name);
+    // Composite labels from household cash logs are split only where doing so
+    // improves analysis without creating extra top-level categories.
+    if(['衣服・美容','衣服/美容','服・美容'].includes(rawExisting)){
+      return /(ネイル|美容|理容|ヘア|コスメ|化粧|サロン)/.test(n)?'PERSONAL':'DAILY_GOODS';
+    }
+    if(['子ども・教育','子供・教育','こども・教育'].includes(rawExisting)){
+      return /(児童書|教材|学校|塾|書籍|BOOK|受験|TOEIC|英検)/.test(n)?'EDUCATION':'CHILD';
+    }
     const mapped=normalizeCategoryValue(existing);if(mapped)return mapped;
-    const n=norm(name);
     const rules=[
       ['UTILITIES',/(電気|デンキ|ELECTRIC|水道|スイドウ|GAS|ガス)/],
       ['COMMUNICATION',/(DOCOMO|ドコモ|AU|SOFTBANK|ソフトバンク|楽天モバイル|RAKUTENMOBILE|WIFI|WI-FI|INTERNET|光回線)/],
@@ -78,7 +89,10 @@
       ['TRANSPORT',/(JR|鉄道|電車|タクシー|TAXI|バス)/],
       ['EDUCATION',/(学校|塾|教材|BOOK|書籍|受験|TOEIC|英検)/],
       ['HOUSING',/(家賃|住宅|MORTGAGE|RENT)/],
-      ['PERSONAL',/(ジム|GYM|美容|理容|フィットネス)/]
+      ['GIFTS_EVENTS',/(贈答|プレゼント|ギフト|おみやげ|土産|冠婚葬祭|航空祭)/],
+      ['DAILY_GOODS',/(衣服|洋服|服|ショーツ|下着|靴|バッグ|衣料)/],
+      ['ENTERTAINMENT',/(レジャー|温泉|銭湯|お風呂チケット|遊園地|映画館)/],
+      ['PERSONAL',/(ジム|GYM|美容|理容|ネイル|コスメ|化粧|フィットネス)/]
     ];
     return rules.find(([,re])=>re.test(n))?.[0]||null;
   }
@@ -92,7 +106,12 @@
     if(category==='MEDICAL')return /歯/.test(n)?'DENTAL':/メルス|CONTACT|コンタクト/.test(n)?'CONTACTS':/薬局/.test(n)?'PHARMACY':'CLINIC';
     if(category==='SUBSCRIPTION')return /年会費|CARD/.test(n)?'CARD_FEE':/APPLE|GOOGLE|NETFLIX|SPOTIFY|YOUTUBE/.test(n)?'DIGITAL':'OTHER';
     if(category==='TRAVEL')return /HOTEL|ホテル|旅館|AIRBNB/.test(n)?'LODGING':/JAL|ANA|航空/.test(n)?'AIR':'OTHER';
-    if(category==='FOOD')return /CAFE|カフェ/.test(n)?'CAFE':/RESTAURANT|レストラン/.test(n)?'EATING_OUT':'OTHER';
+    if(category==='FOOD')return /CAFE|カフェ/.test(n)?'CAFE':/RESTAURANT|レストラン|外食/.test(n)?'EATING_OUT':'OTHER';
+    if(category==='DAILY_GOODS')return /(衣服|洋服|服|ショーツ|下着|靴|バッグ|衣料)/.test(n)?'CLOTHING':'OTHER';
+    if(category==='PERSONAL')return /(ネイル|美容|理容|ヘア|コスメ|化粧|サロン)/.test(n)?'BEAUTY':/(ジム|GYM|フィットネス)/.test(n)?'FITNESS':'OTHER';
+    if(category==='EDUCATION')return /(児童書|書籍|BOOK|本)/.test(n)?'BOOKS':/(学校|塾|受験|教材)/.test(n)?'TUITION':'OTHER';
+    if(category==='ENTERTAINMENT')return /(レジャー|温泉|銭湯|お風呂|遊園地|映画)/.test(n)?'HOBBY':'OTHER';
+    if(category==='GIFTS_EVENTS')return /(おみやげ|土産|贈答|プレゼント|ギフト)/.test(n)?'GIFT':/(冠婚葬祭|結婚|香典|祝儀)/.test(n)?'CEREMONY':/(祭|イベント|航空祭)/.test(n)?'EVENT':'OTHER';
     return category?'OTHER':null;
   }
   function economicFromLegacy(o,{kind='',amount=0}={}){

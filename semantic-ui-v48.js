@@ -15,7 +15,7 @@
   function categoryDefs(){return sem()?.CATEGORY_DEFS||{OTHER:{label:'その他',subs:['OTHER']}}}
   function categoryLabel(c){return categoryDefs()[c]?.label||c||'未分類'}
   function subLabel(c,s){
-    if(!s)return'';const names={ELECTRICITY:'電気',WATER:'水道',GAS:'ガス',MOBILE:'携帯',INTERNET:'インターネット',FUEL:'燃料',MAINTENANCE:'整備',PARKING:'駐車場',TOLL:'高速・ETC',LIFE:'生命保険',AUTO:'自動車保険',DIGITAL:'デジタル',MEMBERSHIP:'会費',CARD_FEE:'カード年会費',CLINIC:'医療機関',DENTAL:'歯科',CONTACTS:'コンタクト',PHARMACY:'薬局',GROCERIES:'食料品',EATING_OUT:'外食',CAFE:'カフェ',LODGING:'宿泊',AIR:'航空',CHILDCARE:'保育',SCHOOL:'学校',OTHER:'その他'};return names[s]||s
+    if(!s)return'';const names={ELECTRICITY:'電気',WATER:'水道',GAS:'ガス',MOBILE:'携帯',INTERNET:'インターネット',FUEL:'燃料',MAINTENANCE:'整備',PARKING:'駐車場',TOLL:'高速・ETC',LIFE:'生命保険',AUTO:'自動車保険',DIGITAL:'デジタル',MEMBERSHIP:'会費',CARD_FEE:'カード年会費',CLINIC:'医療機関',DENTAL:'歯科',CONTACTS:'コンタクト',PHARMACY:'薬局',GROCERIES:'食料品',EATING_OUT:'外食',CAFE:'カフェ',LODGING:'宿泊',AIR:'航空',CHILDCARE:'保育',SCHOOL:'学校',GIFT:'贈答・おみやげ',EVENT:'イベント',CEREMONY:'冠婚葬祭',OTHER:'その他'};return names[s]||s
   }
   function categoryPath(o){return o?.category?`${categoryLabel(o.category)}${o.subcategory?` > ${subLabel(o.category,o.subcategory)}`:''}`:'カテゴリなし'}
   function semanticLabel(o){

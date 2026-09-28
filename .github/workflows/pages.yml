@@ -43,7 +43,7 @@ jobs:
         run: |
           set -euo pipefail
           grep -Fq "semantic-model-v47.js" sync-state-sanitizer-v22.js
-          grep -Fq "semantic-ui-v48.js?v=110" sync-state-sanitizer-v22.js
+          grep -Fq "semantic-ui-v48.js?v=114" sync-state-sanitizer-v22.js
           grep -Fq "cash-expense-analytics-v106.js?v=110" sync-state-sanitizer-v22.js
           grep -Fq "master-manager-v27.js?v=110" sync-state-sanitizer-v22.js
           grep -Fq "cashflow-integration-v41.js?v=110" sync-state-sanitizer-v22.js
@@ -110,7 +110,7 @@ jobs:
           set -euo pipefail
           grep -Fq "csv-parser-v73.js?v=73" sync-state-sanitizer-v22.js
           grep -Fq "mobile-import-v73.js?v=73" sync-state-sanitizer-v22.js
-          grep -Fq "card-import-corrections-v73.js?v=113" sync-state-sanitizer-v22.js
+          grep -Fq "card-import-corrections-v73.js?v=114" sync-state-sanitizer-v22.js
           grep -Fq "mobileCsvPickerV73" mobile-import-v73.js
           grep -Fq "htmlFor='csvInput'" mobile-import-v73.js
           grep -Fq "CSV_PAYMENT_HEADER" card-import-corrections-v73.js
@@ -118,7 +118,7 @@ jobs:
           grep -Fq "data-v73-settlement" card-import-corrections-v73.js
           grep -Fq "csv-parser-v73.js?v=73" sw.js
           grep -Fq "mobile-import-v73.js?v=73" sw.js
-          grep -Fq "card-import-corrections-v73.js?v=113" sw.js
+          grep -Fq "card-import-corrections-v73.js?v=114" sw.js
           node <<'NODE'
           const {parseCsvV73}=require('./csv-parser-v73.js');
           const rows=parseCsvV73('a,b,c\r\n1,"x,y",3\r\n2,"hello\r\nworld",4\r\n');

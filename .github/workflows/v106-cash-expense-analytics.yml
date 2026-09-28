@@ -1,5 +1,5 @@
 
-name: Check v106 Cash Expense Analytics
+name: Check v107 Expense Drilldown
 
 on:
   push:
@@ -10,7 +10,7 @@ permissions:
   contents: read
 
 jobs:
-  v106:
+  v107:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -21,12 +21,14 @@ jobs:
         run: |
           set -euo pipefail
           node --check cash-expense-analytics-v106.js
-          grep -Fq "cash-expense-analytics-v106.js?v=106" sync-state-sanitizer-v22.js
-          grep -Fq "cash-expense-analytics-v106.js?v=106" sw.js
-          grep -Fq "dashboard-v39.js?v=106" sync-state-sanitizer-v22.js
+          grep -Fq "cash-expense-analytics-v106.js?v=107" sync-state-sanitizer-v22.js
+          grep -Fq "cash-expense-analytics-v106.js?v=107" sw.js
+          grep -Fq "dashboard-v39.js?v=107" sync-state-sanitizer-v22.js
           grep -Fq "householdExpenseAnalyticsV106" dashboard-v39.js
           grep -Fq "cashExpenses" app.js
-          grep -Fq "household-treasury-v106-cash-expense-analytics" sw.js
+          grep -Fq "app.js?v=107" index.html
+          grep -Fq "sync-state-sanitizer-v22.js?v=107" index.html
+          grep -Fq "household-treasury-v107-expense-drilldown" sw.js
           grep -Fq "__householdRuntimeRelease = 'v106'" sync-state-sanitizer-v22.js
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -50,7 +52,7 @@ jobs:
             const browser=await chromium.launch({headless:true});
             const page=await browser.newPage({viewport:{width:390,height:844}});
             await page.goto('http://127.0.0.1:4173/?v106e2e=1',{waitUntil:'domcontentloaded'});
-            await page.waitForFunction(()=>window.__householdRuntimeRelease==='v106'&&!!window.householdExpenseAnalyticsV106,{timeout:15000});
+            await page.waitForFunction(()=>window.__householdRuntimeRelease==='v107'&&!!window.householdExpenseAnalyticsV106,{timeout:15000});
             await page.evaluate(()=>{
               const st=structuredClone((window.getTreasuryStateRaw||window.getTreasuryState)());
               st.cashExpenses=[];
@@ -77,12 +79,15 @@ jobs:
             await page.waitForTimeout(300);
             const txt=await page.locator('#dashboardMonthV39').innerText();
             if(!txt.includes('通常費')||!txt.includes('特別費'))throw new Error('scope grouping missing: '+txt);
-            if(txt.includes('食費')||txt.includes('旅行'))throw new Error('category rows must be hidden before scope tap: '+txt);
+            const normalList=page.locator('[data-expense-category-list="NORMAL"]');
+            const specialList=page.locator('[data-expense-category-list="SPECIAL"]');
+            if(await normalList.isVisible()||await specialList.isVisible())throw new Error('category lists must be collapsed initially');
             const detailModal=page.locator('#expenseDetailModalV106');
             if(await detailModal.isVisible())throw new Error('raw detail opened before category tap');
             await page.locator('[data-expense-scope-toggle="1"][data-expense-scope="NORMAL"]').click();
+            await normalList.waitFor({state:'visible'});
             await page.locator('[data-expense-detail="1"][data-expense-scope="NORMAL"][data-expense-category="FOOD"]').waitFor({state:'visible'});
-            if(await page.locator('[data-expense-detail="1"][data-expense-scope="SPECIAL"][data-expense-category="TRAVEL"]').isVisible())throw new Error('SPECIAL categories leaked into NORMAL drilldown');
+            if(await specialList.isVisible())throw new Error('SPECIAL categories leaked into NORMAL drilldown');
             await page.locator('[data-expense-detail="1"][data-expense-scope="NORMAL"][data-expense-category="FOOD"]').click();
             await page.waitForSelector('#expenseDetailModalV106',{state:'visible'});
             const detail=await page.locator('#expenseDetailRowsV106').innerText();

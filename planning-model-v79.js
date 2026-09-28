@@ -50,12 +50,15 @@
     return rows.sort((a,b)=>String(a.date||'').localeCompare(String(b.date||''))||String(a.name||'').localeCompare(String(b.name||''),'ja'));
   }
 
+  function isActualSalary(t){if(Number(t?.amount)<=0)return false;const k=String(t?.cashflow_type||t?.category||'').toUpperCase(),n=norm(t?.description_raw||t?.description||'');return k==='INCOME_SALARY'||/給与|俸給|SALARY/.test(n)}
+  function actualSalaryForMonth(st,ym){return(st.cashTransactions||[]).filter(t=>String(t?.date||'').slice(0,7)===ym&&isActualSalary(t)).sort((a,b)=>String(b.date||'').localeCompare(String(a.date||'')))[0]||null}
   function ensureSalaryRows(input,days=90){
     const st=stateNow(),salary=Math.max(0,Number(st.settings?.salary)||0);if(!salary)return input||[];
     const day=Math.min(31,Math.max(1,Number(st.settings?.salaryDay)||18)),rows=[...(input||[])],from=iso(new Date()),toD=new Date(`${from}T12:00:00`);toD.setDate(toD.getDate()+Math.max(0,Number(days)||90));const to=iso(toD),start=from.slice(0,7),months=Math.max(1,Math.ceil((Number(days)||90)/28)+1);
     for(let i=0;i<months;i++){
       const ym=addMonths(start,i),date=dateFor(ym,day);if(date<from||date>to)continue;
-      const exists=rows.some(e=>String(e.date||'').slice(0,7)===ym&&Number(e.amount)>0&&Math.abs(Number(e.amount)-salary)<=1&&(String(e.source||'')==='settings_salary'||String(e.type||'').toUpperCase()==='SALARY'||/給与|SALARY/i.test(String(e.name||''))));
+      const actual=actualSalaryForMonth(st,ym);
+      const exists=!!actual||rows.some(e=>String(e.date||'').slice(0,7)===ym&&Number(e.amount)>0&&(String(e.source||'')==='settings_salary'||String(e.type||'').toUpperCase()==='SALARY'||/給与|SALARY/i.test(String(e.name||''))));
       if(!exists)rows.push({id:`salary:v79:${ym}`,date,name:'給与',amount:salary,type:'SALARY',future_kind:'INCOME',economic_type:'INCOME',generated:true,source:'settings_salary_v79'});
     }
     return rows.sort((a,b)=>String(a.date||'').localeCompare(String(b.date||''))||String(a.name||'').localeCompare(String(b.name||''),'ja'));

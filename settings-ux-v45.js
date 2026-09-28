@@ -68,12 +68,12 @@
     const btn=$('saveSettings');if(!btn||btn.dataset.v45SalarySafe)return;btn.dataset.v45SalarySafe='1';
     btn.onclick=()=>{
       const st=stateNow();st.settings=st.settings||{};st.assets=st.assets||{};
-      st.settings.cash=Number($('cash')?.value)||0;
-      st.settings.reserve=Number($('reserve')?.value)||0;
-      st.settings.salary=Math.max(0,Number($('salary')?.value)||0);
-      const day=Number($('salaryDay')?.value)||18;st.settings.salaryDay=Math.min(31,Math.max(1,Math.round(day)));
-      st.settings.reservedSpecial=Number($('reservedSpecial')?.value)||0;
-      st.assets.bank=st.settings.cash;
+      const cashInput=$('cash'),reserveInput=$('reserve'),salaryInput=$('salary'),salaryDayInput=$('salaryDay'),reservedInput=$('reservedSpecial');
+      if(cashInput){st.settings.cash=Number(cashInput.value)||0;st.assets.bank=st.settings.cash}
+      if(reserveInput)st.settings.reserve=Number(reserveInput.value)||0;
+      if(salaryInput)st.settings.salary=Math.max(0,Number(salaryInput.value)||0);
+      if(salaryDayInput){const day=Number(salaryDayInput.value)||18;st.settings.salaryDay=Math.min(31,Math.max(1,Math.round(day)))}
+      if(reservedInput)st.settings.reservedSpecial=Number(reservedInput.value)||0;
       cleanSalaryArtifacts(st);
       window.treasuryRecoverySnapshot?.('基本設定変更直前');
       window.replaceTreasuryState?.(st);

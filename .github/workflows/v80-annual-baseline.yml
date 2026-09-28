@@ -59,6 +59,29 @@ jobs:
           if(!target||target.bonus!==60000||target.monthly!==0)throw new Error('target-month bonus not represented: '+JSON.stringify(p.schedule));
           console.log('AUTO annual bonus-first PASS',JSON.stringify({regular:p.regular,bonus:p.bonusTotal}));
           NODE
+      - name: Check actual bonus deposit authority
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check bonus-allocation-v58.js
+          node --check cashflow-reconciliation-v102.js
+          node <<'NODE'
+          const fs=require('fs'),vm=require('vm');
+          const state={
+            bonusPlans:[{id:'winter',name:'冬ボーナス',date:'2026-12-10',expected_amount:500000,allocations:[{id:'a1',label:'年払い',amount:100000}]}],
+            cashTransactions:[{id:'bonus-actual',date:'2026-12-10',amount:523456,cashflow_type:'INCOME_BONUS',description_raw:'賞与'}],
+            masters:{fixedExpenses:[]},events:[]
+          };
+          const ctx={console,Date,Intl,Map,Set,Number,String,Math,structuredClone,crypto:{randomUUID:()=> 'x'},localStorage:{getItem:()=>null,setItem:()=>{}},setTimeout:()=>0,clearTimeout:()=>{}};
+          ctx.window=ctx;ctx.document={readyState:'loading',addEventListener:()=>{},getElementById:()=>null,querySelector:()=>null};ctx.getTreasuryStateRaw=()=>state;ctx.getTreasuryState=()=>state;
+          vm.createContext(ctx);vm.runInContext(fs.readFileSync('bonus-allocation-v58.js','utf8'),ctx);
+          const api=ctx.householdBonusAllocationV58;if(!api)throw new Error('bonus API missing');
+          if(!api.syncActualBonusPlans(state))throw new Error('actual bonus did not bind');
+          const m=api.planMetrics(state,state.bonusPlans[0]);
+          if(!m.actualKnown||m.actual!==523456||m.expected!==523456)throw new Error('actual bonus amount not authoritative: '+JSON.stringify(m));
+          if(m.free!==423456)throw new Error('bonus free amount did not use actual deposit: '+JSON.stringify(m));
+          console.log('actual bonus authority PASS',JSON.stringify(m));
+          NODE
       - name: Check recurring card baseline model
         shell: bash
         run: |

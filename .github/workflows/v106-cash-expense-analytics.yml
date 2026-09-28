@@ -1,5 +1,5 @@
 
-name: Check v114 Unified Transactions
+name: Check v115 Unified Transactions
 
 on:
   push:
@@ -10,7 +10,7 @@ permissions:
   contents: read
 
 jobs:
-  v114:
+  v115:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -52,10 +52,10 @@ jobs:
           grep -Fq "householdExpenseAnalyticsV106" planning-ui-v79.js
           grep -Fq "householdExpenseAnalyticsV106" dashboard-v39.js
           grep -Fq "cashExpenses" app.js
-          grep -Fq "app.js?v=114" index.html
-          grep -Fq "sync-state-sanitizer-v22.js?v=114" index.html
-          grep -Fq "household-treasury-v114-unified-transactions" sw.js
-          grep -Fq "__householdRuntimeRelease = 'v114'" sync-state-sanitizer-v22.js
+          grep -Fq "app.js?v=115" index.html
+          grep -Fq "sync-state-sanitizer-v22.js?v=115" index.html
+          grep -Fq "household-treasury-v115-actual-income-authority" sw.js
+          grep -Fq "__householdRuntimeRelease = 'v115'" sync-state-sanitizer-v22.js
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
@@ -78,7 +78,7 @@ jobs:
             const browser=await chromium.launch({headless:true});
             const page=await browser.newPage({viewport:{width:390,height:844}});
             await page.goto('http://127.0.0.1:4173/?v106e2e=1',{waitUntil:'domcontentloaded'});
-            await page.waitForFunction(()=>window.__householdRuntimeRelease==='v114'&&!!window.householdExpenseAnalyticsV106&&!!window.openSemanticTransactionEditorV108&&!!window.reconcileRakutenBillingV56,{timeout:15000});
+            await page.waitForFunction(()=>window.__householdRuntimeRelease==='v115'&&!!window.householdExpenseAnalyticsV106&&!!window.openSemanticTransactionEditorV108&&!!window.reconcileRakutenBillingV56,{timeout:15000});
             await page.evaluate(()=>{
               const st=structuredClone((window.getTreasuryStateRaw||window.getTreasuryState)());
               st.cashExpenses=[];
@@ -251,7 +251,7 @@ jobs:
               const got=cats[name];
               if(!got||got.join('|')!==want.join('|'))throw new Error(name+' mapped '+JSON.stringify(got)+' expected '+JSON.stringify(want));
             }
-            console.log('V114_OK',JSON.stringify({normalBefore:model.totals.NORMAL,normalAfterTransfer:after.totals.NORMAL,normalAfterCashEdit:afterCashEdit.totals.NORMAL,special:after.totals.SPECIAL,categories:cats}));
+            console.log('V115_OK',JSON.stringify({normalBefore:model.totals.NORMAL,normalAfterTransfer:after.totals.NORMAL,normalAfterCashEdit:afterCashEdit.totals.NORMAL,special:after.totals.SPECIAL,categories:cats}));
             await browser.close();
           })().catch(e=>{console.error(e);process.exit(1)});
           NODE

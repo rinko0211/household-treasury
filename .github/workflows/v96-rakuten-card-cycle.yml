@@ -22,6 +22,8 @@ jobs:
           node --check card-cycle-defaults-v96.js
           node --check card-baseline-floor-v94.js
           node --check card-cycle-v81.js
+          node --check rakuten-billing-v56.js
+          node --check rakuten-enavi-v74.js
           grep -Fq "card-cycle-defaults-v96.js?v=96" card-baseline-floor-v94.js
           grep -Fq "card-cycle-defaults-v96.js?v=96" sw.js
           grep -Fq 'household-treasury-v96-rakuten-card-cycle' sw.js
@@ -90,6 +92,34 @@ jobs:
           if(!row)throw new Error(`fixed card expense did not reach ${expectedPayYm}-27: ${JSON.stringify(plan.rows)}`);
           if(row.scheduled_fixed_total<12345)throw new Error(`scheduled amount missing: ${row.scheduled_fixed_total}`);
           console.log(`${spendYm}-01 -> ${expectedPayYm}-27 fixed-expense routing OK`);
+          NODE
+
+      - name: Verify Rakuten reconciliation ignores stale statement copies
+        shell: bash
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const fs=require('fs'),vm=require('vm');
+          const state={
+            cardBillingLines:[
+              {billing_line_id:'current',card:'Rakuten',billing_month:'2026-09',billed_amount:10000,source_file:'new.csv',source_files:['new.csv']},
+              {billing_line_id:'stale',card:'Rakuten',billing_month:'2026-09',billed_amount:2500,source_file:'old.csv',source_files:['old.csv']}
+            ],
+            cardSettlements:[
+              {settlement_id:'rakuten:2026-09',card:'Rakuten',billing_month:'2026-09',statement_due_date:'2026-09-27',due_date:'2026-10-01',amount:10000,source_file:'new.csv',billing_line_ids:['current','stale']}
+            ],
+            purchaseEvents:[]
+          };
+          const ctx={console,Intl,Date,Map,Set,Number,String,Math,JSON,structuredClone,setTimeout:()=>0,clearTimeout:()=>{}};
+          ctx.window=ctx;ctx.document={readyState:'loading',addEventListener:()=>{},getElementById:()=>null,querySelector:()=>null};
+          ctx.addEventListener=()=>{};ctx.getTreasuryStateRaw=()=>state;ctx.getTreasuryState=()=>state;
+          vm.createContext(ctx);vm.runInContext(fs.readFileSync('rakuten-billing-v56.js','utf8'),ctx);
+          if(typeof ctx.reconcileRakutenBillingV56!=='function')throw new Error('reconcile API missing');
+          ctx.reconcileRakutenBillingV56(state);
+          const s=state.cardSettlements[0];
+          if(s.detail_payment_total!==10000||s.detail_difference!==0||s.detail_reconciled!==true)throw new Error('stale copy polluted reconciliation: '+JSON.stringify(s));
+          if(JSON.stringify(s.billing_line_ids)!==JSON.stringify(['current']))throw new Error('settlement line ownership not repaired: '+JSON.stringify(s.billing_line_ids));
+          console.log('Rakuten statement-owned reconciliation PASS');
           NODE
 
       - name: No polling or observer loop

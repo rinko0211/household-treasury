@@ -24,6 +24,9 @@ jobs:
           grep -Fq "cash-expense-analytics-v106.js?v=107" sync-state-sanitizer-v22.js
           grep -Fq "cash-expense-analytics-v106.js?v=107" sw.js
           grep -Fq "dashboard-v39.js?v=107" sync-state-sanitizer-v22.js
+          grep -Fq "planning-ui-v79.js?v=107" sync-state-sanitizer-v22.js
+          grep -Fq "planning-ui-v79.js?v=107" sw.js
+          grep -Fq "householdExpenseAnalyticsV106" planning-ui-v79.js
           grep -Fq "householdExpenseAnalyticsV106" dashboard-v39.js
           grep -Fq "cashExpenses" app.js
           grep -Fq "app.js?v=107" index.html
@@ -76,26 +79,28 @@ jobs:
             if(model.totals.SPECIAL!==6000)throw new Error('SPECIAL total '+model.totals.SPECIAL+' expected 6000');
             if(model.rows.some(r=>r.name==='カード出金'||r.name==='楽天カード'))throw new Error('ATM/card settlement leaked into spending rows');
             await page.click('[data-page="dashboard"]');
-            await page.waitForTimeout(300);
-            const txt=await page.locator('#dashboardMonthV39').innerText();
-            if(!txt.includes('通常費')||!txt.includes('特別費'))throw new Error('scope grouping missing: '+txt);
-            const normalList=page.locator('[data-expense-category-list="NORMAL"]');
-            const specialList=page.locator('[data-expense-category-list="SPECIAL"]');
-            if(await normalList.isVisible()||await specialList.isVisible())throw new Error('category lists must be collapsed initially');
+            const spend=page.locator('#dashSpendV79');
+            await spend.waitFor({state:'visible',timeout:10000});
+            await spend.locator('[data-expense-scope-toggle="1"][data-expense-scope="NORMAL"]').waitFor({state:'visible',timeout:10000});
+            const txt=await spend.innerText();
+            if(!txt.includes('通常費')||!txt.includes('特別費'))throw new Error('visible scope grouping missing: '+txt);
+            const normalList=spend.locator('[data-expense-category-list="NORMAL"]');
+            const specialList=spend.locator('[data-expense-category-list="SPECIAL"]');
+            if(await normalList.isVisible()||await specialList.isVisible())throw new Error('visible category lists must be collapsed initially');
             const detailModal=page.locator('#expenseDetailModalV106');
             if(await detailModal.isVisible())throw new Error('raw detail opened before category tap');
-            await page.locator('[data-expense-scope-toggle="1"][data-expense-scope="NORMAL"]').click();
+            await spend.locator('[data-expense-scope-toggle="1"][data-expense-scope="NORMAL"]').click();
             await normalList.waitFor({state:'visible'});
-            await page.locator('[data-expense-detail="1"][data-expense-scope="NORMAL"][data-expense-category="FOOD"]').waitFor({state:'visible'});
+            await spend.locator('[data-expense-detail="1"][data-expense-scope="NORMAL"][data-expense-category="FOOD"]').waitFor({state:'visible'});
             if(await specialList.isVisible())throw new Error('SPECIAL categories leaked into NORMAL drilldown');
-            await page.locator('[data-expense-detail="1"][data-expense-scope="NORMAL"][data-expense-category="FOOD"]').click();
+            await spend.locator('[data-expense-detail="1"][data-expense-scope="NORMAL"][data-expense-category="FOOD"]').click();
             await page.waitForSelector('#expenseDetailModalV106',{state:'visible'});
             const detail=await page.locator('#expenseDetailRowsV106').innerText();
             if(!detail.includes('カードスーパー')||!detail.includes('現金スーパー'))throw new Error('food detail missing rows: '+detail);
             if(detail.includes('カード出金')||detail.includes('楽天カード'))throw new Error('excluded rows appeared in detail');
             await page.locator('[data-expense-close="1"]').click();
-            await page.locator('[data-expense-scope-toggle="1"][data-expense-scope="SPECIAL"]').click();
-            await page.locator('[data-expense-detail="1"][data-expense-scope="SPECIAL"][data-expense-category="TRAVEL"]').waitFor({state:'visible'});
+            await spend.locator('[data-expense-scope-toggle="1"][data-expense-scope="SPECIAL"]').click();
+            await spend.locator('[data-expense-detail="1"][data-expense-scope="SPECIAL"][data-expense-category="TRAVEL"]').waitFor({state:'visible'});
             console.log('V106_OK',JSON.stringify({normal:model.totals.NORMAL,special:model.totals.SPECIAL,cash:model.rows.filter(r=>r.kind==='cash').length,drilldown:'scope>category>detail'}));
             await browser.close();
           })().catch(e=>{console.error(e);process.exit(1)});

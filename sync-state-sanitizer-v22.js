@@ -4,7 +4,7 @@
 
   // v70 phase 2: data/model compatibility remains, but legacy hidden UI boots are disabled.
   window.__householdConsolidatedUiV70 = true;
-  window.__householdRuntimeRelease = 'v113';
+  window.__householdRuntimeRelease = 'v114';
 
   const DERIVED_KEYS = new Set([
     'updatedAt',
@@ -96,7 +96,7 @@
   injectClassic('./cash-expense-analytics-v106.js?v=110', 'data-household-cash-expense-analytics-v106');
   injectClassic('./mufg-card-semantics-v75.js?v=75', 'data-household-mufg-card-semantics-v75');
   injectClassic('./semantic-observer-guard-v71.js?v=71', 'data-household-semantic-observer-guard-v71');
-  injectClassic('./semantic-ui-v48.js?v=110', 'data-household-semantic-ui-v48');
+  injectClassic('./semantic-ui-v48.js?v=114', 'data-household-semantic-ui-v48');
   injectClassic('./semantic-review-stability-v76.js?v=76', 'data-household-semantic-review-stability-v76');
   injectClassic('./card-identity-v51.js?v=51', 'data-household-card-identity-v51');
   injectClassic('./card-forecast-v49.js?v=49', 'data-household-card-forecast-v49');
@@ -104,7 +104,7 @@
   injectClassic('./settings-reactive-v53.js?v=53', 'data-household-settings-reactive-v53');
   injectClassic('./settings-list-integrity-v54.js?v=54', 'data-household-settings-list-integrity-v54');
   injectClassic('./rakuten-billing-v56.js?v=110', 'data-household-rakuten-billing-v56');
-  injectClassic('./card-import-corrections-v73.js?v=113', 'data-household-card-import-corrections-v73');
+  injectClassic('./card-import-corrections-v73.js?v=114', 'data-household-card-import-corrections-v73');
   injectClassic('./rakuten-enavi-v74.js?v=74', 'data-household-rakuten-enavi-v74');
   injectClassic('./integrity-hotfix-v57.js?v=57', 'data-household-integrity-hotfix-v57');
   injectClassic('./bonus-allocation-v58.js?v=58', 'data-household-bonus-allocation-v58');

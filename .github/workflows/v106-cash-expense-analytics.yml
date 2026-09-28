@@ -29,7 +29,7 @@ jobs:
           grep -Fq "app.js?v=107" index.html
           grep -Fq "sync-state-sanitizer-v22.js?v=107" index.html
           grep -Fq "household-treasury-v107-expense-drilldown" sw.js
-          grep -Fq "__householdRuntimeRelease = 'v106'" sync-state-sanitizer-v22.js
+          grep -Fq "__householdRuntimeRelease = 'v107'" sync-state-sanitizer-v22.js
       - name: Setup Node
         uses: actions/setup-node@v4
         with:

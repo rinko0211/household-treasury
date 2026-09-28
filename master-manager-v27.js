@@ -1,6 +1,5 @@
 (() => {
   const CARD_ID = 'householdMasterCardV1';
-  const INPUT_ID = 'householdMasterJsonInputV1';
   const MASTER_VERSION = 1;
 
   const $ = id => document.getElementById(id);
@@ -104,30 +103,6 @@
     });
   }
 
-  function onImportFile(e){
-    const f=e.target.files?.[0]; if(!f) return;
-    const r=new FileReader();
-    r.onload=()=>{
-      try{
-        const obj=JSON.parse(r.result);
-        if(obj.kind!=='household_treasury_master' && !obj.masters) throw new Error('家計マスタJSONではありません。');
-        const next=getRawState();
-        next.masters=normalizeMasters(obj.masters||{});
-        next.masters.sourceAsOf=obj.asOf||obj.as_of||null;
-        commitState(next,'家計マスタJSON読込直前');
-        alert(`家計マスタを読み込みました。\n口座 ${next.masters.accounts.length} / カード ${next.masters.cards.length} / 負債 ${next.masters.liabilities.length} / 固定費 ${next.masters.fixedExpenses.length}`);
-      }catch(err){ alert(err.message||'家計マスタJSONを読み込めませんでした。'); }
-      e.target.value='';
-    };
-    r.readAsText(f);
-  }
-
-  function exportMasters(){
-    const s=getRawState();
-    const payload={kind:'household_treasury_master',version:MASTER_VERSION,asOf:s.masters.sourceAsOf||new Date().toISOString().slice(0,10),masters:s.masters};
-    const blob=new Blob([JSON.stringify(payload,null,2)],{type:'application/json'}),a=document.createElement('a');
-    a.href=URL.createObjectURL(blob);a.download='household-treasury-private-master.json';a.click();URL.revokeObjectURL(a.href);
-  }
 
   function addOrEdit(kind,id=null){
     const s=getRawState(), list=s.masters[kind];

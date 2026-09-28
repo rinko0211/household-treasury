@@ -20,8 +20,8 @@ jobs:
           set -euo pipefail
           node --check card-baseline-floor-v94.js
           node --check sync-state-sanitizer-v22.js
-          grep -Fq "window.__householdRuntimeRelease = 'v94'" sync-state-sanitizer-v22.js
-          grep -Fq "sync-state-sanitizer-v22.js?v=94" index.html
+          grep -Fq "window.__householdRuntimeRelease = 'v110'" sync-state-sanitizer-v22.js
+          grep -Fq "sync-state-sanitizer-v22.js?v=110" index.html
           grep -Fq "card-baseline-floor-v94.js?v=94" sync-state-sanitizer-v22.js
           grep -Fq "card-baseline-floor-v94.js?v=94" sw.js
           grep -Fq 'household-treasury-v94-card-baseline-floor' sw.js

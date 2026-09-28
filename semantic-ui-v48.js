@@ -38,7 +38,7 @@
     if(!$('semanticTransactionsV48')){
       const card=document.createElement('div');card.id='semanticTransactionsV48';card.className='card full';
       card.innerHTML=`<div style="display:flex;justify-content:space-between;gap:8px;align-items:flex-start;flex-wrap:wrap"><div><div class="title" style="margin-bottom:3px">取引明細 <span class="tag">v48</span></div><div class="tiny">支出・収入・投資・返済・資金移動を同じ時系列で確認します。カード返済は「資金移動」で、支出には二重計上しません。</div></div><div class="controls"><select id="txEconomicV48"><option value="ALL">すべて</option>${ECON.map(x=>`<option value="${x}">${ECON_LABEL[x]}</option>`).join('')}</select><select id="txCategoryV48"><option value="ALL">全カテゴリ</option>${Object.entries(categoryDefs()).map(([k,v])=>`<option value="${k}">${esc(v.label)}</option>`).join('')}</select></div></div><div id="semanticTransactionRowsV48" style="margin-top:10px"></div>`;
-      grid.prepend(card);$('txEconomicV48').onchange=renderTransactions;$('txCategoryV48').onchange=renderTransactions;
+      grid.prepend(card);$('txEconomicV48').onchange=renderTransactions;$('txCategoryV48').onchange=renderTransactions;card.addEventListener('click',transactionClick);
     }
   }
   function collectTransactions(st){
@@ -49,8 +49,40 @@
   function renderTransactions(){
     prepareTransactionsPage();const host=$('semanticTransactionRowsV48');if(!host)return;const st=stateNow(),econ=$('txEconomicV48')?.value||'ALL',cat=$('txCategoryV48')?.value||'ALL';
     const rows=collectTransactions(st).filter(r=>(econ==='ALL'||r.o.economic_type===econ)&&(cat==='ALL'||r.o.category===cat)).slice(0,120);
-    host.innerHTML=rows.length?rows.map(r=>`<div class="row" style="align-items:flex-start"><div style="min-width:0;flex:1"><b>${esc(r.name)}</b><div class="tiny">${esc(r.date)} · ${esc(r.source)} · ${esc(semanticLabel(r.o))}${r.o.is_fixed_expense?` · 固定費 ${esc(r.o.fixed_expense_name||'')}`:''}</div></div><b class="amt ${r.amount<0?'bad':r.amount>0?'good':''}">${r.amount>0?'+':''}${yen(r.amount)}</b></div>`).join(''):'<div class="muted">該当する明細はありません。</div>';
+    host.innerHTML=rows.length?rows.map(r=>`<div class="row" style="align-items:flex-start"><div style="min-width:0;flex:1"><b>${esc(r.name)}</b><div class="tiny">${esc(r.date)} · ${esc(r.source)} · ${esc(semanticLabel(r.o))}${r.o.is_fixed_expense?` · 固定費 ${esc(r.o.fixed_expense_name||'')}`:''}</div></div><div style="text-align:right"><b class="amt ${r.amount<0?'bad':r.amount>0?'good':''}">${r.amount>0?'+':''}${yen(r.amount)}</b><div style="margin-top:5px"><button type="button" class="btn secondary" data-v48-tx-edit data-v48-kind="${esc(r.kind)}" data-v48-id="${esc(r.id)}">編集</button></div></div></div>`).join(''):'<div class="muted">該当する明細はありません。</div>';
   }
+
+  function sameActions(a,next){const x=a||{};return String(x.economic_type||'')===String(next.economic_type||'')&&String(x.spending_class||'')===String(next.spending_class||'')&&String(x.category||'')===String(next.category||'')&&String(x.subcategory||'')===String(next.subcategory||'')}
+  function matchingRules(st,kind,o,name){const key=sem()?.ruleKey?.(kind,o)||`${kind}|${norm(name)}`,n=norm(name);return(st.automationRules||[]).filter(r=>{const rk=String(r.match?.key||''),rn=norm(r.match?.name||'');return(rk&&rk===key)||(rn&&rn===n)})}
+  function setRememberRule(st,kind,o,name,actions){
+    st.automationRules=Array.isArray(st.automationRules)?st.automationRules:[];const key=sem()?.ruleKey?.(kind,o)||`${kind}|${norm(name)}`,hits=matchingRules(st,kind,o,name),now=new Date().toISOString();let primary=hits.find(r=>String(r.match?.key||'')===key)||hits[0]||null;
+    if(!primary){primary={id:`rule:${crypto.randomUUID()}`,active:true,match:{kind,key,name},actions:{},source:'semantic-transaction-edit-v108',createdAt:now};st.automationRules.push(primary)}
+    primary.active=true;primary.match={kind,key,name};primary.actions=actions;primary.source='semantic-transaction-edit-v108';primary.updatedAt=now;
+    for(const r of hits){if(r===primary)continue;r.active=false;r.disabled_reason='duplicate_transaction_rule_v108';r.disabledAt=now}
+  }
+  function disableConflictingRules(st,kind,o,name,actions){const now=new Date().toISOString();for(const r of matchingRules(st,kind,o,name)){if(r.active===false||sameActions(r.actions,actions))continue;r.active=false;r.disabled_reason='manual_transaction_override_v108';r.disabledAt=now}}
+
+  function ensureTransactionEditor(){
+    let m=$('transactionEditorV108');if(m)return m;m=document.createElement('div');m.id='transactionEditorV108';m.style.cssText='display:none;position:fixed;inset:0;z-index:13000;background:rgba(3,8,20,.72);padding:14px;overflow:auto';
+    m.innerHTML=`<div class="card" style="max-width:720px;margin:5vh auto"><div style="display:flex;justify-content:space-between;gap:10px;align-items:flex-start"><div><div class="title" id="transactionEditorTitleV108" style="margin:0"></div><div class="tiny" id="transactionEditorMetaV108"></div></div><button type="button" class="btn secondary" data-v108-tx-close>閉じる</button></div><div class="form" style="grid-template-columns:repeat(4,1fr);gap:8px;margin-top:12px"><div class="field"><label>お金の性質</label><select id="transactionEditorEconV108">${ECON.map(x=>`<option value="${x}">${ECON_LABEL[x]}</option>`).join('')}</select></div><div class="field"><label>通常 / 特別</label><select id="transactionEditorSpendV108"><option value="NORMAL">通常費</option><option value="SPECIAL">特別費</option></select></div><div class="field"><label>カテゴリ</label><select id="transactionEditorCatV108"></select></div><div class="field"><label>サブカテゴリ</label><select id="transactionEditorSubV108"></select></div></div><div class="note" style="margin-top:10px">自分の口座間移動やカード支払用の資金移動は「資金移動」にすると、支出集計から除外されます。</div><div class="controls" style="margin-top:12px"><button type="button" class="btn" data-v108-tx-save>保存</button><button type="button" class="btn secondary" data-v108-tx-remember>保存して記憶</button></div></div>`;
+    document.body.appendChild(m);m.addEventListener('click',e=>{if(e.target===m||e.target.closest?.('[data-v108-tx-close]'))closeTransactionEditor();if(e.target.closest?.('[data-v108-tx-save]'))saveTransactionEditor(false);if(e.target.closest?.('[data-v108-tx-remember]'))saveTransactionEditor(true)});$('transactionEditorEconV108').addEventListener('change',syncTransactionEditor);$('transactionEditorCatV108').addEventListener('change',()=>{$('transactionEditorSubV108').innerHTML=subOptions($('transactionEditorCatV108').value,$('transactionEditorSubV108').value)});return m
+  }
+  function syncTransactionEditor(){const expense=$('transactionEditorEconV108')?.value==='EXPENSE';for(const id of ['transactionEditorSpendV108','transactionEditorCatV108','transactionEditorSubV108'])if($(id))$(id).disabled=!expense}
+  function openTransactionEditor(kind,id){
+    const st=stateNow(),o=findRecord(st,kind,id);if(!o)return;ensureTransactionEditor();const econ=String(o.economic_type||'UNKNOWN'),sp=String(o.spending_class||'NORMAL'),cat=o.category||'',sub=o.subcategory||'OTHER';
+    const m=$('transactionEditorV108');m.dataset.kind=kind;m.dataset.id=id;$('transactionEditorTitleV108').textContent=recordName(kind,o);$('transactionEditorMetaV108').textContent=`${recordDate(kind,o)} · ${recordSource(kind,o)} · ${yen(Math.abs(recordAmount(kind,o)))}`;$('transactionEditorEconV108').value=ECON.includes(econ)?econ:'EXPENSE';$('transactionEditorSpendV108').value=sp==='SPECIAL'?'SPECIAL':'NORMAL';$('transactionEditorCatV108').innerHTML=catOptions(cat);$('transactionEditorCatV108').value=cat;$('transactionEditorSubV108').innerHTML=subOptions(cat,sub);syncTransactionEditor();m.style.display='block'
+  }
+  function closeTransactionEditor(){const m=$('transactionEditorV108');if(m)m.style.display='none'}
+  function saveTransactionEditor(remember){
+    const m=$('transactionEditorV108'),st=stateNow(),kind=m?.dataset.kind,id=m?.dataset.id,o=findRecord(st,kind,id);if(!o)return;const econ=$('transactionEditorEconV108').value,spend=$('transactionEditorSpendV108').value,cat=$('transactionEditorCatV108').value||null,sub=$('transactionEditorSubV108').value||null;if(econ==='EXPENSE'&&!cat)return alert('支出の場合はカテゴリを選択してください。');
+    const actions={economic_type:econ,spending_class:econ==='EXPENSE'?spend:null,category:econ==='EXPENSE'?cat:null,subcategory:econ==='EXPENSE'?sub:null},name=recordName(kind,o),now=new Date().toISOString();
+    o.economic_type=actions.economic_type;o.spending_class=actions.spending_class;o.category=actions.category;o.subcategory=actions.subcategory;o.expense_scope=econ==='EXPENSE'?spend:econ==='INVESTMENT'?'INVESTMENT':econ.startsWith('DEBT_')?'DEBT':econ==='TRANSFER'?'TRANSFER':econ==='INCOME'?'INCOME':null;o.ordinary_or_special=o.expense_scope;o.confidence=1;o.review_status='RESOLVED';o.reviewed_at=now;o.semantic_manual_override=!remember;o.semantic_transaction_edit_version=108;
+    if(kind==='cash')o.is_transfer=econ==='TRANSFER';
+    if(remember)setRememberRule(st,kind,o,name,actions);else disableConflictingRules(st,kind,o,name,actions);
+    st.reviewQueue=(st.reviewQueue||[]).filter(q=>norm(q.merchant||q.description||'')!==norm(name));persist(st,remember?'取引分類ルール保存済み':'取引分類保存済み');closeTransactionEditor();setTimeout(()=>{window.renderDashboardV39?.();window.householdPlanningUiV79?.renderDashboard79?.()},0)
+  }
+  function transactionClick(e){const b=e.target.closest?.('[data-v48-tx-edit]');if(!b)return;e.preventDefault();openTransactionEditor(b.dataset.v48Kind,b.dataset.v48Id)}
+  window.openSemanticTransactionEditorV108=openTransactionEditor;
 
   function needsReview(o){return Number(o?.confidence??1)<.7||String(o?.economic_type||'UNKNOWN')==='UNKNOWN'||(String(o?.economic_type)==='EXPENSE'&&!o.category)}
   function reviewRows(st){

@@ -48,6 +48,33 @@
     return /BONUS|ボーナス|賞与|期末勤勉|勤勉手当/.test(s);
   }
   function bonusEvents(st){return (st.events||[]).filter(isBonusEvent)}
+  function bankBonusExplicit(t){
+    if(Number(t?.amount)<=0)return false;const k=String(t?.cashflow_type||t?.category||'').toUpperCase(),n=norm(t?.description_raw||t?.description||'');
+    return k==='INCOME_BONUS'||/BONUS|ボーナス|賞与|期末勤勉|勤勉手当/.test(n)
+  }
+  function salaryLikeDeposit(t){
+    if(Number(t?.amount)<=0)return false;const k=String(t?.cashflow_type||t?.category||'').toUpperCase(),n=norm(t?.description_raw||t?.description||'');
+    return k==='INCOME_SALARY'||/給与|俸給|SALARY/.test(n)
+  }
+  function dateDistance(a,b){const x=new Date(String(a||'')+'T12:00:00'),y=new Date(String(b||'')+'T12:00:00');return Number.isNaN(x.getTime())||Number.isNaN(y.getTime())?999:Math.abs(Math.round((x-y)/86400000))}
+  function syncActualBonusPlans(st){
+    ensureShape(st);let changed=false;const used=new Set((st.bonusPlans||[]).map(p=>String(p.actual_transaction_id||'')).filter(Boolean));
+    const tx=(st.cashTransactions||[]).filter(t=>Number(t?.amount)>0&&t?.date);
+    for(const p of st.bonusPlans||[]){
+      const pm=String(p.date||'').slice(0,7);if(!pm)continue;
+      const candidates=tx.map((t,i)=>({t,i,id:String(t.id||`cash:${i}`),dist:dateDistance(p.date,t.date)}))
+        .filter(x=>!used.has(x.id)&&String(x.t.date||'').slice(0,7)===pm&&(bankBonusExplicit(x.t)||(salaryLikeDeposit(x.t)&&x.dist<=10)))
+        .sort((a,b)=>(bankBonusExplicit(b.t)?1:0)-(bankBonusExplicit(a.t)?1:0)||a.dist-b.dist||Math.abs(Number(a.t.amount)-Number(p.expected_amount||0))-Math.abs(Number(b.t.amount)-Number(p.expected_amount||0)));
+      const hit=candidates[0];if(!hit)continue;used.add(hit.id);
+      const patch={actual_transaction_id:hit.id,actual_date:String(hit.t.date||''),actual_amount:Math.max(0,Number(hit.t.amount)||0),actual_description:String(hit.t.description_raw||hit.t.description||'銀行入金')};
+      for(const[k,v]of Object.entries(patch))if(p[k]!==v){p[k]=v;changed=true}
+    }
+    for(const [i,t] of tx.entries()){
+      if(!bankBonusExplicit(t))continue;const id=String(t.id||`cash:${i}`);if(used.has(id)||(st.bonusPlans||[]).some(p=>String(p.actual_transaction_id||'')===id))continue;
+      st.bonusPlans.push({id:`bonus-bank:${id}`,name:t.description_raw||t.description||'ボーナス',date:String(t.date||''),expected_amount:Math.max(0,Number(t.amount)||0),actual_amount:Math.max(0,Number(t.amount)||0),actual_date:String(t.date||''),actual_transaction_id:id,actual_description:String(t.description_raw||t.description||'銀行入金'),allocations:[],autoCreated:true,actualOnly:true,createdAt:new Date().toISOString()});used.add(id);changed=true
+    }
+    return changed
+  }
   function syncAutoPlans(st){
     ensureShape(st);let changed=false;
     for(const e of bonusEvents(st)){
@@ -70,7 +97,7 @@
     return out;
   }
   function planMetrics(st,p){
-    const automatic=autoAllocations(st,p),manual=p.allocations||[],reserved=[...automatic,...manual].reduce((a,x)=>a+Math.max(0,Number(x.amount)||0),0),expected=Math.max(0,Number(p.expected_amount)||0);return{automatic,manual,reserved,expected,free:expected-reserved}
+    const automatic=autoAllocations(st,p),manual=p.allocations||[],reserved=[...automatic,...manual].reduce((a,x)=>a+Math.max(0,Number(x.amount)||0),0),planned=Math.max(0,Number(p.expected_amount)||0),actualKnown=p.actual_amount!==null&&p.actual_amount!==''&&Number.isFinite(Number(p.actual_amount)),actual=actualKnown?Math.max(0,Number(p.actual_amount)||0):null,expected=actualKnown?actual:planned;return{automatic,manual,reserved,planned,actual,actualKnown,expected,free:expected-reserved}
   }
   function upcomingPlans(st){const now=iso(new Date());return [...(st.bonusPlans||[])].filter(p=>!p.date||String(p.date)>=now.slice(0,7)+'-01').sort((a,b)=>String(a.date||'9999').localeCompare(String(b.date||'9999')))}
 
@@ -105,16 +132,16 @@
   function deletePlan(id){const st=stateNow(),p=(st.bonusPlans||[]).find(x=>String(x.id)===String(id));if(!p||p.autoCreated)return;if(!confirm(`「${p.name}」を削除しますか？`))return;st.bonusPlans=st.bonusPlans.filter(x=>String(x.id)!==String(id));persist(st,'ボーナス計画削除')}
 
   function allocationRow(a,planId){return `<div class="row"><div style="min-width:0"><b>${esc(a.label||'予約')}</b><div class="tiny">${a.automatic?'年払いマスタから自動予約':a.target_type&&a.target_type!=='CUSTOM'?`紐付け: ${esc(a.target_type)}`:'手動予約'}${a.note?` · ${esc(a.note)}`:''}</div></div><div class="controls"><b class="amt">${yen(a.amount)}</b>${a.automatic?'':`<button class="btn secondary" data-b58-edit-alloc="${esc(planId)}:${esc(a.id)}">編集</button><button class="btn danger" data-b58-del-alloc="${esc(planId)}:${esc(a.id)}">削除</button>`}</div></div>`}
-  function planHtml(st,p){const m=planMetrics(st,p),all=[...m.automatic,...m.manual],klass=m.free<0?'bad':m.free===0?'warn':'good';return `<details class="card" style="padding:12px;margin-top:8px" data-b58-plan="${esc(p.id)}"><summary style="cursor:pointer"><div style="display:flex;justify-content:space-between;gap:10px;align-items:flex-start"><div><b>${esc(p.name||'ボーナス')}</b><div class="tiny">${esc(p.date||'日付未定')} · ${p.autoCreated?'未来予定連動':'手動計画'}</div></div><div style="text-align:right"><b>${yen(m.expected)}</b><div class="tiny ${klass}">自由 ${yen(m.free)}</div></div></div></summary><div class="form" style="margin-top:10px"><div><span class="muted">予定額</span><b style="display:block;font-size:19px">${yen(m.expected)}</b></div><div><span class="muted">予約済み</span><b style="display:block;font-size:19px">${yen(m.reserved)}</b></div><div><span class="muted">自由枠</span><b class="${klass}" style="display:block;font-size:19px">${yen(m.free)}</b></div></div><div style="margin-top:8px">${all.length?all.map(a=>allocationRow(a,p.id)).join(''):'<div class="muted">まだ使途予約はありません。</div>'}</div><div class="controls" style="margin-top:10px;flex-wrap:wrap"><button class="btn" data-b58-add-alloc="${esc(p.id)}">＋使途を予約</button>${p.autoCreated?'':`<button class="btn secondary" data-b58-edit-plan="${esc(p.id)}">計画を編集</button><button class="btn danger" data-b58-del-plan="${esc(p.id)}">計画を削除</button>`}</div></details>`}
+  function planHtml(st,p){const m=planMetrics(st,p),all=[...m.automatic,...m.manual],klass=m.free<0?'bad':m.free===0?'warn':'good';return `<details class="card" style="padding:12px;margin-top:8px" data-b58-plan="${esc(p.id)}"><summary style="cursor:pointer"><div style="display:flex;justify-content:space-between;gap:10px;align-items:flex-start"><div><b>${esc(p.name||'ボーナス')}</b><div class="tiny">${esc(p.actual_date||p.date||'日付未定')} · ${m.actualKnown?'銀行実績':'予定'}</div></div><div style="text-align:right"><b>${yen(m.expected)}</b><div class="tiny ${klass}">自由 ${yen(m.free)}</div></div></div></summary><div class="form" style="margin-top:10px"><div><span class="muted">${m.actualKnown?'実入金額':'予定額'}</span><b style="display:block;font-size:19px">${yen(m.expected)}</b>${m.actualKnown&&m.planned!==m.actual?`<div class="tiny">予定 ${yen(m.planned)}</div>`:''}</div><div><span class="muted">予約済み</span><b style="display:block;font-size:19px">${yen(m.reserved)}</b></div><div><span class="muted">自由枠</span><b class="${klass}" style="display:block;font-size:19px">${yen(m.free)}</b></div></div><div style="margin-top:8px">${all.length?all.map(a=>allocationRow(a,p.id)).join(''):'<div class="muted">まだ使途予約はありません。</div>'}</div><div class="controls" style="margin-top:10px;flex-wrap:wrap"><button class="btn" data-b58-add-alloc="${esc(p.id)}">＋使途を予約</button>${p.autoCreated?'':`<button class="btn secondary" data-b58-edit-plan="${esc(p.id)}">計画を編集</button><button class="btn danger" data-b58-del-plan="${esc(p.id)}">計画を削除</button>`}</div></details>`}
   function ensureCashUi(){if($(CARD_ID))return true;const grid=document.querySelector('#cashflow .grid');if(!grid)return false;const c=document.createElement('div');c.id=CARD_ID;c.className='card full';c.innerHTML=`<div style="display:flex;justify-content:space-between;gap:10px;align-items:flex-start;flex-wrap:wrap"><div><div class="title" style="margin-bottom:3px">ボーナス使途予約 <span class="tag">v58</span></div><div class="tiny">ボーナスの予定額から、すでに使えない額と自由枠を分けます。予約は支出ではないのでCash Flowへ二重計上しません。</div></div><button class="btn secondary" id="b58AddPlan">＋ボーナス計画</button></div><div id="b58Rows" style="margin-top:10px"></div>`;const fp=$('futurePlannerCardV37');if(fp&&fp.parentElement===grid)fp.after(c);else grid.appendChild(c);$('b58AddPlan').onclick=()=>openPlanModal();c.addEventListener('click',cashClick);return true}
   function cashClick(e){const add=e.target.closest?.('[data-b58-add-alloc]');if(add)return openAllocModal(add.dataset.b58AddAlloc);const ep=e.target.closest?.('[data-b58-edit-plan]');if(ep)return openPlanModal(ep.dataset.b58EditPlan);const dp=e.target.closest?.('[data-b58-del-plan]');if(dp)return deletePlan(dp.dataset.b58DelPlan);const ea=e.target.closest?.('[data-b58-edit-alloc]');if(ea){const [p,a]=ea.dataset.b58EditAlloc.split(':alloc:');return openAllocModal(p,`alloc:${a}`)}const da=e.target.closest?.('[data-b58-del-alloc]');if(da){const [p,a]=da.dataset.b58DelAlloc.split(':alloc:');return deleteAllocation(p,`alloc:${a}`)}}
   function renderCash(){if(!ensureCashUi())return;const st=stateNow(),rows=[...(st.bonusPlans||[])].sort((a,b)=>String(a.date||'9999').localeCompare(String(b.date||'9999')));$('b58Rows').innerHTML=rows.length?rows.map(p=>planHtml(st,p)).join(''):'<div class="note">未来予定に「ボーナス」または「賞与」の収入を登録すると自動で計画ができます。手動追加もできます。</div>'}
 
   function ensureDashUi(){if($(DASH_ID))return true;const phase=$('dashboardPhase8V39');if(!phase)return false;const inner=phase.querySelector('.grid');if(!inner)return false;const c=document.createElement('div');c.id=DASH_ID;c.className='card half';c.innerHTML='<div class="title">ボーナス使途</div><div id="b58DashRows"></div>';inner.appendChild(c);c.addEventListener('click',e=>{if(e.target.closest('[data-b58-go]'))document.querySelector('[data-page="cashflow"]')?.click()});return true}
-  function renderDash(){if(!ensureDashUi())return;const st=stateNow(),plans=upcomingPlans(st).slice(0,2),host=$('b58DashRows');if(!host)return;host.innerHTML=plans.length?plans.map(p=>{const m=planMetrics(st,p),klass=m.free<0?'bad':m.free===0?'warn':'good';return `<div class="row"><div><b>${esc(p.name||'ボーナス')}</b><div class="tiny">${esc(p.date||'')} · 予約 ${yen(m.reserved)}</div></div><div style="text-align:right"><b>${yen(m.expected)}</b><div class="tiny ${klass}">自由 ${yen(m.free)}</div></div></div>`}).join('')+'<div class="controls" style="margin-top:8px"><button class="btn secondary" data-b58-go>使途を管理</button></div>':'<div class="muted">今後のボーナス計画はありません。</div>'}
+  function renderDash(){if(!ensureDashUi())return;const st=stateNow(),plans=upcomingPlans(st).slice(0,2),host=$('b58DashRows');if(!host)return;host.innerHTML=plans.length?plans.map(p=>{const m=planMetrics(st,p),klass=m.free<0?'bad':m.free===0?'warn':'good';return `<div class="row"><div><b>${esc(p.name||'ボーナス')}</b><div class="tiny">${esc(p.actual_date||p.date||'')} · ${m.actualKnown?'実入金':'予定'} · 予約 ${yen(m.reserved)}</div></div><div style="text-align:right"><b>${yen(m.expected)}</b><div class="tiny ${klass}">自由 ${yen(m.free)}</div></div></div>`}).join('')+'<div class="controls" style="margin-top:8px"><button class="btn secondary" data-b58-go>使途を管理</button></div>':'<div class="muted">今後のボーナス計画はありません。</div>'}
 
   function renderAll(){renderCash();renderDash()}
-  function syncAndRender(){const st=stateNow();ensureShape(st);if(syncAutoPlans(st)){persist(st,'ボーナス予定連動更新');return}renderAll()}
+  function syncAndRender(){const st=stateNow();ensureShape(st);const planned=syncAutoPlans(st),actual=syncActualBonusPlans(st);if(planned||actual){persist(st,actual?'ボーナス実入金反映':'ボーナス予定連動更新');return}renderAll()}
   function queue(){clearTimeout(timer);timer=setTimeout(syncAndRender,100)}
   function boot(){const st=stateNow();ensureShape(st);if(st.bonusPlans.length)writeGuard(st,'v58-boot');ensurePlanModal();ensureAllocModal();syncAndRender();const body=$('eventsBody');if(body){new MutationObserver(queue).observe(body,{childList:true,subtree:true})}document.addEventListener('click',e=>{if(e.target.closest?.('[data-page="cashflow"],[data-page="dashboard"]'))setTimeout(syncAndRender,0)});window.addEventListener('focus',queue);window.renderBonusAllocationV58=renderAll}
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});else setTimeout(boot,0);

@@ -1,5 +1,5 @@
 
-name: Check v109 Household Categories
+name: Check Unified Transactions and Cash Expenses
 
 on:
   push:
@@ -10,7 +10,7 @@ permissions:
   contents: read
 
 jobs:
-  v109:
+  unified:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -29,7 +29,10 @@ jobs:
           grep -Fq "cash-expense-analytics-v106.js?v=109" sync-state-sanitizer-v22.js
           grep -Fq "semantic-ui-v48.js?v=109" sync-state-sanitizer-v22.js
           grep -Fq "semantic-ui-v48.js?v=109" sw.js
-          grep -Fq "data-v48-tx-edit" semantic-ui-v48.js
+          grep -Fq "data-v110-tx-detail" semantic-ui-v48.js
+          grep -Fq "transactionDetailV110" semantic-ui-v48.js
+          grep -Fq "cash_expense" semantic-ui-v48.js
+          ! grep -Fq "Import Summary" app.js
           grep -Fq "openSemanticTransactionEditorV108" semantic-ui-v48.js
           grep -Fq "manual_transaction_override_v108" semantic-ui-v48.js
           grep -Fq "cash-expense-analytics-v106.js?v=109" sw.js
@@ -126,9 +129,31 @@ jobs:
             if(after.totals.NORMAL!==7958)throw new Error('NORMAL total '+after.totals.NORMAL+' expected 7958 after transfer reclassification');
             if(after.rows.some(r=>r.name==='カード振込用資金移動'))throw new Error('reclassified transfer still appears as spending');
 
-            // It remains editable later from the transaction history page.
+            // Import is intake-only; transaction history is a separate tab.
             await page.click('[data-page="imports"]');
-            await page.locator('#semanticTransactionRowsV48 [data-v48-tx-edit][data-v48-kind="cash"][data-v48-id="funding"]').waitFor({state:'visible',timeout:10000});
+            if(await page.locator('#imports #semanticTransactionsV48').count())throw new Error('transaction history leaked into Import tab');
+            await page.click('[data-page="transactions"]');
+            const fundingRow=page.locator('#semanticTransactionRowsV48 [data-v110-tx-detail][data-v110-kind="cash"][data-v110-id="funding"]');
+            await fundingRow.waitFor({state:'visible',timeout:10000});
+            await fundingRow.click();
+            await page.waitForSelector('#transactionDetailV110',{state:'visible'});
+            const fundingDetail=await page.locator('#transactionDetailBodyV110').innerText();
+            if(!fundingDetail.includes('資金移動'))throw new Error('reclassified bank transfer detail missing');
+            await page.locator('[data-v110-detail-close]').click();
+
+            // Cash CSV row is editable from the unified detail view.
+            const cashId=await page.evaluate(()=>((window.getTreasuryStateRaw||window.getTreasuryState)().cashExpenses||[]).find(x=>x.description==='現金スーパー')?.id);
+            if(!cashId)throw new Error('cash expense id missing');
+            const cashRow=page.locator('#semanticTransactionRowsV48 [data-v110-tx-detail][data-v110-kind="cash_expense"][data-v110-id="'+cashId+'"]');
+            await cashRow.waitFor({state:'visible',timeout:10000});
+            await cashRow.click();
+            await page.locator('[data-v110-sem-edit][data-v110-kind="cash_expense"]').click();
+            await page.waitForSelector('#transactionEditorV108',{state:'visible'});
+            await page.fill('#transactionRawAmountV110','4000');
+            await page.locator('[data-v108-tx-save]').click();
+            await page.waitForFunction(()=>((window.getTreasuryStateRaw||window.getTreasuryState)().cashExpenses||[]).some(x=>x.description==='現金スーパー'&&Number(x.amount)===4000),{timeout:10000});
+            const afterCashEdit=await page.evaluate(()=>window.householdExpenseAnalyticsV106.summarize((window.getTreasuryStateRaw||window.getTreasuryState)(),'2026-09'));
+            if(afterCashEdit.totals.NORMAL!==8070)throw new Error('cash edit did not update NORMAL total: '+afterCashEdit.totals.NORMAL);
 
             await page.click('[data-page="dashboard"]');
             await spend.locator('[data-expense-scope-toggle="1"][data-expense-scope="SPECIAL"]').click();
@@ -163,7 +188,7 @@ jobs:
               const got=cats[name];
               if(!got||got.join('|')!==want.join('|'))throw new Error(name+' mapped '+JSON.stringify(got)+' expected '+JSON.stringify(want));
             }
-            console.log('V109_OK',JSON.stringify({normalBefore:model.totals.NORMAL,normalAfter:after.totals.NORMAL,special:after.totals.SPECIAL,categories:cats}));
+            console.log('UNIFIED_OK',JSON.stringify({normalBefore:model.totals.NORMAL,normalAfterTransfer:after.totals.NORMAL,normalAfterCashEdit:afterCashEdit.totals.NORMAL,special:after.totals.SPECIAL,categories:cats}));
             await browser.close();
           })().catch(e=>{console.error(e);process.exit(1)});
           NODE

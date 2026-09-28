@@ -33,10 +33,10 @@ jobs:
           grep -Fq "balance_after" account-transfer-v83.js
           grep -Fq "projectedAccounts" account-transfer-v83.js
           grep -Fq "balanceAsOf" account-transfer-v83.js
-          grep -Fq "const useManual=manualValue!==null && !imp" account-transfer-v83.js
+          grep -Fq "manualAsOf>=String(imp.asOf||'')" account-transfer-v83.js
           grep -Fq "最新の取引後残高・預り金を現在値として優先" account-transfer-v83.js
           grep -Fq "資産・口座残高" account-transfer-v83.js
-      - name: Verify imported balance overrides manual seed
+      - name: Verify newest dated balance is authoritative
         shell: bash
         run: |
           set -euo pipefail
@@ -46,12 +46,13 @@ jobs:
           const state={
             masters:{accounts:[
               {id:'rakuten-bank',name:'楽天銀行',type:'BANK',active:true,balance:999999,balanceAsOf:'2099-12-31'},
+              {id:'yucho',name:'ゆうちょ',type:'BANK',active:true,balance:111111,balanceAsOf:'2026-09-01'},
               {id:'cash',name:'現金',type:'CASH',active:true,balance:50000,balanceAsOf:'2026-09-16'}
             ]},
             accountTransfersV83:[],
             cashTransactions:[
-              {date:'2026-09-16',source:'楽天銀行',balance_after:120000},
-              {date:'2026-09-16',source:'楽天銀行',balance_after:123456}
+              {date:'2026-09-16',source:'楽天銀行',balance_after:123456},
+              {date:'2026-09-20',source:'ゆうちょ',balance_after:222222}
             ],
             assetSnapshots:[]
           };
@@ -75,11 +76,11 @@ jobs:
           vm.runInContext(fs.readFileSync('account-transfer-v83.js','utf8'),context);
           const rows=context.householdAccountTransferV83.currentAccounts(state);
           const bank=rows.find(x=>x.id==='rakuten-bank');
+          const yucho=rows.find(x=>x.id==='yucho');
           const cash=rows.find(x=>x.id==='cash');
           if(!bank)throw new Error('Rakuten bank account missing');
-          if(bank.currentBalance!==123456)throw new Error(`imported balance_after not authoritative: ${bank.currentBalance}`);
-          if(bank.balanceSource!=='import')throw new Error(`expected import source, got ${bank.balanceSource}`);
-          if(bank.balanceAsOf!=='2026-09-16')throw new Error(`unexpected import as-of ${bank.balanceAsOf}`);
+          if(bank.currentBalance!==999999||bank.balanceSource!=='manual'||bank.balanceAsOf!=='2099-12-31')throw new Error('newer manual balance did not remain authoritative');
+          if(!yucho||yucho.currentBalance!==222222||yucho.balanceSource!=='import'||yucho.balanceAsOf!=='2026-09-20')throw new Error('newer imported balance did not become authoritative');
           if(!cash||cash.currentBalance!==50000||cash.balanceSource!=='manual')throw new Error('manual-only account fallback broken');
           NODE
       - name: Check transfer event semantics

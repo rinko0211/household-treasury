@@ -38,12 +38,13 @@
     const amount=Math.max(0,Number(item.amount)||0),shortage=Math.max(0,amount-Math.min(amount,Math.max(0,startReserved||0)));
     const months=[];for(let ym=startYm;ym<targetYm;ym=addMonthsYm(ym,1))months.push(ym);
     const bonuses=bonusAllocations(item),bonusByYm={};let bonusTotal=0;
-    for(const ym of months){const m=Number(ym.slice(5,7));for(const b of bonuses)if(b.month===m){bonusByYm[ym]=(bonusByYm[ym]||0)+b.amount;bonusTotal+=b.amount}}
-    const custom=Number(item.monthlyReserveAmount);const useCustom=String(item.reserveMode||'AUTO').toUpperCase()==='CUSTOM'&&Number.isFinite(custom)&&custom>=0;
-    const regular=useCustom?custom:Math.ceil(Math.max(0,shortage-Math.min(shortage,bonusTotal))/Math.max(1,months.length));
+    for(const ym of [...months,targetYm]){const m=Number(ym.slice(5,7));for(const b of bonuses)if(b.month===m){bonusByYm[ym]=(bonusByYm[ym]||0)+b.amount;bonusTotal+=b.amount}}
+    bonusTotal=Math.min(shortage,bonusTotal);const custom=Number(item.monthlyReserveAmount);const useCustom=String(item.reserveMode||'AUTO').toUpperCase()==='CUSTOM'&&Number.isFinite(custom)&&custom>=0,regularNeed=Math.max(0,shortage-bonusTotal);
+    const regular=useCustom?custom:(months.length?Math.ceil(regularNeed/months.length):0);
     const schedule={};let remaining=shortage;
     for(const ym of months){if(remaining<=0){schedule[ym]=0;continue}const bonus=Math.min(remaining,bonusByYm[ym]||0);remaining-=bonus;const monthly=Math.min(remaining,regular);remaining-=monthly;schedule[ym]=bonus+monthly}
-    return{amount,shortage,regular,bonusTotal,schedule,remaining,months};
+    const targetBonus=Math.min(remaining,bonusByYm[targetYm]||0);remaining-=targetBonus;
+    return{amount,shortage,regular,regularNeed,bonusTotal,targetBonus,schedule,remaining,months};
   }
   function annualReserveSchedule(st,count=7){
     const start=ymNow(),months=Array.from({length:count},(_,i)=>addMonthsYm(start,i)),totals=Object.fromEntries(months.map(m=>[m,0])),items=[];

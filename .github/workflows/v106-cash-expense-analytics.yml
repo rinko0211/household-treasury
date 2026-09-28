@@ -1,5 +1,5 @@
 
-name: Check v108 Transaction Reclassification
+name: Check v109 Household Categories
 
 on:
   push:
@@ -10,7 +10,7 @@ permissions:
   contents: read
 
 jobs:
-  v108:
+  v109:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -22,23 +22,27 @@ jobs:
           set -euo pipefail
           node --check cash-expense-analytics-v106.js
           node --check semantic-ui-v48.js
-          grep -Fq "cash-expense-analytics-v106.js?v=108" sync-state-sanitizer-v22.js
-          grep -Fq "semantic-ui-v48.js?v=108" sync-state-sanitizer-v22.js
-          grep -Fq "semantic-ui-v48.js?v=108" sw.js
+          node --check semantic-model-v47.js
+          grep -Fq "semantic-model-v47.js?v=109" sync-state-sanitizer-v22.js
+          grep -Fq "semantic-model-v47.js?v=109" sw.js
+          grep -Fq "GIFTS_EVENTS" semantic-model-v47.js
+          grep -Fq "cash-expense-analytics-v106.js?v=109" sync-state-sanitizer-v22.js
+          grep -Fq "semantic-ui-v48.js?v=109" sync-state-sanitizer-v22.js
+          grep -Fq "semantic-ui-v48.js?v=109" sw.js
           grep -Fq "data-v48-tx-edit" semantic-ui-v48.js
           grep -Fq "openSemanticTransactionEditorV108" semantic-ui-v48.js
           grep -Fq "manual_transaction_override_v108" semantic-ui-v48.js
-          grep -Fq "cash-expense-analytics-v106.js?v=108" sw.js
+          grep -Fq "cash-expense-analytics-v106.js?v=109" sw.js
           grep -Fq "dashboard-v39.js?v=107" sync-state-sanitizer-v22.js
           grep -Fq "planning-ui-v79.js?v=107" sync-state-sanitizer-v22.js
           grep -Fq "planning-ui-v79.js?v=107" sw.js
           grep -Fq "householdExpenseAnalyticsV106" planning-ui-v79.js
           grep -Fq "householdExpenseAnalyticsV106" dashboard-v39.js
           grep -Fq "cashExpenses" app.js
-          grep -Fq "app.js?v=108" index.html
-          grep -Fq "sync-state-sanitizer-v22.js?v=108" index.html
-          grep -Fq "household-treasury-v108-transaction-reclassify" sw.js
-          grep -Fq "__householdRuntimeRelease = 'v108'" sync-state-sanitizer-v22.js
+          grep -Fq "app.js?v=109" index.html
+          grep -Fq "sync-state-sanitizer-v22.js?v=109" index.html
+          grep -Fq "household-treasury-v109-household-categories" sw.js
+          grep -Fq "__householdRuntimeRelease = 'v109'" sync-state-sanitizer-v22.js
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
@@ -61,7 +65,7 @@ jobs:
             const browser=await chromium.launch({headless:true});
             const page=await browser.newPage({viewport:{width:390,height:844}});
             await page.goto('http://127.0.0.1:4173/?v106e2e=1',{waitUntil:'domcontentloaded'});
-            await page.waitForFunction(()=>window.__householdRuntimeRelease==='v108'&&!!window.householdExpenseAnalyticsV106,{timeout:15000});
+            await page.waitForFunction(()=>window.__householdRuntimeRelease==='v109'&&!!window.householdExpenseAnalyticsV106,{timeout:15000});
             await page.evaluate(()=>{
               const st=structuredClone((window.getTreasuryStateRaw||window.getTreasuryState)());
               st.cashExpenses=[];
@@ -129,7 +133,37 @@ jobs:
             await page.click('[data-page="dashboard"]');
             await spend.locator('[data-expense-scope-toggle="1"][data-expense-scope="SPECIAL"]').click();
             await spend.locator('[data-expense-detail="1"][data-expense-scope="SPECIAL"][data-expense-category="TRAVEL"]').waitFor({state:'visible'});
-            console.log('V108_OK',JSON.stringify({normalBefore:model.totals.NORMAL,normalAfter:after.totals.NORMAL,special:after.totals.SPECIAL,edit:'expense>transfer'}));
+
+            // Household CSV labels are normalized into analytically useful categories.
+            await page.click('[data-page="imports"]');
+            const householdCsv='日付,内容,金額,カテゴリー,区分\n'+
+              '2026-09-27,妻の服,1000,衣服・美容,通常費\n'+
+              '2026-09-27,サンドラッグ ネイル,500,衣服・美容,通常費\n'+
+              '2026-09-27,航空祭おみやげ,2000,イベント・贈答,特別費\n'+
+              '2026-09-27,お風呂チケット,1000,レジャー,通常費\n'+
+              '2026-09-27,好文堂 児童書,1000,子ども・教育,通常費\n'+
+              '2026-09-27,ガソリン,1000,ガソリン,通常費\n'+
+              '2026-09-27,外食,1000,外食,通常費\n';
+            await page.setInputFiles('#csvInput',{name:'household-category-test.csv',mimeType:'text/csv',buffer:Buffer.from(householdCsv,'utf8')});
+            await page.waitForFunction(()=>((window.getTreasuryStateRaw||window.getTreasuryState)().cashExpenses||[]).length===9,{timeout:10000});
+            const cats=await page.evaluate(()=>{
+              const rows=(window.getTreasuryStateRaw||window.getTreasuryState)().cashExpenses||[];
+              return Object.fromEntries(rows.filter(x=>['妻の服','サンドラッグ ネイル','航空祭おみやげ','お風呂チケット','好文堂 児童書','ガソリン','外食'].includes(x.description)).map(x=>[x.description,[x.category,x.subcategory,x.spending_class]]));
+            });
+            const expect={
+              '妻の服':['DAILY_GOODS','CLOTHING','NORMAL'],
+              'サンドラッグ ネイル':['PERSONAL','BEAUTY','NORMAL'],
+              '航空祭おみやげ':['GIFTS_EVENTS','GIFT','SPECIAL'],
+              'お風呂チケット':['ENTERTAINMENT','HOBBY','NORMAL'],
+              '好文堂 児童書':['EDUCATION','BOOKS','NORMAL'],
+              'ガソリン':['CAR','FUEL','NORMAL'],
+              '外食':['FOOD','EATING_OUT','NORMAL']
+            };
+            for(const [name,want] of Object.entries(expect)){
+              const got=cats[name];
+              if(!got||got.join('|')!==want.join('|'))throw new Error(name+' mapped '+JSON.stringify(got)+' expected '+JSON.stringify(want));
+            }
+            console.log('V109_OK',JSON.stringify({normalBefore:model.totals.NORMAL,normalAfter:after.totals.NORMAL,special:after.totals.SPECIAL,categories:cats}));
             await browser.close();
           })().catch(e=>{console.error(e);process.exit(1)});
           NODE

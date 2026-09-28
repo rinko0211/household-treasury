@@ -78,8 +78,13 @@
   function reconcileRakuten(st){
     let changed=false;
     for(const s of st.cardSettlements||[]){
-      if(!isRakuten(s.card)||!s.due_date)continue;const month=String(s.due_date).slice(0,7),lines=(st.cardBillingLines||[]).filter(x=>isRakuten(x.card)&&String(x.billing_month||'')===month);
-      if(!lines.length)continue;
+      if(!isRakuten(s.card)||!s.due_date)continue;
+      const month=String(s.billing_month||s.statement_due_date||s.due_date).slice(0,7),savedIds=Array.isArray(s.billing_line_ids)?new Set(s.billing_line_ids.map(String)):null;
+      let lines=savedIds?.size?(st.cardBillingLines||[]).filter(x=>savedIds.has(String(x.billing_line_id||''))):(st.cardBillingLines||[]).filter(x=>isRakuten(x.card)&&String(x.billing_month||'')===month);
+      if(!lines.length){
+        const set=(k,v)=>{if(JSON.stringify(s[k])!==JSON.stringify(v)){s[k]=v;changed=true}};
+        set('detail_count',0);set('detail_payment_total',0);set('detail_difference',Math.abs(Number(s.amount)||0));set('detail_reconciled',false);continue;
+      }
       const ids=lines.map(x=>x.billing_line_id),total=Math.round(lines.reduce((a,x)=>a+Number(x.billed_amount||0),0)*100)/100,diff=Math.round((Math.abs(Number(s.amount)||0)-total)*100)/100;
       const set=(k,v)=>{if(JSON.stringify(s[k])!==JSON.stringify(v)){s[k]=v;changed=true}};
       set('billing_line_ids',ids);set('detail_count',lines.length);set('detail_payment_total',total);set('detail_difference',diff);set('detail_reconciled',lines.length>0&&Math.abs(diff)<=1);set('billing_model','CARD_BILLING_LINES_V56');
@@ -109,7 +114,7 @@
     let card=$('cardClaimsV56');if(!card){card=document.createElement('div');card.id='cardClaimsV56';card.className='card full';card.innerHTML='<div class="title">カード請求・内訳 <span class="tag">請求明細 v56</span></div><div class="tiny" style="margin-bottom:10px">購入額と当月請求額を分離して照合します。同じ請求CSVを別名で再読込しても二重計上しません。</div><div id="cardClaimsRowsV56"></div>';grid.prepend(card)}
     const st=stateNow(),all=[...(st.cardSettlements||[])].filter(s=>s.due_date).sort((a,b)=>String(b.due_date).localeCompare(String(a.due_date))).slice(0,24),host=$('cardClaimsRowsV56');if(!host)return;
     host.innerHTML=all.length?all.map(s=>{
-      const month=String(s.due_date).slice(0,7),billing=isRakuten(s.card)?(st.cardBillingLines||[]).filter(x=>isRakuten(x.card)&&String(x.billing_month||'')===month):[];
+      const month=String(s.billing_month||s.statement_due_date||s.due_date).slice(0,7),savedIds=Array.isArray(s.billing_line_ids)?new Set(s.billing_line_ids.map(String)):null,billing=isRakuten(s.card)?(savedIds?.size?(st.cardBillingLines||[]).filter(x=>savedIds.has(String(x.billing_line_id||''))):(st.cardBillingLines||[]).filter(x=>isRakuten(x.card)&&String(x.billing_month||'')===month)):[];
       let total=0,count=0,rows='';
       if(billing.length){count=billing.length;total=Math.round(billing.reduce((a,x)=>a+Number(x.billed_amount||0),0)*100)/100;rows=billing.map(x=>{const p=(st.purchaseEvents||[]).find(p=>String(p.purchase_id||'')===String(x.purchase_id||''));const meta=x.line_kind==='ADJUSTMENT'?'請求調整':p?.is_fixed_expense?`固定費: ${p.fixed_expense_name||'リンク済み'}`:p?.category||x.category||'';return `<div class="row"><div style="min-width:0"><b>${esc(x.merchant_raw||'カード明細')}</b><div class="tiny">${esc(x.purchase_date||'')} · ${esc(meta)}</div></div><b class="amt ${Number(x.billed_amount)<0?'good':''}">${yen(x.billed_amount)}</b></div>`}).join('')}
       else{const ds=fallbackDetails(st,s);count=ds.length;total=ds.reduce((a,p)=>a+fallbackAmount(p),0);rows=ds.map(p=>`<div class="row"><div style="min-width:0"><b>${esc(p.merchant_raw||'カード利用')}</b><div class="tiny">${esc(p.purchase_date||'')}${p.category?` · ${esc(p.category)}`:''}</div></div><b class="amt">${yen(fallbackAmount(p))}</b></div>`).join('')}

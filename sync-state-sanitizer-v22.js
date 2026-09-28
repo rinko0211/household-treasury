@@ -76,7 +76,6 @@
   injectClassic('./mobile-import-v73.js?v=73', 'data-household-mobile-import-v73');
   injectClassic('./mufg-import-integrity-v65.js?v=65', 'data-household-mufg-import-v65');
   injectClassic('./phase2-reconcile-ui-v29.js?v=29', 'data-household-reconcile-v29');
-  injectClassic('./link-audit-v33.js?v=33', 'data-household-link-audit-v33');
   // v34 expense-scope UI/normalizer retired in v65. Semantic v47 is the canonical migration/classification layer.
   injectClassic('./reimbursement-v35.js?v=35', 'data-household-reimbursement-v35');
   injectClassic('./mobile-runtime-gate-v72.js?v=72', 'data-household-mobile-runtime-gate-v72');

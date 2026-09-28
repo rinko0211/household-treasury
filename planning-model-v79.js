@@ -80,5 +80,5 @@
   if(typeof prevPlan==='function'&&!window.__planningPlanV79){window.__planningPlanV79=true;window.householdCardForecastV49=function(days=180){const p=structuredClone(prevPlan(days)||{rows:[],warnings:[]});p.rows=enhanceCardRows(p.rows,days);return p}}
   if(typeof generated==='function'&&!window.__planningGeneratedV79){window.__planningGeneratedV79=true;const prevGenerated=generated;generated=function generatedPlanningV79(days=90){return ensureSalaryRows(enhanceCardRows(prevGenerated(days),days),days)}}
 
-  window.householdPlanningV79={baselineOf,forecastMode,paymentMode,forecastAmountForCard,canonicalCard,enhanceCardRows,ensureSalaryRows,annualPlan,dueMonthOf,reservedOf,bonusList,sameCard};
+  window.householdPlanningV79={baselineOf,forecastMode,paymentMode,forecastAmountForCard,canonicalCard,enhanceCardRows,ensureSalaryRows,annualPlan,dueMonthOf,reservedOf,bonusList,sameCard,actualSalaryForMonth};
 })();

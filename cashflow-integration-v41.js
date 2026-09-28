@@ -83,12 +83,18 @@
     }
     return{out,addedMasterIds};
   }
+  function isActualSalary(t){
+    if(Number(t?.amount)<=0)return false;const k=String(t?.cashflow_type||t?.category||'').toUpperCase(),n=norm(t?.description_raw||t?.description||'');
+    return k==='INCOME_SALARY'||/給与|俸給|SALARY/.test(n)
+  }
+  function actualSalaryForMonth(st,ym){return(st.cashTransactions||[]).filter(t=>String(t?.date||'').slice(0,7)===ym&&isActualSalary(t)).sort((a,b)=>String(b.date||'').localeCompare(String(a.date||'')))[0]||null}
   function salaryEvents(st,days,base){
     const salary=Math.max(0,Number(st.settings?.salary)||0),day=Math.min(31,Math.max(1,Number(st.settings?.salaryDay)||18));if(!salary)return[];
     const from=todayIso(),to=iso(new Date(Date.now()+Math.max(0,Number(days)||90)*86400000)),a=new Date(`${from}T12:00:00`),z=new Date(`${to}T12:00:00`),out=[];
     for(let d=new Date(a.getFullYear(),a.getMonth(),1);d<=z;d.setMonth(d.getMonth()+1)){
       const y=d.getFullYear(),m=d.getMonth()+1,date=dateFor(y,m,day);if(date<from||date>to)continue;const ym=date.slice(0,7);
-      const duplicate=base.some(e=>String(e.date||'').slice(0,7)===ym&&Number(e.amount)>0&&(String(e.future_kind||'').toUpperCase()==='INCOME'||/給与|SALARY/i.test(String(e.name||e.type||'')))&&Math.abs(Number(e.amount)-salary)<=1);
+      const actual=actualSalaryForMonth(st,ym);
+      const duplicate=!!actual||base.some(e=>String(e.date||'').slice(0,7)===ym&&Number(e.amount)>0&&(String(e.future_kind||'').toUpperCase()==='INCOME'||/給与|SALARY/i.test(String(e.name||e.type||''))));
       if(!duplicate)out.push({id:`salary:${ym}`,date,name:'給与',amount:salary,type:'SALARY',future_kind:'INCOME',generated:true,source:'settings_salary'});
     }
     return out;

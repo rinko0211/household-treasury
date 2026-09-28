@@ -127,7 +127,8 @@ function detectSource(file,buf){
 }
 function classifyBank(desc,amount){
   const n=normalizeText(desc);let r={category:'UNKNOWN',ordinary_or_special:'ORDINARY',confidence:.4,is_transfer:false};
-  if(amount>0&&n.includes('給与'))r={category:'INCOME_SALARY',ordinary_or_special:'ORDINARY',confidence:1,is_transfer:false};
+  if(amount>0&&/(ボーナス|賞与|期末勤勉|勤勉手当)/.test(n))r={category:'INCOME_BONUS',ordinary_or_special:'SPECIAL',confidence:1,is_transfer:false};
+  else if(amount>0&&(n.includes('給与')||n.includes('俸給')))r={category:'INCOME_SALARY',ordinary_or_special:'ORDINARY',confidence:1,is_transfer:false};
   else if(n.includes(normalizeText('ラクテンカ－ト゛サ－ヒ゛ス')))r={category:'CARD_SETTLEMENT',ordinary_or_special:'DEBT',confidence:1,is_transfer:false};
   else if(n.includes(normalizeText('ミツヒ゛シＵＦＪニコス')))r={category:'DEBT_PRINCIPAL',ordinary_or_special:'DEBT',confidence:1,is_transfer:false};
   else if(n.includes(normalizeText('ＤＣカ－ト゛')))r={category:'CARD_SETTLEMENT',ordinary_or_special:'DEBT',confidence:1,is_transfer:false};

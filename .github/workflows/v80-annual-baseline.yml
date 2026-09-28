@@ -38,6 +38,27 @@ jobs:
           grep -Fq "年間特別費・ボーナス使途" planning-ui-v80.js
           ! grep -Fq "MutationObserver" planning-ui-v80.js
           ! grep -Fq "setInterval" planning-ui-v80.js
+      - name: Check AUTO annual bonus allocation first
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check planning-model-v79.js
+          node --check cashflow-integration-v41.js
+          node --check mobile-cashflow-v59.js
+          node <<'NODE'
+          const fs=require('fs'),vm=require('vm');
+          const ctx={console,Date,setTimeout:()=>0,clearTimeout:()=>{},structuredClone,Intl,Map,Set,Number,String,Math};
+          ctx.window=ctx;ctx.document={readyState:'loading',addEventListener:()=>{},getElementById:()=>null,querySelector:()=>null};ctx.getTreasuryStateRaw=()=>({});ctx.getTreasuryState=()=>({});
+          vm.createContext(ctx);vm.runInContext(fs.readFileSync('planning-model-v79.js','utf8'),ctx);
+          const item={amount:120000,dueMonth:12,reservedAmount:0,reserveMode:'AUTO',bonusAllocations:[{month:12,amount:60000}]};
+          const p=ctx.householdPlanningV79.annualPlan(item,new Date('2026-09-01T12:00:00'));
+          if(p.bonusTotal!==60000)throw new Error('due-month bonus ignored: '+JSON.stringify(p));
+          if(p.regular!==20000)throw new Error('AUTO monthly must use (120000-60000)/3: '+JSON.stringify(p));
+          if(p.remaining!==0)throw new Error('annual plan not fully funded after due-month bonus: '+JSON.stringify(p));
+          const target=p.schedule.find(x=>x.ym==='2026-12');
+          if(!target||target.bonus!==60000||target.monthly!==0)throw new Error('target-month bonus not represented: '+JSON.stringify(p.schedule));
+          console.log('AUTO annual bonus-first PASS',JSON.stringify({regular:p.regular,bonus:p.bonusTotal}));
+          NODE
       - name: Check recurring card baseline model
         shell: bash
         run: |

@@ -1,5 +1,5 @@
 
-name: Check v110 Unified Transactions
+name: Check v111 Unified Transactions
 
 on:
   push:
@@ -10,7 +10,7 @@ permissions:
   contents: read
 
 jobs:
-  v110:
+  v111:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -35,8 +35,8 @@ jobs:
           ! grep -Fq "Import Summary" app.js
           grep -Fq "openSemanticTransactionEditorV108" semantic-ui-v48.js
           grep -Fq "manual_transaction_override_v108" semantic-ui-v48.js
-          grep -Fq "card-import-corrections-v73.js?v=110" sync-state-sanitizer-v22.js
-          grep -Fq "card-import-corrections-v73.js?v=110" sw.js
+          grep -Fq "card-import-corrections-v73.js?v=111" sync-state-sanitizer-v22.js
+          grep -Fq "card-import-corrections-v73.js?v=111" sw.js
           grep -Fq "householdCardImportCorrectionsV91" card-import-corrections-v73.js
           grep -Fq "reconcileRakutenBillingV56" rakuten-billing-v56.js
           grep -Fq "cash-expense-analytics-v106.js?v=110" sw.js
@@ -50,10 +50,10 @@ jobs:
           grep -Fq "householdExpenseAnalyticsV106" planning-ui-v79.js
           grep -Fq "householdExpenseAnalyticsV106" dashboard-v39.js
           grep -Fq "cashExpenses" app.js
-          grep -Fq "app.js?v=110" index.html
-          grep -Fq "sync-state-sanitizer-v22.js?v=110" index.html
-          grep -Fq "household-treasury-v110-ui-consolidation" sw.js
-          grep -Fq "__householdRuntimeRelease = 'v110'" sync-state-sanitizer-v22.js
+          grep -Fq "app.js?v=111" index.html
+          grep -Fq "sync-state-sanitizer-v22.js?v=111" index.html
+          grep -Fq "household-treasury-v111-ui-consolidation" sw.js
+          grep -Fq "__householdRuntimeRelease = 'v111'" sync-state-sanitizer-v22.js
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
@@ -76,7 +76,7 @@ jobs:
             const browser=await chromium.launch({headless:true});
             const page=await browser.newPage({viewport:{width:390,height:844}});
             await page.goto('http://127.0.0.1:4173/?v106e2e=1',{waitUntil:'domcontentloaded'});
-            await page.waitForFunction(()=>window.__householdRuntimeRelease==='v110'&&!!window.householdExpenseAnalyticsV106&&!!window.openSemanticTransactionEditorV108&&!!window.householdCardImportCorrectionsV91&&!!window.reconcileRakutenBillingV56,{timeout:15000});
+            await page.waitForFunction(()=>window.__householdRuntimeRelease==='v111'&&!!window.householdExpenseAnalyticsV106&&!!window.openSemanticTransactionEditorV108&&!!window.householdCardImportCorrectionsV91&&!!window.reconcileRakutenBillingV56,{timeout:15000});
             await page.evaluate(()=>{
               const st=structuredClone((window.getTreasuryStateRaw||window.getTreasuryState)());
               st.cashExpenses=[];
@@ -93,10 +93,15 @@ jobs:
                 {id:'funding',date:'2026-09-24',amount:-20000,description_raw:'カード振込用資金移動',cashflow_type:'UNKNOWN',economic_type:'EXPENSE',spending_class:'NORMAL',category:'OTHER'}
               ];
               st.cardSettlements=[{settlement_id:'s1',card:'Rakuten',due_date:'2026-09-22',amount:50000,bank_transaction_id:'settle',source_file:'rakuten-test.csv'}];
-              st.cardBillingLines=[{billing_line_id:'bill1',card:'Rakuten',billing_month:'2026-09',purchase_date:'2026-09-05',merchant_raw:'請求内訳',original_amount:50000,billed_amount:50000,occurrence_index:1,source_file:'rakuten-test.csv'}];
+              st.cardBillingLines=[
+                {billing_line_id:'bill1',card:'Rakuten',billing_month:'2026-09',purchase_date:'2026-09-05',merchant_raw:'請求内訳',original_amount:50000,billed_amount:50000,occurrence_index:1,source_file:'rakuten-test.csv'},
+                {billing_line_id:'old-bill',card:'Rakuten',billing_month:'2026-09',purchase_date:'2026-09-01',merchant_raw:'旧請求明細',original_amount:7777,billed_amount:7777,occurrence_index:1,source_file:'rakuten-old.csv'}
+              ];
               window.replaceTreasuryState(st);
               const cur=(window.getTreasuryStateRaw||window.getTreasuryState)();
               window.reconcileRakutenBillingV56(cur);
+              const rs=(cur.cardSettlements||[]).find(x=>x.settlement_id==='s1');
+              if(Number(rs?.detail_payment_total)!==50000||Number(rs?.detail_difference)!==0||Number(rs?.detail_count)!==1)throw new Error('stale statement lines contaminated current reconciliation: '+JSON.stringify(rs));
               window.replaceTreasuryState(cur);
             });
             await page.click('[data-page="imports"]');

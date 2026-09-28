@@ -66,12 +66,15 @@
   function bankExpense(t){
     if(Number(t?.amount)>=0)return false;
     const e=String(t?.economic_type||'').toUpperCase();
-    // Explicit semantic classification is authoritative. This makes a later manual
-    // reclassification (EXPENSE <-> TRANSFER) immediately affect the dashboard.
-    if(e&&e!=='UNKNOWN')return e==='EXPENSE';
+    // Only an explicit later user edit overrides structural bank semantics.
+    // Imported/automatic EXPENSE labels must not turn ATM withdrawals or card
+    // settlements back into spending.
+    const manuallyEdited=Number(t?.semantic_transaction_edit_version)>=108||t?.semantic_manual_override===true;
+    if(manuallyEdited&&e&&e!=='UNKNOWN')return e==='EXPENSE';
     if(t?.is_transfer)return false;
     const cf=String(t?.cashflow_type||'').toUpperCase();
     if(['CARD_SETTLEMENT','CASH_WITHDRAWAL_UNCLASSIFIED','INTERNAL_TRANSFER','TRANSFER','INVESTMENT_CONTRIBUTION','DEBT_PRINCIPAL','DEBT_INTEREST'].includes(cf))return false;
+    if(e&&e!=='EXPENSE'&&e!=='UNKNOWN')return false;
     return true
   }
   function collectRows(st,month=currentMonth()){

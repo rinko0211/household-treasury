@@ -47,6 +47,13 @@
     const arr=kind==='purchase'?(st.purchaseEvents||[]):kind==='cash_expense'?(st.cashExpenses||[]):st.cashTransactions||[];
     const i=arr.findIndex((o,j)=>recordId(kind,o,j)===String(id));return i>=0?arr[i]:null
   }
+  function findBillingRecord(st,id){const arr=st.cardBillingLines||[];return arr.find((o,i)=>recordId('billing',o,i)===String(id))||null}
+  function findSettlementRecord(st,id){const arr=st.cardSettlements||[];return arr.find((o,i)=>recordId('settlement',o,i)===String(id))||null}
+  function linkedBillingLines(st,p){
+    let rows=(st.cardBillingLines||[]).filter(x=>p.purchase_id&&String(x.purchase_id||'')===String(p.purchase_id)&&Number(x.occurrence_index||1)===Number(p.occurrence_index||1));
+    if(rows.length)return rows;
+    return(st.cardBillingLines||[]).filter(x=>norm(x.card)===norm(p.card)&&String(x.purchase_date||'')===String(p.purchase_date||'')&&norm(x.merchant_raw||x.merchant_normalized||'')===norm(p.merchant_raw||p.merchant_normalized||'')&&Math.abs(Number(x.original_amount)||0)===Math.abs(Number(p.original_amount)||0)&&Number(x.occurrence_index||1)===Number(p.occurrence_index||1))
+  }
   function persist(st,msg){
     if(busy)return;busy=true;try{sem()?.migrateState?.(st);sem()?.applyAutomationRules?.(st);window.treasuryRecoverySnapshot?.(`${msg}直前`);window.replaceTreasuryState?.(st);window.repairTreasuryBankBalances?.();window.setTreasurySaveStatus?.(`${msg}・同期中`);window.cloudSyncOnLocalSave?.()}finally{setTimeout(()=>busy=false,0)}
     setTimeout(renderAll,0);
@@ -83,7 +90,7 @@
   function ensureTransactionDetail(){
     if($('transactionDetailV110'))return;const m=document.createElement('div');m.id='transactionDetailV110';m.style.cssText='display:none;position:fixed;inset:0;z-index:12900;background:rgba(3,8,20,.72);padding:14px;overflow:auto';
     m.innerHTML=`<div class="card" style="max-width:700px;margin:5vh auto"><div style="display:flex;justify-content:space-between;gap:10px"><div><div class="title" id="transactionDetailTitleV110"></div><div class="tiny" id="transactionDetailMetaV110"></div></div><button class="btn secondary" data-v110-detail-close>閉じる</button></div><div id="transactionDetailBodyV110" style="margin-top:12px"></div><div class="controls" id="transactionDetailActionsV110" style="margin-top:12px;flex-wrap:wrap"></div></div>`;
-    document.body.appendChild(m);m.addEventListener('click',e=>{if(e.target===m||e.target.closest?.('[data-v110-detail-close]'))m.style.display='none';const semEdit=e.target.closest?.('[data-v110-sem-edit]');if(semEdit){m.style.display='none';openTransactionEditor(semEdit.dataset.v110Kind,semEdit.dataset.v110Id)}const cardEdit=e.target.closest?.('[data-v110-card-edit]');if(cardEdit){m.style.display='none';const api=window.householdCardImportCorrectionsV91||window.householdCardImportCorrectionsV73;if(cardEdit.dataset.v110Kind==='purchase')api?.openPurchaseById?.(cardEdit.dataset.v110Id);if(cardEdit.dataset.v110Kind==='billing')api?.openBillingById?.(cardEdit.dataset.v110Id);if(cardEdit.dataset.v110Kind==='settlement')api?.openSettlementById?.(cardEdit.dataset.v110Id)}})
+    document.body.appendChild(m);m.addEventListener('click',e=>{if(e.target===m||e.target.closest?.('[data-v110-detail-close]'))m.style.display='none';const semEdit=e.target.closest?.('[data-v110-sem-edit]');if(semEdit){m.style.display='none';openTransactionEditor(semEdit.dataset.v110Kind,semEdit.dataset.v110Id)}const cardEdit=e.target.closest?.('[data-v110-card-edit]');if(cardEdit){m.style.display='none';openIntegratedCardEditor(cardEdit.dataset.v110Kind,cardEdit.dataset.v110Id)}})
   }
   function openTransactionDetail(kind,id){
     const r=collectTransactions(stateNow()).find(x=>x.kind===kind&&String(x.id)===String(id));if(!r)return;ensureTransactionDetail();$('transactionDetailTitleV110').textContent=r.name;$('transactionDetailMetaV110').textContent=`${r.date} · ${r.source}`;
@@ -91,6 +98,51 @@
     $('transactionDetailBodyV110').innerHTML=`<div class="row"><span>金額</span><b class="${r.amount<0?'bad':'good'}">${r.amount>0?'+':''}${yen(r.amount)}</b></div><div class="row"><span>家計上の扱い</span><b>${esc(rowSemantic(r))}</b></div>${extra}`;
     const actions=[];if(['purchase','cash','cash_expense'].includes(kind))actions.push(`<button class="btn" data-v110-sem-edit data-v110-kind="${esc(kind)}" data-v110-id="${esc(id)}">編集</button>`);if(['purchase','billing','settlement'].includes(kind))actions.push(`<button class="btn secondary" data-v110-card-edit data-v110-kind="${esc(kind)}" data-v110-id="${esc(id)}">カード取込情報を編集</button>`);$('transactionDetailActionsV110').innerHTML=actions.join('');$('transactionDetailV110').style.display='block'
   }
+
+  function ensureIntegratedCardEditor(){
+    let m=$('transactionCardEditorV114');if(m)return m;
+    m=document.createElement('div');m.id='transactionCardEditorV114';m.style.cssText='display:none;position:fixed;inset:0;z-index:13100;background:rgba(3,8,20,.72);padding:14px;overflow:auto';
+    m.innerHTML=`<div class="card" style="max-width:700px;margin:5vh auto"><div style="display:flex;justify-content:space-between;gap:10px"><div><div class="title" id="transactionCardEditorTitleV114">カード明細を編集</div><div class="tiny" id="transactionCardEditorMetaV114"></div></div><button class="btn secondary" data-v114-card-close>閉じる</button></div><div id="transactionCardEditorBodyV114" style="margin-top:12px"></div><div class="controls" style="margin-top:12px"><button class="btn" data-v114-card-save>保存</button><button class="btn secondary" data-v114-card-close>キャンセル</button></div></div>`;
+    document.body.appendChild(m);
+    m.addEventListener('click',e=>{if(e.target===m||e.target.closest?.('[data-v114-card-close]'))m.style.display='none';if(e.target.closest?.('[data-v114-card-save]'))saveIntegratedCardEditor()});
+    return m
+  }
+  function openIntegratedCardEditor(kind,id){
+    const st=stateNow(),m=ensureIntegratedCardEditor();m.dataset.kind=kind;m.dataset.id=id;
+    if(kind==='purchase'){
+      const p=findRecord(st,'purchase',id);if(!p)return alert('カード利用明細が見つかりません。');
+      const lines=linkedBillingLines(st,p),line=lines.length===1?lines[0]:null;
+      $('transactionCardEditorTitleV114').textContent='カード利用明細を編集';$('transactionCardEditorMetaV114').textContent=p.source_file||'';
+      $('transactionCardEditorBodyV114').innerHTML=`<div class="form" style="grid-template-columns:1fr 1fr"><div class="field"><label>カード</label><input id="v114Card" value="${esc(p.card||'')}"></div><div class="field"><label>利用日</label><input id="v114Date" type="date" value="${esc(p.purchase_date||'')}"></div><div class="field" style="grid-column:1/-1"><label>利用先</label><input id="v114Merchant" value="${esc(p.merchant_raw||p.merchant_normalized||'')}"></div><div class="field"><label>利用額</label><input id="v114Amount" type="number" min="0" value="${Math.abs(Number(p.original_amount)||0)}"></div><div class="field"><label>請求月</label><input id="v114Month" type="month" value="${esc(p.billing_month||'')}"></div>${line?`<div class="field"><label>当月請求額</label><input id="v114Billed" type="number" min="0" value="${Math.abs(Number(line.billed_amount)||0)}"></div>`:''}</div>`;
+    }else if(kind==='billing'){
+      const line=findBillingRecord(st,id);if(!line)return alert('カード請求明細が見つかりません。');
+      $('transactionCardEditorTitleV114').textContent='カード請求明細を編集';$('transactionCardEditorMetaV114').textContent=line.source_file||'';
+      $('transactionCardEditorBodyV114').innerHTML=`<div class="form" style="grid-template-columns:1fr 1fr"><div class="field"><label>カード</label><input id="v114Card" value="${esc(line.card||'')}"></div><div class="field"><label>利用日</label><input id="v114Date" type="date" value="${esc(line.purchase_date||'')}"></div><div class="field" style="grid-column:1/-1"><label>利用先</label><input id="v114Merchant" value="${esc(line.merchant_raw||line.merchant_normalized||'')}"></div><div class="field"><label>利用額</label><input id="v114Amount" type="number" min="0" value="${Math.abs(Number(line.original_amount)||0)}"></div><div class="field"><label>請求月</label><input id="v114Month" type="month" value="${esc(line.billing_month||'')}"></div><div class="field"><label>当月請求額</label><input id="v114Billed" type="number" min="0" value="${Math.abs(Number(line.billed_amount)||0)}"></div></div>`;
+    }else if(kind==='settlement'){
+      const x=findSettlementRecord(st,id);if(!x)return alert('カード請求が見つかりません。');
+      $('transactionCardEditorTitleV114').textContent='カード請求を編集';$('transactionCardEditorMetaV114').textContent=x.source_file||'';
+      $('transactionCardEditorBodyV114').innerHTML=`<div class="form"><div class="field"><label>カード</label><input id="v114Card" value="${esc(x.card||'')}"></div><div class="field"><label>引落日</label><input id="v114Date" type="date" value="${esc(x.due_date||'')}"></div><div class="field"><label>請求額</label><input id="v114Amount" type="number" min="0" value="${Math.abs(Number(x.amount)||0)}"></div></div>`;
+    }else return;
+    m.style.display='block'
+  }
+  function saveIntegratedCardEditor(){
+    const m=$('transactionCardEditorV114'),kind=m?.dataset.kind,id=m?.dataset.id,st=stateNow(),now=new Date().toISOString();if(!kind||!id)return;
+    const card=$('v114Card')?.value.trim()||'',date=$('v114Date')?.value||'',amount=Number($('v114Amount')?.value);
+    if(!card||!date||!Number.isFinite(amount)||amount<0)return alert('カード・日付・金額を確認してください。');
+    if(kind==='purchase'){
+      const p=findRecord(st,'purchase',id);if(!p)return;const merchant=$('v114Merchant')?.value.trim()||'',month=$('v114Month')?.value||'';if(!merchant||!/^\d{4}-\d{2}$/.test(month))return alert('利用先・請求月を確認してください。');
+      const lines=linkedBillingLines(st,p);Object.assign(p,{card,purchase_date:date,merchant_raw:merchant,merchant_normalized:norm(merchant),original_amount:Math.abs(amount),billing_month:month,confidence:1,manual_corrected:true,manual_corrected_at:now});
+      for(const l of lines)Object.assign(l,{card,purchase_date:date,merchant_raw:merchant,merchant_normalized:norm(merchant),original_amount:Math.abs(amount),billing_month:month,manual_corrected:true,manual_corrected_at:now});
+      if(lines.length===1&&$('v114Billed')){const billed=Number($('v114Billed').value);if(Number.isFinite(billed)&&billed>=0)lines[0].billed_amount=Math.abs(billed)}
+    }else if(kind==='billing'){
+      const l=findBillingRecord(st,id);if(!l)return;const merchant=$('v114Merchant')?.value.trim()||'',month=$('v114Month')?.value||'',billed=Number($('v114Billed')?.value);if(!merchant||!/^\d{4}-\d{2}$/.test(month)||!Number.isFinite(billed)||billed<0)return alert('利用先・請求月・当月請求額を確認してください。');
+      Object.assign(l,{card,purchase_date:date,merchant_raw:merchant,merchant_normalized:norm(merchant),original_amount:Math.abs(amount),billing_month:month,billed_amount:Math.abs(billed),manual_corrected:true,manual_corrected_at:now})
+    }else if(kind==='settlement'){
+      const x=findSettlementRecord(st,id);if(!x)return;Object.assign(x,{card,due_date:date,amount:Math.abs(amount),manual_corrected:true,manual_corrected_at:now,due_date_source:'MANUAL'})
+    }
+    window.reconcileRakutenBillingV56?.(st);persist(st,'カード明細編集');m.style.display='none';setTimeout(()=>renderTransactions(),0)
+  }
+  window.openIntegratedCardEditorV114=openIntegratedCardEditor;
 
   function sameActions(a,next){const x=a||{};return String(x.economic_type||'')===String(next.economic_type||'')&&String(x.spending_class||'')===String(next.spending_class||'')&&String(x.category||'')===String(next.category||'')&&String(x.subcategory||'')===String(next.subcategory||'')}
   function matchingRules(st,kind,o,name){const key=sem()?.ruleKey?.(kind,o)||`${kind}|${norm(name)}`,n=norm(name);return(st.automationRules||[]).filter(r=>{const rk=String(r.match?.key||''),rn=norm(r.match?.name||'');return(rk&&rk===key)||(rn&&rn===n)})}

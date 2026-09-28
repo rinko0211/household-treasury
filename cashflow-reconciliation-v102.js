@@ -303,14 +303,17 @@
   }
   function plannedKind(x) {
     const type=String(x?.type||'').toUpperCase(),source=String(x?.source||'').toLowerCase(),name=String(x?.name||'');
-    if(type==='SALARY'||source.includes('salary')||/給与|SALARY/i.test(name))return'SALARY';
+    if(type==='BONUS'||source.includes('bonus')||/ボーナス|賞与|期末勤勉|勤勉手当|BONUS/i.test(name))return'BONUS';
+    if(type==='SALARY'||source.includes('salary')||/給与|俸給|SALARY/i.test(name))return'SALARY';
     if(type.includes('CARD')||source.includes('card_'))return'CARD';
     if(type.includes('TRANSFER')||source.includes('transfer'))return'TRANSFER';
     return'OTHER';
   }
   function actualKind(t) {
     const type=String(t?.cashflow_type||t?.category||'').toUpperCase();
-    if(type==='INCOME_SALARY')return'SALARY';
+    const name=String(t?.description_raw||t?.description||'');
+    if(type==='INCOME_BONUS'||/ボーナス|賞与|期末勤勉|勤勉手当|BONUS/i.test(name))return'BONUS';
+    if(type==='INCOME_SALARY'||/給与|俸給|SALARY/i.test(name))return'SALARY';
     if(type==='CARD_SETTLEMENT'||type==='DEBT_PRINCIPAL'||type==='DEBT_INTEREST')return'CARD';
     if(t?.is_transfer||type==='INTERNAL_TRANSFER')return'TRANSFER';
     return'OTHER';
@@ -327,12 +330,15 @@
       let best=null;
       for(const a of actual) {
         if(used.has(a.index))continue;
-        const got=Number(a.t.amount)||0;
-        if(Math.sign(want)!==Math.sign(got)||Math.abs(want-got)>1)continue;
+        const got=Number(a.t.amount)||0,ak=actualKind(a.t);
+        if(Math.sign(want)!==Math.sign(got))continue;
+        const flexibleIncome=(pk==='SALARY'&&(ak==='SALARY'||ak==='BONUS'))||(pk==='BONUS'&&(ak==='BONUS'||ak==='SALARY'));
+        if(!flexibleIncome&&Math.abs(want-got)>1)continue;
         const dist=dayDistance(x.date,a.t.date);
-        if(dist>5)continue;
-        const ak=actualKind(a.t),kindPenalty=pk==='OTHER'||ak===pk?0:4;
-        const score=dist+kindPenalty;
+        if(dist>(flexibleIncome?10:5))continue;
+        const kindPenalty=pk==='OTHER'||ak===pk?0:flexibleIncome?2:4;
+        const amountPenalty=flexibleIncome?Math.min(3,Math.abs(want-got)/Math.max(1,Math.abs(want))):0;
+        const score=dist+kindPenalty+amountPenalty;
         if(!best||score<best.score)best={...a,score};
       }
       if(best) {

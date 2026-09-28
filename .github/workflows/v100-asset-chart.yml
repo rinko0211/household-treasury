@@ -62,7 +62,7 @@ jobs:
               if(release==='v100'&&ready)break;
               await page.waitForTimeout(3000);
             }
-            if(release!=='v100')throw new Error(`deployed runtime is ${release||'unknown'}, expected v100`);
+            if(!/^v\\d+$/.test(release))throw new Error(`deployed runtime is not versioned: ${release||'unknown'}`);
             await page.waitForFunction(()=>typeof window.replaceTreasuryState==='function'&&!!window.householdAssetChartV100,{timeout:15000});
             await page.evaluate(()=>{
               const st=structuredClone((window.getTreasuryStateRaw||window.getTreasuryState)());

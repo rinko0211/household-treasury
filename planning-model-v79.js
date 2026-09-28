@@ -67,10 +67,10 @@
   function annualPlan(item,now=new Date()){
     const amount=Math.max(0,Number(item?.amount)||0),reserved=Math.min(amount,reservedOf(item)),shortage=Math.max(0,amount-reserved),dm=dueMonthOf(item);if(!dm)return{valid:false,amount,reserved,shortage,reason:'支払月未設定',months:[],schedule:[],regular:0,bonusTotal:0,remaining:shortage};
     const y=now.getFullYear(),m=now.getMonth()+1,targetYear=dm<m?y+1:y,start=`${y}-${String(m).padStart(2,'0')}`,target=`${targetYear}-${String(dm).padStart(2,'0')}`,months=[];for(let ym=start;ym<target;ym=addMonths(ym,1))months.push(ym);
-    const bonuses=bonusList(item),bonusByYm={};let bonusTotal=0;for(const ym of months){const mm=Number(ym.slice(5,7));for(const b of bonuses)if(b.month===mm){bonusByYm[ym]=(bonusByYm[ym]||0)+b.amount;bonusTotal+=b.amount}}
-    bonusTotal=Math.min(shortage,bonusTotal);const custom=Number(item?.monthlyReserveAmount),isCustom=String(item?.reserveMode||'AUTO').toUpperCase()==='CUSTOM'&&Number.isFinite(custom)&&custom>=0,regular=isCustom?custom:Math.ceil(Math.max(0,shortage-bonusTotal)/Math.max(1,months.length));
-    let remaining=shortage;const schedule=[];for(const ym of months){const bonus=Math.min(remaining,bonusByYm[ym]||0);remaining-=bonus;const monthly=Math.min(remaining,regular);remaining-=monthly;schedule.push({ym,monthly,bonus,total:monthly+bonus,remaining})}
-    return{valid:true,amount,reserved,shortage,dueMonth:dm,targetYear,targetYm:target,months,schedule,regular,bonusTotal,remaining,mode:isCustom?'CUSTOM':'AUTO',bonuses};
+    const bonuses=bonusList(item),bonusByYm={};let bonusTotal=0;for(const ym of [...months,target]){const mm=Number(ym.slice(5,7));for(const b of bonuses)if(b.month===mm){bonusByYm[ym]=(bonusByYm[ym]||0)+b.amount;bonusTotal+=b.amount}}
+    bonusTotal=Math.min(shortage,bonusTotal);const custom=Number(item?.monthlyReserveAmount),isCustom=String(item?.reserveMode||'AUTO').toUpperCase()==='CUSTOM'&&Number.isFinite(custom)&&custom>=0,regularNeed=Math.max(0,shortage-bonusTotal),regular=isCustom?custom:(months.length?Math.ceil(regularNeed/months.length):0);
+    let remaining=shortage;const schedule=[];for(const ym of months){const bonus=Math.min(remaining,bonusByYm[ym]||0);remaining-=bonus;const monthly=Math.min(remaining,regular);remaining-=monthly;schedule.push({ym,monthly,bonus,total:monthly+bonus,remaining})}const targetBonus=Math.min(remaining,bonusByYm[target]||0);remaining-=targetBonus;if(targetBonus)schedule.push({ym:target,monthly:0,bonus:targetBonus,total:targetBonus,remaining,targetMonth:true});
+    return{valid:true,amount,reserved,shortage,dueMonth:dm,targetYear,targetYm:target,months,schedule,regular,regularNeed,bonusTotal,remaining,mode:isCustom?'CUSTOM':'AUTO',bonuses};
   }
 
   const prevPlan=window.householdCardForecastV49;

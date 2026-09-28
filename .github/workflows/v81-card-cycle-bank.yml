@@ -22,7 +22,7 @@ jobs:
           node --check card-cycle-ui-v81.js
           node --check dashboard-bank-v81.js
           grep -Fq "card-cycle-v81.js?v=91" sync-state-sanitizer-v22.js
-          grep -Fq "card-cycle-ui-v81.js?v=81" sync-state-sanitizer-v22.js
+          grep -Fq "card-cycle-ui-v81.js?v=97" sync-state-sanitizer-v22.js
           grep -Fq "dashboard-bank-v81.js?v=81" sync-state-sanitizer-v22.js
           grep -Fq "household-treasury-v81-card-cycle-bank-dashboard" sw.js
           grep -Fq "card-cycle-v81.js?v=91" sw.js

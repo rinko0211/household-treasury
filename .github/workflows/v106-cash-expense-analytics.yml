@@ -76,13 +76,22 @@ jobs:
             await page.click('[data-page="dashboard"]');
             await page.waitForTimeout(300);
             const txt=await page.locator('#dashboardMonthV39').innerText();
-            if(!txt.includes('通常費')||!txt.includes('特別費')||!txt.includes('食費')||!txt.includes('旅行'))throw new Error('dashboard grouping missing: '+txt);
+            if(!txt.includes('通常費')||!txt.includes('特別費'))throw new Error('scope grouping missing: '+txt);
+            if(txt.includes('食費')||txt.includes('旅行'))throw new Error('category rows must be hidden before scope tap: '+txt);
+            const detailModal=page.locator('#expenseDetailModalV106');
+            if(await detailModal.isVisible())throw new Error('raw detail opened before category tap');
+            await page.locator('[data-expense-scope-toggle="1"][data-expense-scope="NORMAL"]').click();
+            await page.locator('[data-expense-detail="1"][data-expense-scope="NORMAL"][data-expense-category="FOOD"]').waitFor({state:'visible'});
+            if(await page.locator('[data-expense-detail="1"][data-expense-scope="SPECIAL"][data-expense-category="TRAVEL"]').isVisible())throw new Error('SPECIAL categories leaked into NORMAL drilldown');
             await page.locator('[data-expense-detail="1"][data-expense-scope="NORMAL"][data-expense-category="FOOD"]').click();
             await page.waitForSelector('#expenseDetailModalV106',{state:'visible'});
             const detail=await page.locator('#expenseDetailRowsV106').innerText();
             if(!detail.includes('カードスーパー')||!detail.includes('現金スーパー'))throw new Error('food detail missing rows: '+detail);
             if(detail.includes('カード出金')||detail.includes('楽天カード'))throw new Error('excluded rows appeared in detail');
-            console.log('V106_OK',JSON.stringify({normal:model.totals.NORMAL,special:model.totals.SPECIAL,cash:model.rows.filter(r=>r.kind==='cash').length}));
+            await page.locator('[data-expense-close="1"]').click();
+            await page.locator('[data-expense-scope-toggle="1"][data-expense-scope="SPECIAL"]').click();
+            await page.locator('[data-expense-detail="1"][data-expense-scope="SPECIAL"][data-expense-category="TRAVEL"]').waitFor({state:'visible'});
+            console.log('V106_OK',JSON.stringify({normal:model.totals.NORMAL,special:model.totals.SPECIAL,cash:model.rows.filter(r=>r.kind==='cash').length,drilldown:'scope>category>detail'}));
             await browser.close();
           })().catch(e=>{console.error(e);process.exit(1)});
           NODE

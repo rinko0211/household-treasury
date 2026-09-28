@@ -79,12 +79,6 @@ function injectUi(){
     const host=document.querySelector('#cashflow .card');const controls=host.querySelector('.controls');
     const sel=document.createElement('select');sel.id='forecastHorizon';sel.innerHTML='<option value="30">30日</option><option value="60">60日</option><option value="90" selected>90日</option>';sel.onchange=()=>render();controls.prepend(sel);
   }
-  if(!$('importSummary')){
-    const host=document.querySelector('#imports .grid');const d=document.createElement('div');d.className='card full';d.innerHTML='<div class="title">Import Summary</div><div id="importSummary" class="muted">まだ取込はありません。</div><div id="reviewQueue" style="margin-top:10px"></div>';host.appendChild(d);
-  }
-  if(!$('reservedSpecial')){
-    const f=document.querySelector('#settings .form');const d=document.createElement('div');d.className='field';d.innerHTML='<label>予約済み特別費</label><input id="reservedSpecial" type="number">';f.appendChild(d);
-  }
 }
 
 function render(){
@@ -95,22 +89,17 @@ function render(){
   const a=state.assets;$('assets').innerHTML=[['預金/流動',a.bank],['投資',a.investment],['iDeCo',a.ideco],['その他',a.other],['負債',-a.liabilities],['リボ残高',-a.revolvingBalance]].map(x=>`<div class="row"><span>${x[0]}</span><span class="amt">${yen(x[1])}</span></div>`).join('');
   $('eventsBody').innerHTML=f.rows.map(e=>`<tr><td>${e.date}</td><td>${esc(e.name)}</td><td>${esc(e.type||'')}</td><td class="${e.amount<0?'bad':'good'}">${e.amount>0?'+':''}${yen(e.amount)}</td><td>${yen(e.balance)}</td><td>${e.generated?'':`<button class="btn secondary" onclick="delEvent('${e.id}')">削除</button>`}</td></tr>`).join('');
   $('wealthBody').innerHTML=[...state.history].reverse().map(h=>`<tr><td>${h.month}</td><td>${yen(h.bank)}</td><td>${yen((h.investment||0)+(h.ideco||0)+(h.other||0))}</td><td>${yen(h.liabilities||0)}</td><td>${yen((h.bank||0)+(h.investment||0)+(h.ideco||0)+(h.other||0)-(h.liabilities||0))}</td></tr>`).join('');
-  $('cash').value=state.settings.cash;$('reserve').value=state.settings.reserve;$('salary').value=state.settings.salary;$('salaryDay').value=state.settings.salaryDay;if($('reservedSpecial'))$('reservedSpecial').value=state.settings.reservedSpecial||0;
+  if($('cash'))$('cash').value=state.settings.cash;if($('reserve'))$('reserve').value=state.settings.reserve;if($('salary'))$('salary').value=state.settings.salary;if($('salaryDay'))$('salaryDay').value=state.settings.salaryDay;
   if($('kpiMonthEnd'))$('kpiMonthEnd').textContent=yen(monthEnd.endBalance);if($('kpiNextSalaryLow'))$('kpiNextSalaryLow').textContent=yen(salaryF.low);if($('kpiNextSalaryDate'))$('kpiNextSalaryDate').textContent=`最低日 ${salaryF.lowDate}`;if($('kpiOrdinary'))$('kpiOrdinary').textContent=yen(tot.ordinary);if($('kpiSpecialInv'))$('kpiSpecialInv').textContent=`${yen(tot.special)} / ${yen(tot.investment)}`;
-  renderRules();renderImportSummary();
+  renderRules();
 }
 function renderRules(){$('rules').innerHTML=state.rules.map((r,i)=>`<div class="row"><div><b>${esc(r.name)}</b><div class="tiny">毎月${r.day}日 · ${esc(r.type||'fixed')}</div></div><div class="controls"><span class="amt ${r.amount<0?'bad':'good'}">${yen(r.amount)}</span><button class="btn secondary" onclick="editRule(${i})">編集</button><button class="btn secondary" onclick="delRule(${i})">削除</button></div></div>`).join('')||'<div class="muted">固定費ルールなし</div>'}
-function renderImportSummary(){
-  if(!$('importSummary'))return;const last=state.imports[0];$('importSummary').innerHTML=last?`最終取込: <b>${esc(last.source||last.kind||'')}</b> · ${last.added||0}件追加 · ${last.duplicates||0}件重複除外 · ${last.review||0}件要確認`:'まだ取込はありません。';
-  $('reviewQueue').innerHTML=state.reviewQueue.slice(0,20).map((x,i)=>`<div class="row"><div><b>${esc(x.description||x.merchant||x.source||'要確認')}</b><div class="tiny">${esc(x.date||'')} · confidence ${Number(x.confidence||0).toFixed(2)}</div></div><button class="btn secondary" onclick="dismissReview(${i})">確認済み</button></div>`).join('');
-}
-window.dismissReview=i=>{state.reviewQueue.splice(i,1);save();render()};
 window.delEvent=id=>{state.events=state.events.filter(e=>String(e.id)!==String(id));save();render()};
 window.delRule=i=>{state.rules.splice(i,1);save();render()};
 window.editRule=i=>{const r=state.rules[i],name=prompt('名称',r.name);if(!name)return;const day=+prompt('引落日',r.day),amount=+prompt('金額（支出はマイナス）',r.amount);if(!Number.isFinite(day)||!Number.isFinite(amount))return;Object.assign(r,{name,day,amount});save();render()};
 $('addEvent').onclick=()=>{const date=prompt('日付 YYYY-MM-DD',today());if(!date)return;const name=prompt('内容','臨時支出');if(!name)return;const amount=+prompt('金額（支出はマイナス）','-10000');if(!Number.isFinite(amount))return;state.events.push({id:crypto.randomUUID(),date,name,amount,type:'OTHER_SPECIAL',ordinary_or_special:'SPECIAL'});save();render()};
 $('addRule').onclick=()=>{const name=prompt('名称','固定費');if(!name)return;const day=+prompt('毎月何日','27'),amount=+prompt('金額（支出はマイナス）','-10000');if(!Number.isFinite(day)||!Number.isFinite(amount))return;state.rules.push({id:crypto.randomUUID(),name,day,amount,type:'OTHER_FIXED',ordinary_or_special:'ORDINARY',enabled:true});save();render()};
-$('saveSettings').onclick=()=>{state.settings.cash=+$('cash').value||0;state.settings.cashAsOf=today();state.settings.cashSource='manual';state.settings.cashUpdatedAt=new Date().toISOString();state.settings.reserve=+$('reserve').value||0;state.settings.salary=+$('salary').value||0;state.settings.salaryDay=+$('salaryDay').value||18;state.settings.reservedSpecial=+$('reservedSpecial')?.value||0;state.assets.bank=state.settings.cash;let r=state.rules.find(x=>x.id==='salary');if(state.settings.salary){if(!r){r={id:'salary',name:'給与',type:'INCOME_SALARY',ordinary_or_special:'ORDINARY',enabled:true};state.rules.push(r)}r.day=state.settings.salaryDay;r.amount=Math.abs(state.settings.salary)}save();render()};
+$('saveSettings').onclick=()=>{state.settings.reserve=+$('reserve')?.value||0;state.settings.salary=+$('salary')?.value||0;state.settings.salaryDay=Number(state.settings.salaryDay)||18;let r=state.rules.find(x=>x.id==='salary');if(state.settings.salary){if(!r){r={id:'salary',name:'給与',type:'INCOME_SALARY',ordinary_or_special:'ORDINARY',enabled:true};state.rules.push(r)}r.day=state.settings.salaryDay;r.amount=Math.abs(state.settings.salary)}save();render()};
 $('snapshot').onclick=()=>{const month=ym(new Date()),a=state.assets,s={month,bank:a.bank||state.settings.cash,investment:a.investment||0,ideco:a.ideco||0,other:a.other||0,liabilities:a.liabilities||0};state.history=state.history.filter(x=>x.month!==month);state.history.push(s);state.history.sort((a,b)=>a.month.localeCompare(b.month));save();render()};
 
 function parseCsv(text,separator=','){

@@ -135,7 +135,6 @@
   // v86 augments the existing v75 editor; v94 normalizes the final amount policy.
   injectClassic('./card-event-consistency-v86.js?v=91', 'data-household-card-event-consistency-v86');
   // v82 keeps only the import-review cleanup. Its one-off repayment flow UI is retired by the generic v83 account-transfer model.
-  injectClassic('./import-review-cleanup-v82.js?v=82', 'data-household-import-review-cleanup-v82');
   // v99: imported transaction-after/snapshot balances are authoritative; manual balances are fallback seeds only.
   injectClassic('./account-transfer-v83.js?v=105', 'data-household-account-transfer-v83');
   // v84 adds direct edit/cancel actions to generated transfer events without adding another row renderer.

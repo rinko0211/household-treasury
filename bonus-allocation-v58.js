@@ -96,6 +96,34 @@
     }
     return out;
   }
+  function actualBonusByYm(st){
+    const by=new Map(),used=new Set();
+    for(const p of st.bonusPlans||[]){
+      const actualKnown=p.actual_amount!==null&&p.actual_amount!==''&&Number.isFinite(Number(p.actual_amount));if(!actualKnown)continue;
+      const ym=String(p.actual_date||p.date||'').slice(0,7);if(!/^\d{4}-\d{2}$/.test(ym))continue;
+      by.set(ym,(by.get(ym)||0)+Math.max(0,Number(p.actual_amount)||0));
+      if(p.actual_transaction_id)used.add(String(p.actual_transaction_id));
+    }
+    (st.cashTransactions||[]).forEach((t,i)=>{const id=String(t.id||`cash:${i}`);if(used.has(id)||!bankBonusExplicit(t))return;const ym=String(t.date||'').slice(0,7);if(/^\d{4}-\d{2}$/.test(ym))by.set(ym,(by.get(ym)||0)+Math.max(0,Number(t.amount)||0))});
+    return by;
+  }
+  function annualBonusReality(st,item,cycleStartYm,targetYm){
+    const id=String(item?.id||'');if(!id)return{credit:0,byYm:{},realizedMonths:[]};
+    const actual=actualBonusByYm(st),byYm={},realizedMonths=[];
+    for(const [ym,actualAmount] of actual){
+      if(ym<cycleStartYm||ym>targetYm||actualAmount<=0)continue;
+      const month=Number(ym.slice(5,7)),allocs=[];
+      for(const m of st.masters?.fixedExpenses||[]){
+        if(m.active===false||String(m.cadence||'').toUpperCase()!=='ANNUAL')continue;
+        let amount=0;for(const b of Array.isArray(m.bonusAllocations)?m.bonusAllocations:[])if(Number(b.month)===month&&Number(b.amount)>0)amount+=Number(b.amount);
+        if(amount>0)allocs.push({id:String(m.id||''),amount});
+      }
+      const configured=allocs.reduce((a,x)=>a+x.amount,0),mine=allocs.filter(x=>x.id===id).reduce((a,x)=>a+x.amount,0);if(!configured||!mine)continue;
+      const factor=Math.min(1,actualAmount/configured),credit=Math.min(mine,Math.floor(mine*factor));
+      if(credit>0){byYm[ym]=credit;realizedMonths.push(ym)}
+    }
+    return{credit:Object.values(byYm).reduce((a,x)=>a+Number(x||0),0),byYm,realizedMonths};
+  }
   function planMetrics(st,p){
     const automatic=autoAllocations(st,p),manual=p.allocations||[],reserved=[...automatic,...manual].reduce((a,x)=>a+Math.max(0,Number(x.amount)||0),0),planned=Math.max(0,Number(p.expected_amount)||0),actualKnown=p.actual_amount!==null&&p.actual_amount!==''&&Number.isFinite(Number(p.actual_amount)),actual=actualKnown?Math.max(0,Number(p.actual_amount)||0):null,expected=actualKnown?actual:planned;return{automatic,manual,reserved,planned,actual,actualKnown,expected,free:expected-reserved}
   }
@@ -144,6 +172,6 @@
   function syncAndRender(){const st=stateNow();ensureShape(st);const planned=syncAutoPlans(st),actual=syncActualBonusPlans(st);if(planned||actual){persist(st,actual?'ボーナス実入金反映':'ボーナス予定連動更新');return}renderAll()}
   function queue(){clearTimeout(timer);timer=setTimeout(syncAndRender,100)}
   function boot(){const st=stateNow();ensureShape(st);if(st.bonusPlans.length)writeGuard(st,'v58-boot');ensurePlanModal();ensureAllocModal();syncAndRender();const body=$('eventsBody');if(body){new MutationObserver(queue).observe(body,{childList:true,subtree:true})}document.addEventListener('click',e=>{if(e.target.closest?.('[data-page="cashflow"],[data-page="dashboard"]'))setTimeout(syncAndRender,0)});window.addEventListener('focus',queue);window.renderBonusAllocationV58=renderAll}
-  window.householdBonusAllocationV58={syncActualBonusPlans,planMetrics,bankBonusExplicit,salaryLikeDeposit};
+  window.householdBonusAllocationV58={syncActualBonusPlans,planMetrics,bankBonusExplicit,salaryLikeDeposit,annualBonusReality,actualBonusByYm};
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});else setTimeout(boot,0);
 })();

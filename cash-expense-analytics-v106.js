@@ -8,7 +8,7 @@
   const esc = s => String(s ?? '').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
   const stateNow = () => (window.getTreasuryStateRaw || window.getTreasuryState)?.() || {};
   const currentMonth = () => new Date().toISOString().slice(0,7);
-  const LABELS={HOUSING:'住居',UTILITIES:'公共料金',COMMUNICATION:'通信',FOOD:'食費',DAILY_GOODS:'日用品',CHILD:'子ども',MEDICAL:'医療',INSURANCE:'保険',CAR:'車',TRANSPORT:'交通',SUBSCRIPTION:'サブスク・会費',ENTERTAINMENT:'娯楽',TRAVEL:'旅行',EDUCATION:'教育',TAX:'税・公的負担',FINANCIAL_FEES:'金融手数料',PERSONAL:'個人',OTHER:'その他'};
+  const LABELS={HOUSING:'住居',UTILITIES:'公共料金',COMMUNICATION:'通信',FOOD:'食費',DAILY_GOODS:'日用品',CHILD:'子ども',MEDICAL:'医療',INSURANCE:'保険',CAR:'車',TRANSPORT:'交通',SUBSCRIPTION:'サブスク・会費',ENTERTAINMENT:'娯楽',TRAVEL:'旅行',EDUCATION:'教育',TAX:'税・公的負担',FINANCIAL_FEES:'金融手数料',PERSONAL:'個人',GIFTS_EVENTS:'イベント・贈答',OTHER:'その他'};
   const JP={住居:'HOUSING',家賃:'HOUSING',公共料金:'UTILITIES',光熱費:'UTILITIES',電気:'UTILITIES',水道:'UTILITIES',ガス:'UTILITIES',通信:'COMMUNICATION',携帯:'COMMUNICATION',インターネット:'COMMUNICATION',食費:'FOOD',食料品:'FOOD',スーパー:'FOOD',外食:'FOOD',カフェ:'FOOD',日用品:'DAILY_GOODS',衣服:'DAILY_GOODS',服:'DAILY_GOODS',子ども:'CHILD',育児:'CHILD',保育:'CHILD',医療:'MEDICAL',病院:'MEDICAL',歯科:'MEDICAL',薬:'MEDICAL',保険:'INSURANCE',車:'CAR',ガソリン:'CAR',駐車場:'CAR',高速:'CAR',ETC:'CAR',交通:'TRANSPORT',電車:'TRANSPORT',バス:'TRANSPORT',タクシー:'TRANSPORT',サブスク:'SUBSCRIPTION',会費:'SUBSCRIPTION',娯楽:'ENTERTAINMENT',趣味:'ENTERTAINMENT',旅行:'TRAVEL',宿泊:'TRAVEL',教育:'EDUCATION',書籍:'EDUCATION',税:'TAX',税金:'TAX',手数料:'FINANCIAL_FEES',利息:'FINANCIAL_FEES',個人:'PERSONAL',美容:'PERSONAL',フィットネス:'PERSONAL',その他:'OTHER'};
 
   function semantic(){return window.householdSemanticV47||null}
@@ -17,8 +17,9 @@
   function category(raw,name){
     const s=String(raw||'').trim(),sem=semantic(),mapped=sem?.normalizeCategoryValue?.(s);
     if(mapped)return mapped;
+    const inferred=sem?.inferCategory?.(name,s);if(inferred)return inferred;
     const jp=JP[s]||JP[s.toUpperCase()];if(jp)return jp;
-    return sem?.inferCategory?.(name,s)||'OTHER';
+    return'OTHER';
   }
   function num(v){const s=String(v??'').replace(/[¥￥,\s]/g,'');return /^[-+]?\d+(?:\.\d+)?$/.test(s)?Number(s):null}
   function date(v){const s=String(v||'').trim();if(/^\d{8}$/.test(s))return s.slice(0,4)+'-'+s.slice(4,6)+'-'+s.slice(6,8);const m=s.match(/^(\d{4})[\/-](\d{1,2})[\/-](\d{1,2})$/);return m?m[1]+'-'+m[2].padStart(2,'0')+'-'+m[3].padStart(2,'0'):s}
@@ -45,7 +46,7 @@
     const seen=new Set(st.cashExpenses.map(key));let added=0,duplicates=0,invalid=0;
     for(const r of info.rows.slice(info.hi+1)){
       const d=date(r[di]),name=String(r[ni]||'').trim(),n=num(r[ai]);if(!/^\d{4}-\d{2}-\d{2}$/.test(d)||!name||n===null||n===0){invalid++;continue}
-      const c=category(r[ci],name),sc=scope(r[si]),amount=Math.abs(n),rec={id:'cash-expense:'+hash([d,name,amount,c,sc].join('|')),record_kind:'CASH_EXPENSE',economic_type:'EXPENSE',spending_class:sc,expense_scope:sc,ordinary_or_special:sc==='SPECIAL'?'SPECIAL':'ORDINARY',category:c,subcategory:subi>=0&&r[subi]?String(r[subi]).trim().toUpperCase():'OTHER',date:d,description:name,amount,payment_method:'CASH',source:'Cash CSV',source_file:file.name,note:notei>=0?String(r[notei]||'').trim():'',imported_at:new Date().toISOString()};
+      const c=category(r[ci],name),sc=scope(r[si]),amount=Math.abs(n),explicitSub=subi>=0&&r[subi]?String(r[subi]).trim().toUpperCase():null,sub=explicitSub||semantic()?.inferSubcategory?.(c,name,null)||'OTHER',rec={id:'cash-expense:'+hash([d,name,amount,c,sc].join('|')),record_kind:'CASH_EXPENSE',economic_type:'EXPENSE',spending_class:sc,expense_scope:sc,ordinary_or_special:sc==='SPECIAL'?'SPECIAL':'ORDINARY',category:c,subcategory:sub,date:d,description:name,amount,payment_method:'CASH',source:'Cash CSV',source_file:file.name,note:notei>=0?String(r[notei]||'').trim():'',imported_at:new Date().toISOString()};
       const k=key(rec);if(seen.has(k)){duplicates++;continue}seen.add(k);st.cashExpenses.push(rec);added++
     }
     st.cashExpenses.sort((a,b)=>String(a.date).localeCompare(String(b.date)));

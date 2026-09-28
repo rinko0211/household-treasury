@@ -49,16 +49,13 @@
     card.id = CARD_ID;
     card.className = 'card full';
     card.innerHTML = `
-      <div class="title">家計マスタ <span class="tag">Phase 1</span></div>
+      <div class="title">家計マスタ</div>
       <div class="note" style="margin-bottom:12px">口座・カード・負債・固定費の基礎情報です。個人の実値は端末に保存し、クラウド同期時は暗号化されます。</div>
       <div class="controls" style="flex-wrap:wrap;margin-bottom:12px">
-        <button class="btn" id="masterImportBtnV1">マスタJSON読込</button>
-        <button class="btn secondary" id="masterExportBtnV1">マスタJSON書出し</button>
         <button class="btn secondary" id="masterAddAccountV1">＋口座</button>
         <button class="btn secondary" id="masterAddCardV1">＋カード</button>
         <button class="btn secondary" id="masterAddLiabilityV1">＋負債</button>
         <button class="btn secondary" id="masterAddFixedV1">＋固定費</button>
-        <input class="hidden" id="${INPUT_ID}" type="file" accept="application/json,.json">
       </div>
       <div id="masterSummaryV1" class="tiny" style="margin-bottom:10px"></div>
       <div class="grid">
@@ -69,9 +66,6 @@
       </div>`;
     grid.appendChild(card);
 
-    $('masterImportBtnV1').onclick = () => $(INPUT_ID).click();
-    $(INPUT_ID).onchange = onImportFile;
-    $('masterExportBtnV1').onclick = exportMasters;
     $('masterAddAccountV1').onclick = () => addOrEdit('accounts');
     $('masterAddCardV1').onclick = () => addOrEdit('cards');
     $('masterAddLiabilityV1').onclick = () => addOrEdit('liabilities');

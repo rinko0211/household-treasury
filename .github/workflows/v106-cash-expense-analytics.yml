@@ -81,6 +81,8 @@ jobs:
               const st=structuredClone((window.getTreasuryStateRaw||window.getTreasuryState)());
               st.cashExpenses=[];
               st.imports=[];
+              st.settings={...(st.settings||{}),cash:123456,reserve:100000,salary:500000,salaryDay:18,reservedSpecial:1234};
+              st.assets={...(st.assets||{}),bank:123456};
               st.purchaseEvents=[
                 {purchase_id:'card-food',purchase_date:'2026-09-20',merchant_raw:'カードスーパー',original_amount:3000,card:'Rakuten',economic_type:'EXPENSE',spending_class:'NORMAL',category:'FOOD'}
               ];
@@ -200,6 +202,13 @@ jobs:
             if(await page.locator('#cash,#salaryDay,#reservedSpecial,#masterImportBtnV1,#masterExportBtnV1').count())throw new Error('retired settings/master JSON controls remain');
             if(!(await page.locator('#reserve').isVisible())||!(await page.locator('#salary').isVisible()))throw new Error('required basic settings missing');
             if(!(await page.locator('#exportJson').isVisible())||!(await page.locator('#importJson').isVisible()))throw new Error('unified backup controls missing');
+            await page.fill('#reserve','150000');
+            await page.fill('#salary','520000');
+            await page.click('#saveSettings');
+            await page.waitForFunction(()=>{const st=(window.getTreasuryStateRaw||window.getTreasuryState)();return Number(st.settings?.reserve)===150000&&Number(st.settings?.salary)===520000},{timeout:10000});
+            const settingsState=await page.evaluate(()=>{const st=(window.getTreasuryStateRaw||window.getTreasuryState)();return{cash:st.settings?.cash,salaryDay:st.settings?.salaryDay,reservedSpecial:st.settings?.reservedSpecial,bank:st.assets?.bank}});
+            if(Number(settingsState.cash)!==123456||Number(settingsState.bank)!==123456)throw new Error('saving basic settings changed current cash: '+JSON.stringify(settingsState));
+            if(Number(settingsState.salaryDay)!==18||Number(settingsState.reservedSpecial)!==1234)throw new Error('saving basic settings changed hidden settings: '+JSON.stringify(settingsState));
 
             await page.click('[data-page="dashboard"]');
             await spend.locator('[data-expense-scope-toggle="1"][data-expense-scope="SPECIAL"]').click();

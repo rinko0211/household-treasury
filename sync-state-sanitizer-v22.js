@@ -4,7 +4,7 @@
 
   // v70 phase 2: data/model compatibility remains, but legacy hidden UI boots are disabled.
   window.__householdConsolidatedUiV70 = true;
-  window.__householdRuntimeRelease = 'v114';
+  window.__householdRuntimeRelease = 'v115';
 
   const DERIVED_KEYS = new Set([
     'updatedAt',
@@ -84,7 +84,7 @@
   injectClassic('./forecast-v38.js?v=38', 'data-household-forecast-v38');
   injectClassic('./dashboard-v39.js?v=107', 'data-household-dashboard-v39');
   // v40 review center retired in v65. Semantic v47/v48 own review rules and review UI.
-  injectClassic('./cashflow-integration-v41.js?v=110', 'data-household-cashflow-integration-v41');
+  injectClassic('./cashflow-integration-v41.js?v=115', 'data-household-cashflow-integration-v41');
   injectClassic('./payment-routing-v42.js?v=42', 'data-household-payment-routing-v42');
   injectClassic('./fixed-master-unified-v43.js?v=43', 'data-household-fixed-master-unified-v43');
   injectClassic('./kabu-card-v44.js?v=44', 'data-household-kabu-card-v44');
@@ -107,7 +107,7 @@
   injectClassic('./card-import-corrections-v73.js?v=114', 'data-household-card-import-corrections-v73');
   injectClassic('./rakuten-enavi-v74.js?v=74', 'data-household-rakuten-enavi-v74');
   injectClassic('./integrity-hotfix-v57.js?v=57', 'data-household-integrity-hotfix-v57');
-  injectClassic('./bonus-allocation-v58.js?v=58', 'data-household-bonus-allocation-v58');
+  injectClassic('./bonus-allocation-v58.js?v=115', 'data-household-bonus-allocation-v58');
   injectClassic('./bonus-allocation-target-fix-v58.js?v=58', 'data-household-bonus-allocation-target-fix-v58');
   injectClassic('./mobile-cashflow-v59.js?v=110', 'data-household-mobile-cashflow-v59');
   // v60 row renderer retired in v70 phase 1. It competed for the mobile rows host.
@@ -123,7 +123,7 @@
   if (window.matchMedia?.('(min-width:821px)').matches) injectClassic('./desktop-interaction-v69.js?v=69', 'data-household-desktop-interaction-v69');
   injectClassic('./tab-router-v71.js?v=71', 'data-household-tab-router-v71');
   // v79/v80 provide card baseline and component models; v94 is the final baseline-floor authority.
-  injectClassic('./planning-model-v79.js?v=110', 'data-household-planning-model-v79');
+  injectClassic('./planning-model-v79.js?v=115', 'data-household-planning-model-v79');
   injectClassic('./planning-ui-v79.js?v=107', 'data-household-planning-ui-v79');
   injectClassic('./planning-model-v80.js?v=91', 'data-household-planning-model-v80');
   injectClassic('./planning-ui-v80.js?v=80', 'data-household-planning-ui-v80');
@@ -148,6 +148,6 @@
   // v97: JAL/DC with a known revolving payoff automatically use full-payment forecasting for spends on/after the projected payoff date.
   injectClassic('./revolving-to-full-v97.js?v=97', 'data-household-revolving-to-full-v97');
   // v102: imported balance_after is the actual current balance. Elapsed plans after the last import stay unverified and affect forecast only.
-  injectClassic('./cashflow-reconciliation-v102.js?v=105', 'data-household-cashflow-reconciliation-v102');
+  injectClassic('./cashflow-reconciliation-v102.js?v=115', 'data-household-cashflow-reconciliation-v102');
   // v92/v93 exact d-card overlay retired in v94.
 })();

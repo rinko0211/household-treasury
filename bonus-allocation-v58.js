@@ -144,5 +144,6 @@
   function syncAndRender(){const st=stateNow();ensureShape(st);const planned=syncAutoPlans(st),actual=syncActualBonusPlans(st);if(planned||actual){persist(st,actual?'ボーナス実入金反映':'ボーナス予定連動更新');return}renderAll()}
   function queue(){clearTimeout(timer);timer=setTimeout(syncAndRender,100)}
   function boot(){const st=stateNow();ensureShape(st);if(st.bonusPlans.length)writeGuard(st,'v58-boot');ensurePlanModal();ensureAllocModal();syncAndRender();const body=$('eventsBody');if(body){new MutationObserver(queue).observe(body,{childList:true,subtree:true})}document.addEventListener('click',e=>{if(e.target.closest?.('[data-page="cashflow"],[data-page="dashboard"]'))setTimeout(syncAndRender,0)});window.addEventListener('focus',queue);window.renderBonusAllocationV58=renderAll}
+  window.householdBonusAllocationV58={syncActualBonusPlans,planMetrics,bankBonusExplicit,salaryLikeDeposit};
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});else setTimeout(boot,0);
 })();

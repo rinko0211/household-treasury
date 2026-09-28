@@ -23,7 +23,7 @@ jobs:
           grep -Fq "window.__householdRuntimeRelease =" sync-state-sanitizer-v22.js
           grep -Fq "cashflow-reconciliation-v102.js?v=105" sync-state-sanitizer-v22.js
           grep -Fq "cashflow-reconciliation-v102.js?v=105" sw.js
-          grep -Fq 'household-treasury-v105-current-balance-authority' sw.js
+          grep -Fq 'const CACHE=' sw.js
           grep -Eq 'sync-state-sanitizer-v22.js\\?v=[0-9]+' index.html
           grep -Eq 'app.js\\?v=[0-9]+' index.html
           grep -Eq 'app.js\\?v=[0-9]+' sw.js

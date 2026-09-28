@@ -74,13 +74,13 @@
     const shortage=Math.max(0,amount-Math.min(amount,Math.max(0,Number(startReserved)||0)));
     const months=[]; for(let ym=startYm;ym<targetYm;ym=addMonthsYm(ym,1))months.push(ym);
     const bonusDefs=bonusAllocations(item),bonusByYm={};
-    for(const ym of months){
+    for(const ym of [...months,targetYm]){
       const m=Number(ym.slice(5,7));
       for(const b of bonusDefs) if(b.month===m) bonusByYm[ym]=(bonusByYm[ym]||0)+b.amount;
     }
     const bonusTotalRaw=Object.values(bonusByYm).reduce((a,b)=>a+Number(b||0),0);
     const bonusTotal=Math.min(shortage,bonusTotalRaw);
-    const regularMonths=months.filter(ym=>!(Number(bonusByYm[ym])>0));
+    const regularMonths=[...months];
     const reserveMode=String(item.reserveMode||'AUTO').toUpperCase();
     const custom=Number(item.monthlyReserveAmount);
     const useCustom=reserveMode==='CUSTOM'&&Number.isFinite(custom)&&custom>=0;
@@ -89,13 +89,11 @@
     const schedule={}; let remaining=shortage;
     for(const ym of months){
       if(remaining<=0){ schedule[ym]=0; continue; }
-      if(Number(bonusByYm[ym])>0){
-        const b=Math.min(remaining,Number(bonusByYm[ym])||0); remaining-=b; schedule[ym]=b;
-      }else{
-        const r=Math.min(remaining,regular); remaining-=r; schedule[ym]=r;
-      }
+      const b=Math.min(remaining,Number(bonusByYm[ym])||0);remaining-=b;
+      const r=Math.min(remaining,regular);remaining-=r;schedule[ym]=b+r;
     }
-    return {amount,shortage,bonusTotal,bonusTotalRaw,regular,regularNeed,regularMonths,bonusMonths:Object.keys(bonusByYm),schedule,remaining,months,reserveMode};
+    const targetBonus=Math.min(remaining,Number(bonusByYm[targetYm])||0);remaining-=targetBonus;
+    return {amount,shortage,bonusTotal,bonusTotalRaw,targetBonus,regular,regularNeed,regularMonths,bonusMonths:Object.keys(bonusByYm),schedule,remaining,months,reserveMode};
   }
   function annualReserveScheduleV59(st=stateNow(),count=7){
     const start=ymNow(),months=Array.from({length:count},(_,i)=>addMonthsYm(start,i)),totals=Object.fromEntries(months.map(m=>[m,0])),items=[];
@@ -140,7 +138,7 @@
       const p=annualPlanV59(item,start,target.ym,reservedOf(item));
       const div=document.createElement('div');div.dataset.v59AutoPlan='1';div.className='note';div.style.marginTop='8px';
       const bonusMonths=p.bonusMonths.map(x=>`${Number(x.slice(5,7))}月`).join('・')||'なし';
-      div.innerHTML=`<b>AUTO積立</b>：残額 ${yen(p.shortage)} − ボーナス充当 ${yen(p.bonusTotal)} = 通常月対象 ${yen(p.regularNeed)}<br><span class="tiny">ボーナス月 ${esc(bonusMonths)} は通常積立0円。その他 ${p.regularMonths.length}か月に ${yen(p.regular)} / 月で自動按分します。${p.remaining>0?` 未充足 ${yen(p.remaining)}`:''}</span>`;
+      div.innerHTML=`<b>AUTO積立</b>：残額 ${yen(p.shortage)} − ボーナス充当 ${yen(p.bonusTotal)} = 通常月対象 ${yen(p.regularNeed)}<br><span class="tiny">ボーナス充当を先に差し引き、支払月までの ${p.regularMonths.length}か月に ${yen(p.regular)} / 月で自動按分します。ボーナス月: ${esc(bonusMonths)}。${p.remaining>0?` 未充足 ${yen(p.remaining)}`:''}</span>`;
       const controls=box.querySelector('.controls:last-child'); if(controls)controls.before(div); else box.appendChild(div);
     });
   }

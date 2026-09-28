@@ -80,9 +80,9 @@
   }
   function collectRows(st,month=currentMonth()){
     const out=[];
-    for(const [i,p] of (st.purchaseEvents||[]).entries()){const d=String(p.purchase_date||'');if(d.slice(0,7)!==month)continue;const a=Math.abs(Number(p.original_amount)||0);if(!a)continue;const n=p.merchant_raw||p.merchant_normalized||'カード利用';out.push({kind:'card',editKind:'purchase',editId:String(p.purchase_id||'purchase:'+i),date:d,name:n,amount:a,scope:scopeOf(p),category:categoryOf(p,n),source:p.card?'カード · '+p.card:'カード'})}
+    for(const [i,p] of (st.purchaseEvents||[]).entries()){const d=String(p.purchase_date||''),econ=String(p.economic_type||'EXPENSE').toUpperCase();if(d.slice(0,7)!==month||econ!=='EXPENSE')continue;const a=Math.abs(Number(p.original_amount)||0);if(!a)continue;const n=p.merchant_raw||p.merchant_normalized||'カード利用';out.push({kind:'card',editKind:'purchase',editId:String(p.purchase_id||'purchase:'+i),date:d,name:n,amount:a,scope:scopeOf(p),category:categoryOf(p,n),source:p.card?'カード · '+p.card:'カード'})}
     for(const [i,t] of (st.cashTransactions||[]).entries()){const d=String(t.date||'');if(d.slice(0,7)!==month||!bankExpense(t))continue;const a=Math.abs(Number(t.amount)||0),n=t.description_raw||t.description||'銀行支出';if(a)out.push({kind:'bank',editKind:'cash',editId:String(t.id||'cash:'+i),date:d,name:n,amount:a,scope:scopeOf(t),category:categoryOf(t,n),source:t.source||'銀行'})}
-    for(const [i,c] of (st.cashExpenses||[]).entries()){const d=String(c.date||'');if(d.slice(0,7)!==month)continue;const a=Math.abs(Number(c.amount)||0),n=c.description||'現金支出';if(a)out.push({kind:'cash',editKind:'cash_expense',editId:String(c.id||'cash-expense:'+i),date:d,name:n,amount:a,scope:scopeOf(c),category:categoryOf(c,n),source:'現金'})}
+    for(const [i,c] of (st.cashExpenses||[]).entries()){const d=String(c.date||''),econ=String(c.economic_type||'EXPENSE').toUpperCase();if(d.slice(0,7)!==month||econ!=='EXPENSE')continue;const a=Math.abs(Number(c.amount)||0),n=c.description||'現金支出';if(a)out.push({kind:'cash',editKind:'cash_expense',editId:String(c.id||'cash-expense:'+i),date:d,name:n,amount:a,scope:scopeOf(c),category:categoryOf(c,n),source:'現金'})}
     return out.sort((a,b)=>String(b.date).localeCompare(String(a.date)))
   }
   function summarize(st,month=currentMonth()){

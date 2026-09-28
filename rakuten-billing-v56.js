@@ -101,6 +101,7 @@
     };
   }
 
+  window.reconcileRakutenBillingV56=(st=stateNow())=>{const changed=reconcileRakuten(st);if(changed)setTimeout(renderCenter,0);return changed};
   function fallbackDetails(st,s){return (st.purchaseEvents||[]).filter(p=>String(p.card_settlement_id||'')===String(s.settlement_id||''))}
   function fallbackAmount(p){const v=p.payment_amount;return v!==null&&v!==''&&Number.isFinite(Number(v))?Math.abs(Number(v)):Math.abs(Number(p.original_amount)||0)}
   function renderCenter(){

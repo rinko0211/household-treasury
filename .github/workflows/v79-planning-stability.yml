@@ -20,9 +20,9 @@ jobs:
           set -euo pipefail
           node --check planning-model-v79.js
           node --check planning-ui-v79.js
-          grep -Fq "planning-model-v79.js?v=110" sync-state-sanitizer-v22.js
+          grep -Fq "planning-model-v79.js?v=115" sync-state-sanitizer-v22.js
           grep -Fq "planning-ui-v79.js?v=107" sync-state-sanitizer-v22.js
-          grep -Fq "planning-model-v79.js?v=110" sw.js
+          grep -Fq "planning-model-v79.js?v=115" sw.js
           grep -Fq "planning-ui-v79.js?v=107" sw.js
           grep -Fq "household-treasury-v79-planning-stability" sw.js
       - name: Check stable single-path UI behavior
@@ -61,6 +61,9 @@ jobs:
           const r={name:'楽天カード',paymentMode:'FULL',forecastMode:'BASELINE',monthlyBaselineAmount:70000};
           if(p.forecastAmountForCard(d,95000)!==70000)throw new Error('d-card standard amount must be exact');
           if(p.forecastAmountForCard(r,95000)!==95000)throw new Error('non d-card floor behavior changed unexpectedly');
+          state.cashTransactions=[{id:'salary-actual',date:'2026-10-18',amount:543210,cashflow_type:'INCOME_SALARY',description_raw:'給与'}];
+          const actual=p.actualSalaryForMonth(state,'2026-10');
+          if(!actual||Number(actual.amount)!==543210)throw new Error('actual salary not authoritative: '+JSON.stringify(actual));
           NODE
       - name: Check dashboard and annual transparency
         shell: bash

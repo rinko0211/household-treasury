@@ -184,9 +184,9 @@ jobs:
         run: |
           set -euo pipefail
           grep -Fq "planning-model-v79.js?v=91" sync-state-sanitizer-v22.js
-          grep -Fq "planning-ui-v79.js?v=79" sync-state-sanitizer-v22.js
+          grep -Fq "planning-ui-v79.js?v=107" sync-state-sanitizer-v22.js
           grep -Fq "planning-model-v79.js?v=91" sw.js
-          grep -Fq "planning-ui-v79.js?v=79" sw.js
+          grep -Fq "planning-ui-v79.js?v=107" sw.js
           grep -Fq "household-treasury-v79-planning-stability" sw.js
           grep -Fq "BASELINE_FLOOR" planning-model-v79.js
           grep -Fq "settings_salary_v79" planning-model-v79.js

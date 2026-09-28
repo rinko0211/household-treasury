@@ -1,5 +1,5 @@
 
-name: Check v113 Unified Transactions
+name: Check v114 Unified Transactions
 
 on:
   push:
@@ -10,7 +10,7 @@ permissions:
   contents: read
 
 jobs:
-  v113:
+  v114:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -27,19 +27,19 @@ jobs:
           grep -Fq "semantic-model-v47.js?v=109" sw.js
           grep -Fq "GIFTS_EVENTS" semantic-model-v47.js
           grep -Fq "cash-expense-analytics-v106.js?v=110" sync-state-sanitizer-v22.js
-          grep -Fq "semantic-ui-v48.js?v=110" sync-state-sanitizer-v22.js
-          grep -Fq "semantic-ui-v48.js?v=110" sw.js
+          grep -Fq "semantic-ui-v48.js?v=114" sync-state-sanitizer-v22.js
+          grep -Fq "semantic-ui-v48.js?v=114" sw.js
           grep -Fq "data-v110-tx-detail" semantic-ui-v48.js
           grep -Fq "transactionDetailV110" semantic-ui-v48.js
           grep -Fq "cash_expense" semantic-ui-v48.js
           ! grep -Fq "Import Summary" app.js
           grep -Fq "openSemanticTransactionEditorV108" semantic-ui-v48.js
           grep -Fq "manual_transaction_override_v108" semantic-ui-v48.js
-          grep -Fq "card-import-corrections-v73.js?v=113" sync-state-sanitizer-v22.js
-          grep -Fq "card-import-corrections-v73.js?v=113" sw.js
-          grep -Fq "householdCardImportCorrectionsV91" card-import-corrections-v73.js
-          grep -Fq "data-v110-card-edit" card-import-corrections-v73.js
-          grep -Fq "stopImmediatePropagation" card-import-corrections-v73.js
+          grep -Fq "card-import-corrections-v73.js?v=114" sync-state-sanitizer-v22.js
+          grep -Fq "card-import-corrections-v73.js?v=114" sw.js
+          grep -Fq "transactionCardEditorV114" semantic-ui-v48.js
+          grep -Fq "openIntegratedCardEditorV114" semantic-ui-v48.js
+          grep -Fq "data-v110-card-edit" semantic-ui-v48.js
           grep -Fq "reconcileRakutenBillingV56" rakuten-billing-v56.js
           grep -Fq "cash-expense-analytics-v106.js?v=110" sw.js
           grep -Fq 'data-page="transactions"' index.html
@@ -52,10 +52,10 @@ jobs:
           grep -Fq "householdExpenseAnalyticsV106" planning-ui-v79.js
           grep -Fq "householdExpenseAnalyticsV106" dashboard-v39.js
           grep -Fq "cashExpenses" app.js
-          grep -Fq "app.js?v=113" index.html
-          grep -Fq "sync-state-sanitizer-v22.js?v=113" index.html
-          grep -Fq "household-treasury-v113-ui-consolidation" sw.js
-          grep -Fq "__householdRuntimeRelease = 'v113'" sync-state-sanitizer-v22.js
+          grep -Fq "app.js?v=114" index.html
+          grep -Fq "sync-state-sanitizer-v22.js?v=114" index.html
+          grep -Fq "household-treasury-v114-unified-transactions" sw.js
+          grep -Fq "__householdRuntimeRelease = 'v114'" sync-state-sanitizer-v22.js
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
@@ -78,7 +78,7 @@ jobs:
             const browser=await chromium.launch({headless:true});
             const page=await browser.newPage({viewport:{width:390,height:844}});
             await page.goto('http://127.0.0.1:4173/?v106e2e=1',{waitUntil:'domcontentloaded'});
-            await page.waitForFunction(()=>window.__householdRuntimeRelease==='v113'&&!!window.householdExpenseAnalyticsV106&&!!window.openSemanticTransactionEditorV108&&!!window.householdCardImportCorrectionsV91&&!!window.reconcileRakutenBillingV56,{timeout:15000});
+            await page.waitForFunction(()=>window.__householdRuntimeRelease==='v114'&&!!window.householdExpenseAnalyticsV106&&!!window.openSemanticTransactionEditorV108&&!!window.reconcileRakutenBillingV56,{timeout:15000});
             await page.evaluate(()=>{
               const st=structuredClone((window.getTreasuryStateRaw||window.getTreasuryState)());
               st.cashExpenses=[];
@@ -185,8 +185,8 @@ jobs:
             await tx.locator('[data-v110-tx-detail][data-v110-kind="purchase"][data-v110-id="card-food"]').click();
             await page.waitForSelector('#transactionDetailV110',{state:'visible'});
             await page.locator('#transactionDetailV110 [data-v110-card-edit][data-v110-kind="purchase"]').click();
-            await page.waitForSelector('#cardImportEditModalV73',{state:'visible'});
-            await page.locator('#cardImportEditModalV73 [data-v73-close]').first().click();
+            await page.waitForSelector('#transactionCardEditorV114',{state:'visible'});
+            await page.locator('#transactionCardEditorV114 [data-v114-card-close]').first().click();
 
             if(await tx.locator('[data-v110-tx-detail][data-v110-kind="cash"][data-v110-id="settle"]').count())throw new Error('linked card settlement duplicated bank row');
             if(await tx.locator('[data-v110-tx-detail][data-v110-kind="settlement"][data-v110-id="s1"]').count()!==1)throw new Error('linked card settlement missing');
@@ -195,14 +195,15 @@ jobs:
             await tx.locator('[data-v110-tx-detail][data-v110-kind="billing"][data-v110-id="bill1"]').click();
             await page.waitForSelector('#transactionDetailV110',{state:'visible'});
             await page.locator('#transactionDetailV110 [data-v110-card-edit][data-v110-kind="billing"]').click();
-            await page.waitForSelector('#cardImportEditModalV73',{state:'visible'});
-            await page.fill('#v73LineBilled','49000');
-            await page.locator('#cardImportEditModalV73 [data-v73-save]').click();
+            await page.waitForSelector('#transactionCardEditorV114',{state:'visible'});
+            await page.fill('#v114Billed','49000');
+            await page.locator('#transactionCardEditorV114 [data-v114-card-save]').click();
             await page.waitForFunction(()=>{const x=((window.getTreasuryStateRaw||window.getTreasuryState)().cardSettlements||[]).find(s=>s.settlement_id==='s1');return Number(x?.detail_difference)===1000&&x?.detail_reconciled===false},{timeout:10000});
             await tx.locator('[data-v110-tx-detail][data-v110-kind="billing"][data-v110-id="bill1"]').click();
             await page.locator('#transactionDetailV110 [data-v110-card-edit][data-v110-kind="billing"]').click();
-            await page.fill('#v73LineBilled','50000');
-            await page.locator('#cardImportEditModalV73 [data-v73-save]').click();
+            await page.waitForSelector('#transactionCardEditorV114',{state:'visible'});
+            await page.fill('#v114Billed','50000');
+            await page.locator('#transactionCardEditorV114 [data-v114-card-save]').click();
             await page.waitForFunction(()=>{const x=((window.getTreasuryStateRaw||window.getTreasuryState)().cardSettlements||[]).find(s=>s.settlement_id==='s1');return Number(x?.detail_difference)===0&&x?.detail_reconciled===true},{timeout:10000});
 
             await page.click('[data-page="settings"]');
@@ -250,7 +251,7 @@ jobs:
               const got=cats[name];
               if(!got||got.join('|')!==want.join('|'))throw new Error(name+' mapped '+JSON.stringify(got)+' expected '+JSON.stringify(want));
             }
-            console.log('V110_OK',JSON.stringify({normalBefore:model.totals.NORMAL,normalAfterTransfer:after.totals.NORMAL,normalAfterCashEdit:afterCashEdit.totals.NORMAL,special:after.totals.SPECIAL,categories:cats}));
+            console.log('V114_OK',JSON.stringify({normalBefore:model.totals.NORMAL,normalAfterTransfer:after.totals.NORMAL,normalAfterCashEdit:afterCashEdit.totals.NORMAL,special:after.totals.SPECIAL,categories:cats}));
             await browser.close();
           })().catch(e=>{console.error(e);process.exit(1)});
           NODE

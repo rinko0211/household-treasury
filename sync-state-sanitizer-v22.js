@@ -125,7 +125,7 @@
   injectClassic('./tab-router-v71.js?v=71', 'data-household-tab-router-v71');
   // v79/v80 provide card baseline and component models; v94 is the final baseline-floor authority.
   injectClassic('./planning-model-v79.js?v=91', 'data-household-planning-model-v79');
-  injectClassic('./planning-ui-v79.js?v=79', 'data-household-planning-ui-v79');
+  injectClassic('./planning-ui-v79.js?v=107', 'data-household-planning-ui-v79');
   injectClassic('./planning-model-v80.js?v=91', 'data-household-planning-model-v80');
   injectClassic('./planning-ui-v80.js?v=80', 'data-household-planning-ui-v80');
   // v81 is the card-cycle authority and restores bank balances to the planning dashboard.

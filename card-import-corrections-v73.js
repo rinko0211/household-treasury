@@ -144,15 +144,6 @@
   function onCardClick(e){const p=e.target.closest?.('[data-v73-purchase]'),l=e.target.closest?.('[data-v73-billing]'),s=e.target.closest?.('[data-v73-settlement]');if(p)return openPurchase(p.dataset.v73Purchase);if(l)return openBilling(l.dataset.v73Billing);if(s)return openSettlement(s.dataset.v73Settlement)}
   function onModalClick(e){if(e.target.closest?.('[data-v73-close]'))return hideModal();const bank=e.target.closest?.('[data-v73-use-bank-date]');if(bank){$('v73SettlementDate').value=bank.dataset.v73UseBankDate;return}if(e.target.closest?.('[data-v73-save]'))return purchaseRef?savePurchase():billingRef?saveBilling():settlementRef?saveSettlement():null}
 
-  document.addEventListener('click',e=>{
-    const b=e.target.closest?.('[data-v110-card-edit]');if(!b)return;
-    e.preventDefault();e.stopImmediatePropagation();
-    const detail=$('transactionDetailV110');if(detail)detail.style.display='none';
-    const kind=String(b.dataset.v110Kind||''),id=String(b.dataset.v110Id||'');
-    if(kind==='purchase')openPurchaseById(id);
-    else if(kind==='billing')openBillingById(id);
-    else if(kind==='settlement')openSettlementById(id);
-  },true);
   window.addEventListener('treasury:pagechange',e=>{if(e?.detail?.page==='transactions')setTimeout(renderUi,0)});
   window.renderCardImportCorrectionsV73=renderUi;
   window.householdCardImportCorrectionsV73={renderUi,editableRows,openPurchaseById,openBillingById,openSettlementById};window.householdCardImportCorrectionsV91=window.householdCardImportCorrectionsV73;

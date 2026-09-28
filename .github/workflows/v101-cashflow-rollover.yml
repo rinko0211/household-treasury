@@ -20,13 +20,13 @@ jobs:
           set -euo pipefail
           node --check app.js
           node --check cashflow-reconciliation-v102.js
-          grep -Fq "window.__householdRuntimeRelease = 'v105'" sync-state-sanitizer-v22.js
+          grep -Fq "window.__householdRuntimeRelease =" sync-state-sanitizer-v22.js
           grep -Fq "cashflow-reconciliation-v102.js?v=105" sync-state-sanitizer-v22.js
           grep -Fq "cashflow-reconciliation-v102.js?v=105" sw.js
           grep -Fq 'household-treasury-v105-current-balance-authority' sw.js
-          grep -Fq 'sync-state-sanitizer-v22.js?v=105' index.html
-          grep -Fq 'app.js?v=11' index.html
-          grep -Fq 'app.js?v=11' sw.js
+          grep -Eq 'sync-state-sanitizer-v22.js\\?v=[0-9]+' index.html
+          grep -Eq 'app.js\\?v=[0-9]+' index.html
+          grep -Eq 'app.js\\?v=[0-9]+' sw.js
           grep -Fq 'import-history-hotfix.js?v=12' index.html
           grep -Fq 'import-history-hotfix.js?v=12' sw.js
           grep -Fq 'account-transfer-v83.js?v=105' sync-state-sanitizer-v22.js

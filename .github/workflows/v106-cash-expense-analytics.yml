@@ -1,5 +1,5 @@
 
-name: Check v112 Unified Transactions
+name: Check v113 Unified Transactions
 
 on:
   push:
@@ -10,7 +10,7 @@ permissions:
   contents: read
 
 jobs:
-  v112:
+  v113:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -35,9 +35,11 @@ jobs:
           ! grep -Fq "Import Summary" app.js
           grep -Fq "openSemanticTransactionEditorV108" semantic-ui-v48.js
           grep -Fq "manual_transaction_override_v108" semantic-ui-v48.js
-          grep -Fq "card-import-corrections-v73.js?v=112" sync-state-sanitizer-v22.js
-          grep -Fq "card-import-corrections-v73.js?v=112" sw.js
+          grep -Fq "card-import-corrections-v73.js?v=113" sync-state-sanitizer-v22.js
+          grep -Fq "card-import-corrections-v73.js?v=113" sw.js
           grep -Fq "householdCardImportCorrectionsV91" card-import-corrections-v73.js
+          grep -Fq "data-v110-card-edit" card-import-corrections-v73.js
+          grep -Fq "stopImmediatePropagation" card-import-corrections-v73.js
           grep -Fq "reconcileRakutenBillingV56" rakuten-billing-v56.js
           grep -Fq "cash-expense-analytics-v106.js?v=110" sw.js
           grep -Fq 'data-page="transactions"' index.html
@@ -50,10 +52,10 @@ jobs:
           grep -Fq "householdExpenseAnalyticsV106" planning-ui-v79.js
           grep -Fq "householdExpenseAnalyticsV106" dashboard-v39.js
           grep -Fq "cashExpenses" app.js
-          grep -Fq "app.js?v=112" index.html
-          grep -Fq "sync-state-sanitizer-v22.js?v=112" index.html
-          grep -Fq "household-treasury-v112-ui-consolidation" sw.js
-          grep -Fq "__householdRuntimeRelease = 'v112'" sync-state-sanitizer-v22.js
+          grep -Fq "app.js?v=113" index.html
+          grep -Fq "sync-state-sanitizer-v22.js?v=113" index.html
+          grep -Fq "household-treasury-v113-ui-consolidation" sw.js
+          grep -Fq "__householdRuntimeRelease = 'v113'" sync-state-sanitizer-v22.js
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
@@ -76,7 +78,7 @@ jobs:
             const browser=await chromium.launch({headless:true});
             const page=await browser.newPage({viewport:{width:390,height:844}});
             await page.goto('http://127.0.0.1:4173/?v106e2e=1',{waitUntil:'domcontentloaded'});
-            await page.waitForFunction(()=>window.__householdRuntimeRelease==='v112'&&!!window.householdExpenseAnalyticsV106&&!!window.openSemanticTransactionEditorV108&&!!window.householdCardImportCorrectionsV91&&!!window.reconcileRakutenBillingV56,{timeout:15000});
+            await page.waitForFunction(()=>window.__householdRuntimeRelease==='v113'&&!!window.householdExpenseAnalyticsV106&&!!window.openSemanticTransactionEditorV108&&!!window.householdCardImportCorrectionsV91&&!!window.reconcileRakutenBillingV56,{timeout:15000});
             await page.evaluate(()=>{
               const st=structuredClone((window.getTreasuryStateRaw||window.getTreasuryState)());
               st.cashExpenses=[];

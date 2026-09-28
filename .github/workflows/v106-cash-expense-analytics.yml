@@ -1,5 +1,5 @@
 
-name: Check v107 Expense Drilldown
+name: Check v108 Transaction Reclassification
 
 on:
   push:
@@ -10,7 +10,7 @@ permissions:
   contents: read
 
 jobs:
-  v107:
+  v108:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -21,18 +21,24 @@ jobs:
         run: |
           set -euo pipefail
           node --check cash-expense-analytics-v106.js
-          grep -Fq "cash-expense-analytics-v106.js?v=107" sync-state-sanitizer-v22.js
-          grep -Fq "cash-expense-analytics-v106.js?v=107" sw.js
+          node --check semantic-ui-v48.js
+          grep -Fq "cash-expense-analytics-v106.js?v=108" sync-state-sanitizer-v22.js
+          grep -Fq "semantic-ui-v48.js?v=108" sync-state-sanitizer-v22.js
+          grep -Fq "semantic-ui-v48.js?v=108" sw.js
+          grep -Fq "data-v48-tx-edit" semantic-ui-v48.js
+          grep -Fq "openSemanticTransactionEditorV108" semantic-ui-v48.js
+          grep -Fq "manual_transaction_override_v108" semantic-ui-v48.js
+          grep -Fq "cash-expense-analytics-v106.js?v=108" sw.js
           grep -Fq "dashboard-v39.js?v=107" sync-state-sanitizer-v22.js
           grep -Fq "planning-ui-v79.js?v=107" sync-state-sanitizer-v22.js
           grep -Fq "planning-ui-v79.js?v=107" sw.js
           grep -Fq "householdExpenseAnalyticsV106" planning-ui-v79.js
           grep -Fq "householdExpenseAnalyticsV106" dashboard-v39.js
           grep -Fq "cashExpenses" app.js
-          grep -Fq "app.js?v=107" index.html
-          grep -Fq "sync-state-sanitizer-v22.js?v=107" index.html
-          grep -Fq "household-treasury-v107-expense-drilldown" sw.js
-          grep -Fq "__householdRuntimeRelease = 'v107'" sync-state-sanitizer-v22.js
+          grep -Fq "app.js?v=108" index.html
+          grep -Fq "sync-state-sanitizer-v22.js?v=108" index.html
+          grep -Fq "household-treasury-v108-transaction-reclassify" sw.js
+          grep -Fq "__householdRuntimeRelease = 'v108'" sync-state-sanitizer-v22.js
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
@@ -55,7 +61,7 @@ jobs:
             const browser=await chromium.launch({headless:true});
             const page=await browser.newPage({viewport:{width:390,height:844}});
             await page.goto('http://127.0.0.1:4173/?v106e2e=1',{waitUntil:'domcontentloaded'});
-            await page.waitForFunction(()=>window.__householdRuntimeRelease==='v107'&&!!window.householdExpenseAnalyticsV106,{timeout:15000});
+            await page.waitForFunction(()=>window.__householdRuntimeRelease==='v108'&&!!window.householdExpenseAnalyticsV106,{timeout:15000});
             await page.evaluate(()=>{
               const st=structuredClone((window.getTreasuryStateRaw||window.getTreasuryState)());
               st.cashExpenses=[];
@@ -66,7 +72,8 @@ jobs:
               st.cashTransactions=[
                 {id:'atm',date:'2026-09-21',amount:-10000,description_raw:'カード出金',cashflow_type:'CASH_WITHDRAWAL_UNCLASSIFIED',economic_type:'EXPENSE',spending_class:'NORMAL',category:'OTHER'},
                 {id:'settle',date:'2026-09-22',amount:-50000,description_raw:'楽天カード',cashflow_type:'CARD_SETTLEMENT',economic_type:'TRANSFER',spending_class:null,category:null},
-                {id:'clinic',date:'2026-09-23',amount:-1070,description_raw:'クリニック',cashflow_type:'UNKNOWN',economic_type:'EXPENSE',spending_class:'NORMAL',category:'MEDICAL'}
+                {id:'clinic',date:'2026-09-23',amount:-1070,description_raw:'クリニック',cashflow_type:'UNKNOWN',economic_type:'EXPENSE',spending_class:'NORMAL',category:'MEDICAL'},
+                {id:'funding',date:'2026-09-24',amount:-20000,description_raw:'カード振込用資金移動',cashflow_type:'UNKNOWN',economic_type:'EXPENSE',spending_class:'NORMAL',category:'OTHER'}
               ];
               window.replaceTreasuryState(st);
             });
@@ -75,7 +82,7 @@ jobs:
             await page.setInputFiles('#csvInput',{name:'cash-expenses-test.csv',mimeType:'text/csv',buffer:Buffer.from(csv,'utf8')});
             await page.waitForFunction(()=>((window.getTreasuryStateRaw||window.getTreasuryState)().cashExpenses||[]).length===2,{timeout:10000});
             const model=await page.evaluate(()=>window.householdExpenseAnalyticsV106.summarize((window.getTreasuryStateRaw||window.getTreasuryState)(),'2026-09'));
-            if(model.totals.NORMAL!==7958)throw new Error('NORMAL total '+model.totals.NORMAL+' expected 7958');
+            if(model.totals.NORMAL!==27958)throw new Error('NORMAL total '+model.totals.NORMAL+' expected 27958 before reclassification');
             if(model.totals.SPECIAL!==6000)throw new Error('SPECIAL total '+model.totals.SPECIAL+' expected 6000');
             if(model.rows.some(r=>r.name==='カード出金'||r.name==='楽天カード'))throw new Error('ATM/card settlement leaked into spending rows');
             await page.click('[data-page="dashboard"]');
@@ -99,9 +106,28 @@ jobs:
             if(!detail.includes('カードスーパー')||!detail.includes('現金スーパー'))throw new Error('food detail missing rows: '+detail);
             if(detail.includes('カード出金')||detail.includes('楽天カード'))throw new Error('excluded rows appeared in detail');
             await page.locator('[data-expense-close="1"]').click();
+
+            // Historical bank transaction can be edited later from the raw dashboard detail.
+            await spend.locator('[data-expense-detail="1"][data-expense-scope="NORMAL"][data-expense-category="OTHER"]').click();
+            await page.waitForSelector('#expenseDetailModalV106',{state:'visible'});
+            await page.locator('[data-expense-edit="1"][data-expense-edit-kind="cash"][data-expense-edit-id="funding"]').click();
+            await page.waitForSelector('#transactionEditorV108',{state:'visible'});
+            await page.selectOption('#transactionEditorEconV108','TRANSFER');
+            await page.locator('[data-v108-tx-save]').click();
+            await page.waitForFunction(()=>{const t=((window.getTreasuryStateRaw||window.getTreasuryState)().cashTransactions||[]).find(x=>x.id==='funding');return t?.economic_type==='TRANSFER'&&t?.is_transfer===true},{timeout:10000});
+
+            const after=await page.evaluate(()=>window.householdExpenseAnalyticsV106.summarize((window.getTreasuryStateRaw||window.getTreasuryState)(),'2026-09'));
+            if(after.totals.NORMAL!==7958)throw new Error('NORMAL total '+after.totals.NORMAL+' expected 7958 after transfer reclassification');
+            if(after.rows.some(r=>r.name==='カード振込用資金移動'))throw new Error('reclassified transfer still appears as spending');
+
+            // It remains editable later from the transaction history page.
+            await page.click('[data-page="imports"]');
+            await page.locator('#semanticTransactionRowsV48 [data-v48-tx-edit][data-v48-kind="cash"][data-v48-id="funding"]').waitFor({state:'visible',timeout:10000});
+
+            await page.click('[data-page="dashboard"]');
             await spend.locator('[data-expense-scope-toggle="1"][data-expense-scope="SPECIAL"]').click();
             await spend.locator('[data-expense-detail="1"][data-expense-scope="SPECIAL"][data-expense-category="TRAVEL"]').waitFor({state:'visible'});
-            console.log('V106_OK',JSON.stringify({normal:model.totals.NORMAL,special:model.totals.SPECIAL,cash:model.rows.filter(r=>r.kind==='cash').length,drilldown:'scope>category>detail'}));
+            console.log('V108_OK',JSON.stringify({normalBefore:model.totals.NORMAL,normalAfter:after.totals.NORMAL,special:after.totals.SPECIAL,edit:'expense>transfer'}));
             await browser.close();
           })().catch(e=>{console.error(e);process.exit(1)});
           NODE

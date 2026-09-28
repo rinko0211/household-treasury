@@ -21,9 +21,9 @@ jobs:
           node --check planning-model-v79.js
           node --check planning-ui-v79.js
           grep -Fq "planning-model-v79.js?v=91" sync-state-sanitizer-v22.js
-          grep -Fq "planning-ui-v79.js?v=79" sync-state-sanitizer-v22.js
+          grep -Fq "planning-ui-v79.js?v=107" sync-state-sanitizer-v22.js
           grep -Fq "planning-model-v79.js?v=91" sw.js
-          grep -Fq "planning-ui-v79.js?v=79" sw.js
+          grep -Fq "planning-ui-v79.js?v=107" sw.js
           grep -Fq "household-treasury-v79-planning-stability" sw.js
       - name: Check stable single-path UI behavior
         shell: bash
@@ -37,6 +37,8 @@ jobs:
           grep -Fq "grid.prepend(chart)" planning-ui-v79.js
           grep -Fq "forecastHorizon" planning-ui-v79.js
           grep -Fq "treasury:pagechange" planning-ui-v79.js
+          grep -Fq "householdExpenseAnalyticsV106" planning-ui-v79.js
+          grep -Fq "dashSpendV79" planning-ui-v79.js
       - name: Check salary and card baseline model
         shell: bash
         run: |

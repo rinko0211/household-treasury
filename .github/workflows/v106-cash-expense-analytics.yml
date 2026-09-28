@@ -1,5 +1,5 @@
 
-name: Check Unified Transactions and Cash Expenses
+name: Check v110 Unified Transactions
 
 on:
   push:
@@ -10,7 +10,7 @@ permissions:
   contents: read
 
 jobs:
-  unified:
+  v110:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -26,26 +26,34 @@ jobs:
           grep -Fq "semantic-model-v47.js?v=109" sync-state-sanitizer-v22.js
           grep -Fq "semantic-model-v47.js?v=109" sw.js
           grep -Fq "GIFTS_EVENTS" semantic-model-v47.js
-          grep -Fq "cash-expense-analytics-v106.js?v=109" sync-state-sanitizer-v22.js
-          grep -Fq "semantic-ui-v48.js?v=109" sync-state-sanitizer-v22.js
-          grep -Fq "semantic-ui-v48.js?v=109" sw.js
+          grep -Fq "cash-expense-analytics-v106.js?v=110" sync-state-sanitizer-v22.js
+          grep -Fq "semantic-ui-v48.js?v=110" sync-state-sanitizer-v22.js
+          grep -Fq "semantic-ui-v48.js?v=110" sw.js
           grep -Fq "data-v110-tx-detail" semantic-ui-v48.js
           grep -Fq "transactionDetailV110" semantic-ui-v48.js
           grep -Fq "cash_expense" semantic-ui-v48.js
           ! grep -Fq "Import Summary" app.js
           grep -Fq "openSemanticTransactionEditorV108" semantic-ui-v48.js
           grep -Fq "manual_transaction_override_v108" semantic-ui-v48.js
-          grep -Fq "cash-expense-analytics-v106.js?v=109" sw.js
+          grep -Fq "card-import-corrections-v73.js?v=110" sync-state-sanitizer-v22.js
+          grep -Fq "card-import-corrections-v73.js?v=110" sw.js
+          grep -Fq "householdCardImportCorrectionsV91" card-import-corrections-v73.js
+          grep -Fq "reconcileRakutenBillingV56" rakuten-billing-v56.js
+          grep -Fq "cash-expense-analytics-v106.js?v=110" sw.js
+          grep -Fq 'data-page="transactions"' index.html
+          ! grep -Fq "cashExpenseCsvHelpV106" cash-expense-analytics-v106.js
+          ! grep -Fq "link-audit-v33.js" sync-state-sanitizer-v22.js
+          ! grep -Fq "link-audit-v33.js" sw.js
           grep -Fq "dashboard-v39.js?v=107" sync-state-sanitizer-v22.js
           grep -Fq "planning-ui-v79.js?v=107" sync-state-sanitizer-v22.js
           grep -Fq "planning-ui-v79.js?v=107" sw.js
           grep -Fq "householdExpenseAnalyticsV106" planning-ui-v79.js
           grep -Fq "householdExpenseAnalyticsV106" dashboard-v39.js
           grep -Fq "cashExpenses" app.js
-          grep -Fq "app.js?v=109" index.html
-          grep -Fq "sync-state-sanitizer-v22.js?v=109" index.html
-          grep -Fq "household-treasury-v109-household-categories" sw.js
-          grep -Fq "__householdRuntimeRelease = 'v109'" sync-state-sanitizer-v22.js
+          grep -Fq "app.js?v=110" index.html
+          grep -Fq "sync-state-sanitizer-v22.js?v=110" index.html
+          grep -Fq "household-treasury-v110-ui-consolidation" sw.js
+          grep -Fq "__householdRuntimeRelease = 'v110'" sync-state-sanitizer-v22.js
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
@@ -68,7 +76,7 @@ jobs:
             const browser=await chromium.launch({headless:true});
             const page=await browser.newPage({viewport:{width:390,height:844}});
             await page.goto('http://127.0.0.1:4173/?v106e2e=1',{waitUntil:'domcontentloaded'});
-            await page.waitForFunction(()=>window.__householdRuntimeRelease==='v109'&&!!window.householdExpenseAnalyticsV106,{timeout:15000});
+            await page.waitForFunction(()=>window.__householdRuntimeRelease==='v110'&&!!window.householdExpenseAnalyticsV106&&!!window.openSemanticTransactionEditorV108&&!!window.householdCardImportCorrectionsV91&&!!window.reconcileRakutenBillingV56,{timeout:15000});
             await page.evaluate(()=>{
               const st=structuredClone((window.getTreasuryStateRaw||window.getTreasuryState)());
               st.cashExpenses=[];
@@ -78,13 +86,21 @@ jobs:
               ];
               st.cashTransactions=[
                 {id:'atm',date:'2026-09-21',amount:-10000,description_raw:'カード出金',cashflow_type:'CASH_WITHDRAWAL_UNCLASSIFIED',economic_type:'EXPENSE',spending_class:'NORMAL',category:'OTHER'},
-                {id:'settle',date:'2026-09-22',amount:-50000,description_raw:'楽天カード',cashflow_type:'CARD_SETTLEMENT',economic_type:'TRANSFER',spending_class:null,category:null},
+                {id:'settle',date:'2026-09-22',amount:-50000,description_raw:'楽天カード',source:'楽天銀行',cashflow_type:'CARD_SETTLEMENT',economic_type:'TRANSFER',spending_class:null,category:null},
                 {id:'clinic',date:'2026-09-23',amount:-1070,description_raw:'クリニック',cashflow_type:'UNKNOWN',economic_type:'EXPENSE',spending_class:'NORMAL',category:'MEDICAL'},
                 {id:'funding',date:'2026-09-24',amount:-20000,description_raw:'カード振込用資金移動',cashflow_type:'UNKNOWN',economic_type:'EXPENSE',spending_class:'NORMAL',category:'OTHER'}
               ];
+              st.cardSettlements=[{settlement_id:'s1',card:'Rakuten',due_date:'2026-09-22',amount:50000,bank_transaction_id:'settle',source_file:'rakuten-test.csv'}];
+              st.cardBillingLines=[{billing_line_id:'bill1',card:'Rakuten',billing_month:'2026-09',purchase_date:'2026-09-05',merchant_raw:'請求内訳',original_amount:50000,billed_amount:50000,occurrence_index:1,source_file:'rakuten-test.csv'}];
               window.replaceTreasuryState(st);
+              const cur=(window.getTreasuryStateRaw||window.getTreasuryState)();
+              window.reconcileRakutenBillingV56(cur);
+              window.replaceTreasuryState(cur);
             });
             await page.click('[data-page="imports"]');
+            await page.waitForTimeout(100);
+            if(await page.locator('#imports #semanticTransactionsV48').count())throw new Error('transaction history leaked into Import tab');
+            if(await page.locator('#cardImportCorrectionsV73,#cashExpenseCsvHelpV106,#autoLinkAuditV33,#importSummary').count())throw new Error('retired Import UI remains');
             const csv='日付,内容,金額,カテゴリー,区分,メモ\n2026-09-24,現金スーパー,3888,食費,通常費,\n2026-09-25,現金旅行用品,6000,旅行,特別費,\n';
             await page.setInputFiles('#csvInput',{name:'cash-expenses-test.csv',mimeType:'text/csv',buffer:Buffer.from(csv,'utf8')});
             await page.waitForFunction(()=>((window.getTreasuryStateRaw||window.getTreasuryState)().cashExpenses||[]).length===2,{timeout:10000});
@@ -155,6 +171,36 @@ jobs:
             const afterCashEdit=await page.evaluate(()=>window.householdExpenseAnalyticsV106.summarize((window.getTreasuryStateRaw||window.getTreasuryState)(),'2026-09'));
             if(afterCashEdit.totals.NORMAL!==8070)throw new Error('cash edit did not update NORMAL total: '+afterCashEdit.totals.NORMAL);
 
+            // Card v91 correction is now reached from the unified transaction detail.
+            const tx=page.locator('#semanticTransactionRowsV48');
+            await tx.locator('[data-v110-tx-detail][data-v110-kind="purchase"][data-v110-id="card-food"]').click();
+            await page.waitForSelector('#transactionDetailV110',{state:'visible'});
+            await page.locator('#transactionDetailV110 [data-v110-card-edit][data-v110-kind="purchase"]').click();
+            await page.waitForSelector('#cardImportEditModalV73',{state:'visible'});
+            await page.locator('#cardImportEditModalV73 [data-v73-close]').first().click();
+
+            if(await tx.locator('[data-v110-tx-detail][data-v110-kind="cash"][data-v110-id="settle"]').count())throw new Error('linked card settlement duplicated bank row');
+            if(await tx.locator('[data-v110-tx-detail][data-v110-kind="settlement"][data-v110-id="s1"]').count()!==1)throw new Error('linked card settlement missing');
+
+            // A card billing-line edit must recompute statement difference immediately.
+            await tx.locator('[data-v110-tx-detail][data-v110-kind="billing"][data-v110-id="bill1"]').click();
+            await page.waitForSelector('#transactionDetailV110',{state:'visible'});
+            await page.locator('#transactionDetailV110 [data-v110-card-edit][data-v110-kind="billing"]').click();
+            await page.waitForSelector('#cardImportEditModalV73',{state:'visible'});
+            await page.fill('#v73LineBilled','49000');
+            await page.locator('#cardImportEditModalV73 [data-v73-save]').click();
+            await page.waitForFunction(()=>{const x=((window.getTreasuryStateRaw||window.getTreasuryState)().cardSettlements||[]).find(s=>s.settlement_id==='s1');return Number(x?.detail_difference)===1000&&x?.detail_reconciled===false},{timeout:10000});
+            await tx.locator('[data-v110-tx-detail][data-v110-kind="billing"][data-v110-id="bill1"]').click();
+            await page.locator('#transactionDetailV110 [data-v110-card-edit][data-v110-kind="billing"]').click();
+            await page.fill('#v73LineBilled','50000');
+            await page.locator('#cardImportEditModalV73 [data-v73-save]').click();
+            await page.waitForFunction(()=>{const x=((window.getTreasuryStateRaw||window.getTreasuryState)().cardSettlements||[]).find(s=>s.settlement_id==='s1');return Number(x?.detail_difference)===0&&x?.detail_reconciled===true},{timeout:10000});
+
+            await page.click('[data-page="settings"]');
+            if(await page.locator('#cash,#salaryDay,#reservedSpecial,#masterImportBtnV1,#masterExportBtnV1').count())throw new Error('retired settings/master JSON controls remain');
+            if(!(await page.locator('#reserve').isVisible())||!(await page.locator('#salary').isVisible()))throw new Error('required basic settings missing');
+            if(!(await page.locator('#exportJson').isVisible())||!(await page.locator('#importJson').isVisible()))throw new Error('unified backup controls missing');
+
             await page.click('[data-page="dashboard"]');
             await spend.locator('[data-expense-scope-toggle="1"][data-expense-scope="SPECIAL"]').click();
             await spend.locator('[data-expense-detail="1"][data-expense-scope="SPECIAL"][data-expense-category="TRAVEL"]').waitFor({state:'visible'});
@@ -188,7 +234,7 @@ jobs:
               const got=cats[name];
               if(!got||got.join('|')!==want.join('|'))throw new Error(name+' mapped '+JSON.stringify(got)+' expected '+JSON.stringify(want));
             }
-            console.log('UNIFIED_OK',JSON.stringify({normalBefore:model.totals.NORMAL,normalAfterTransfer:after.totals.NORMAL,normalAfterCashEdit:afterCashEdit.totals.NORMAL,special:after.totals.SPECIAL,categories:cats}));
+            console.log('V110_OK',JSON.stringify({normalBefore:model.totals.NORMAL,normalAfterTransfer:after.totals.NORMAL,normalAfterCashEdit:afterCashEdit.totals.NORMAL,special:after.totals.SPECIAL,categories:cats}));
             await browser.close();
           })().catch(e=>{console.error(e);process.exit(1)});
           NODE

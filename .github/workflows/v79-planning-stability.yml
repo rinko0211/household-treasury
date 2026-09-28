@@ -65,6 +65,23 @@ jobs:
           const actual=p.actualSalaryForMonth(state,'2026-10');
           if(!actual||Number(actual.amount)!==543210)throw new Error('actual salary not authoritative: '+JSON.stringify(actual));
           NODE
+      - name: Check planned income reconciles to differing bank actual
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check cashflow-reconciliation-v102.js
+          node <<'NODE'
+          const fs=require('fs'),vm=require('vm');
+          const state={settings:{cash:1000000},cashTransactions:[{id:'salary-actual',date:'2026-09-18',amount:543210,cashflow_type:'INCOME_SALARY',description_raw:'給与'}],masters:{},events:[],cardSettlements:[]};
+          const ctx={console,Date,Intl,Map,Set,Number,String,Math,structuredClone,setTimeout:()=>0,clearTimeout:()=>{},localStorage:{getItem:()=>null}};
+          ctx.window=ctx;ctx.document={addEventListener:()=>{},querySelector:()=>null,getElementById:()=>null};ctx.window.addEventListener=()=>{};ctx.getTreasuryStateRaw=()=>state;ctx.getTreasuryState=()=>state;
+          vm.createContext(ctx);vm.runInContext(fs.readFileSync('cashflow-reconciliation-v102.js','utf8'),ctx);
+          const model={history:[{key:'salary:2026-09',date:'2026-09-18',name:'給与',amount:500000,type:'SALARY',source:'settings_salary'}]};
+          const r=ctx.householdCashflowReconciliationV102.reconcileHistoryStatuses(state,model,{date:'2026-09-29',balance:1000000},'2026-09-29');
+          const row=model.history[0];
+          if(r.matched!==1||row.status!=='MATCHED_ACTUAL'||Number(row.actual_amount)!==543210)throw new Error('differing salary actual not reconciled: '+JSON.stringify({r,row}));
+          console.log('differing actual income reconciliation PASS',JSON.stringify(row));
+          NODE
       - name: Check dashboard and annual transparency
         shell: bash
         run: |

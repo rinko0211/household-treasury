@@ -255,21 +255,4 @@
     };
   }
 
-  if(typeof renderImportSummary === 'function'){
-    renderImportSummary=function renderImportSummaryV28(){
-      if(!$('importSummary'))return;const last=state.imports?.[0];
-      $('importSummary').innerHTML=last?`<div class="row"><span>最終取込</span><b>${esc(last.source||last.kind||last.type||'')}</b></div>
-        <div class="row"><span>読込 / 新規 / 重複</span><b>${last.read||0} / ${last.added||0} / ${last.duplicates||0}</b></div>
-        <div class="row"><span>自動分類 / 要確認</span><b>${last.autoClassified||0} / ${last.review||0}</b></div>
-        <div class="row"><span>固定費候補 / 自動リンク</span><b>${last.newFixedCandidates||0} / ${last.linkedCount||0}</b></div>
-        <div class="tiny">${esc(last.file||'')} · ${esc(last.encoding||'')} · ${last.at?new Date(last.at).toLocaleString('ja-JP'):''}</div>`:'まだ取込はありません。';
-      const candidates=state.importCandidates?.fixedExpenses||[];
-      const candidateHtml=candidates.length?`<div class="note" style="margin-top:10px"><b>固定費候補</b><br>${candidates.slice(0,6).map(x=>`${esc(x.name)} · 約${yen(x.average)} · ${x.count}回`).join('<br>')}</div>`:'';
-      $('reviewQueue').innerHTML=candidateHtml+(state.reviewQueue||[]).slice(0,20).map((x,i)=>`<div class="row"><div><b>${esc(x.description||x.merchant||x.source||'要確認')}</b><div class="tiny">${esc(x.date||'')} · confidence ${Number(x.confidence||0).toFixed(2)}${x.note?` · ${esc(x.note)}`:''}</div></div><button class="btn secondary" onclick="dismissReview(${i})">確認済み</button></div>`).join('');
-    };
-  }
-
-  const previousRender=typeof render==='function'?render:null;
-  if(previousRender){render=function renderWithImportEngineV28(){previousRender();try{renderImportSummary()}catch{}}}
-  try{reconcileAll();render()}catch{}
 })();

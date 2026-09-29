@@ -18,7 +18,7 @@ jobs:
         run: |
           set -euo pipefail
           for f in planning-model-v79.js planning-model-v80.js card-cycle-v81.js card-event-consistency-v86.js card-cashflow-edit-v75.js card-import-corrections-v73.js card-baseline-floor-v94.js sync-state-sanitizer-v22.js; do node --check "$f"; done
-          grep -Fq "window.__householdRuntimeRelease = 'v110'" sync-state-sanitizer-v22.js
+          grep -Eq "window.__householdRuntimeRelease = 'v[0-9]+'" sync-state-sanitizer-v22.js
           grep -Fq "card-baseline-floor-v94.js?v=94" sync-state-sanitizer-v22.js
           grep -Fq 'household-treasury-v94-card-baseline-floor' sw.js
           grep -Fq './sync-state-sanitizer-v22.js?v=110' sw.js

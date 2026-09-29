@@ -91,7 +91,7 @@
       const diffText=Array.isArray(x.diff)&&x.diff.length?`<div class="tiny" style="word-break:break-all">diff: ${x.diff.map(v=>String(v).replace(/[&<>]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[m]))).join(' / ')}</div>`:'';
       return `<div class="row" style="align-items:flex-start"><div style="min-width:0"><b>${new Date(x.savedAt).toLocaleString('ja-JP')}</b><div class="tiny">${x.reason} · records ${x.score}</div>${callerText}${diffText}</div><button class="btn secondary" data-recovery-id="${x.id}">復元</button></div>`;
     }).join('');
-    box.innerHTML=`<div class="title">端末復旧履歴 <span class="tag">${history.length}世代</span></div><div class="tiny" style="margin-bottom:8px">競合backup: ${conflict?'あり':'なし'} / remote backup: ${remote?'あり':'なし'} / localStorage keys: ${keys.length}</div>${rows||'<div class="muted">過去世代はまだありません。v11以降、同期置換前に自動保存します。</div>'}`;
+    box.innerHTML=`<div class="title">端末復旧履歴 <span class="tag">${history.length}世代</span></div><div class="tiny" style="margin-bottom:8px">過去の競合backup: ${conflict?'あり':'なし'} / 過去のremote backup: ${remote?'あり':'なし'} / localStorage keys: ${keys.length}</div>${rows||'<div class="muted">過去世代はまだありません。v11以降、同期置換前に自動保存します。</div>'}`;
     box.querySelectorAll('[data-recovery-id]').forEach(b=>b.addEventListener('click',()=>restore(b.dataset.recoveryId)));
   }
 
@@ -126,4 +126,5 @@
   const timer=setInterval(()=>{wrapCloudSave();render();if(cloudWrapped)clearInterval(timer)},300);
   window.addEventListener('storage',render);
   window.treasuryRecoverySnapshot=snapshot;
+  window.renderTreasuryRecoverySafety=render;
 })();

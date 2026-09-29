@@ -49,8 +49,14 @@
   }
   function bonusEvents(st){return (st.events||[]).filter(isBonusEvent)}
   function bankBonusExplicit(t){
-    if(Number(t?.amount)<=0)return false;const k=String(t?.cashflow_type||t?.category||'').toUpperCase(),n=norm(t?.description_raw||t?.description||'');
-    return k==='INCOME_BONUS'||/BONUS|ボーナス|賞与|期末勤勉|勤勉手当/.test(n)
+    if(Number(t?.amount)<=0)return false;
+    const k=String(t?.cashflow_type||t?.category||'').toUpperCase();
+    const n=norm(t?.description_raw||t?.description||'');
+    if(k==='INCOME_BONUS')return true;
+    // Bank campaigns such as "給与・賞与受取ボーナス金利" are interest,
+    // not a bonus payment. Never infer a bonus from those descriptions.
+    if(/INTEREST|利息|金利/.test(k)||/INTEREST|利息|金利/.test(n))return false;
+    return /BONUS|ボーナス|賞与|期末勤勉|勤勉手当/.test(n)
   }
   function salaryLikeDeposit(t){
     if(Number(t?.amount)<=0)return false;const k=String(t?.cashflow_type||t?.category||'').toUpperCase(),n=norm(t?.description_raw||t?.description||'');
@@ -58,20 +64,72 @@
   }
   function dateDistance(a,b){const x=new Date(String(a||'')+'T12:00:00'),y=new Date(String(b||'')+'T12:00:00');return Number.isNaN(x.getTime())||Number.isNaN(y.getTime())?999:Math.abs(Math.round((x-y)/86400000))}
   function syncActualBonusPlans(st){
-    ensureShape(st);let changed=false;const used=new Set((st.bonusPlans||[]).map(p=>String(p.actual_transaction_id||'')).filter(Boolean));
+    ensureShape(st);
+    let changed=false;
+    const plans=st.bonusPlans||[];
     const tx=(st.cashTransactions||[]).filter(t=>Number(t?.amount)>0&&t?.date);
-    for(const p of st.bonusPlans||[]){
-      const pm=String(p.date||'').slice(0,7);if(!pm)continue;
-      const candidates=tx.map((t,i)=>({t,i,id:String(t.id||`cash:${i}`),dist:dateDistance(p.date,t.date)}))
-        .filter(x=>!used.has(x.id)&&String(x.t.date||'').slice(0,7)===pm&&(bankBonusExplicit(x.t)||(salaryLikeDeposit(x.t)&&x.dist<=10)))
-        .sort((a,b)=>(bankBonusExplicit(b.t)?1:0)-(bankBonusExplicit(a.t)?1:0)||a.dist-b.dist||Math.abs(Number(a.t.amount)-Number(p.expected_amount||0))-Math.abs(Number(b.t.amount)-Number(p.expected_amount||0)));
-      const hit=candidates[0];if(!hit)continue;used.add(hit.id);
-      const patch={actual_transaction_id:hit.id,actual_date:String(hit.t.date||''),actual_amount:Math.max(0,Number(hit.t.amount)||0),actual_description:String(hit.t.description_raw||hit.t.description||'銀行入金')};
+    const rows=tx.map((t,i)=>({t,i,id:String(t.id||`cash:${i}`)}));
+    const byId=new Map(rows.map(x=>[x.id,x]));
+    const used=new Set();
+
+    const eligible=(p,x)=>{
+      const pm=String(p.date||'').slice(0,7);
+      if(!pm||String(x.t.date||'').slice(0,7)!==pm)return false;
+      const dist=dateDistance(p.date,x.t.date);
+      return bankBonusExplicit(x.t)||(salaryLikeDeposit(x.t)&&dist<=10);
+    };
+    const apply=(p,hit)=>{
+      const patch={
+        actual_transaction_id:hit.id,
+        actual_date:String(hit.t.date||''),
+        actual_amount:Math.max(0,Number(hit.t.amount)||0),
+        actual_description:String(hit.t.description_raw||hit.t.description||'銀行入金')
+      };
       for(const[k,v]of Object.entries(patch))if(p[k]!==v){p[k]=v;changed=true}
+      used.add(hit.id);
+    };
+
+    // First preserve an existing valid binding. Previously every plan's own current
+    // transaction id was put in "used", which forced it to choose a different
+    // transaction on every pass and caused the 65 <-> salary oscillation.
+    for(const p of plans){
+      const currentId=String(p.actual_transaction_id||'');
+      if(!currentId||used.has(currentId))continue;
+      const hit=byId.get(currentId);
+      if(hit&&eligible(p,hit))apply(p,hit);
     }
-    for(const [i,t] of tx.entries()){
-      if(!bankBonusExplicit(t))continue;const id=String(t.id||`cash:${i}`);if(used.has(id)||(st.bonusPlans||[]).some(p=>String(p.actual_transaction_id||'')===id))continue;
-      st.bonusPlans.push({id:`bonus-bank:${id}`,name:t.description_raw||t.description||'ボーナス',date:String(t.date||''),expected_amount:Math.max(0,Number(t.amount)||0),actual_amount:Math.max(0,Number(t.amount)||0),actual_date:String(t.date||''),actual_transaction_id:id,actual_description:String(t.description_raw||t.description||'銀行入金'),allocations:[],autoCreated:true,actualOnly:true,createdAt:new Date().toISOString()});used.add(id);changed=true
+
+    // Only unbound/invalid plans are matched to a new transaction.
+    for(const p of plans){
+      const currentId=String(p.actual_transaction_id||'');
+      if(currentId&&used.has(currentId))continue;
+      const candidates=rows
+        .map(x=>({...x,dist:dateDistance(p.date,x.t.date)}))
+        .filter(x=>!used.has(x.id)&&eligible(p,x))
+        .sort((a,b)=>
+          (bankBonusExplicit(b.t)?1:0)-(bankBonusExplicit(a.t)?1:0)||
+          a.dist-b.dist||
+          Math.abs(Number(a.t.amount)-Number(p.expected_amount||0))-Math.abs(Number(b.t.amount)-Number(p.expected_amount||0))
+        );
+      const hit=candidates[0];
+      if(hit)apply(p,hit);
+    }
+
+    for(const {t,i,id} of rows){
+      if(!bankBonusExplicit(t))continue;
+      if(used.has(id)||plans.some(p=>String(p.actual_transaction_id||'')===id))continue;
+      plans.push({
+        id:`bonus-bank:${id}`,
+        name:t.description_raw||t.description||'ボーナス',
+        date:String(t.date||''),
+        expected_amount:Math.max(0,Number(t.amount)||0),
+        actual_amount:Math.max(0,Number(t.amount)||0),
+        actual_date:String(t.date||''),
+        actual_transaction_id:id,
+        actual_description:String(t.description_raw||t.description||'銀行入金'),
+        allocations:[],autoCreated:true,actualOnly:true,createdAt:new Date().toISOString()
+      });
+      used.add(id);changed=true;
     }
     return changed
   }

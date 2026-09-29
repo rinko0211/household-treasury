@@ -49,7 +49,7 @@ jobs:
           grep -Fq "cashflow-integration-v41.js?v=116" sync-state-sanitizer-v22.js
           grep -Fq "bonus-allocation-v58.js?v=116" sync-state-sanitizer-v22.js
           grep -Fq "cashflow-reconciliation-v102.js?v=115" sync-state-sanitizer-v22.js
-          grep -Fq "household-treasury-v116-realized-bonus-reserve" sw.js
+          grep -Fq "household-treasury-v120-state-loop-guard" sw.js
           grep -Fq "mobile-cashflow-v59.js?v=116" sync-state-sanitizer-v22.js
           ! grep -Fq "link-audit-v33.js" sync-state-sanitizer-v22.js
           ! grep -Fq "link-audit-v33.js" sw.js
@@ -69,10 +69,15 @@ jobs:
           ! grep -Fq "injectClassic('./card-detail-stability-v64.js" sync-state-sanitizer-v22.js
           ! grep -Fq "injectClassic('./mobile-cashflow-v60.js" sync-state-sanitizer-v22.js
           ! grep -Fq "injectClassic('./mobile-interaction-kernel-v68.js" sync-state-sanitizer-v22.js
-          grep -Fq "await import('./sync-v24.js?v=119')" sync-v26.js
+          grep -Fq "await import('./sync-v24.js?v=120')" sync-v26.js
           grep -Fq "String(row.writer_device||'')===String(deviceId)" sync-v24.js
           grep -Fq "window.__treasuryApplyingRemote=true" sync-v24.js
           grep -Fq "const INIT_MIN_INTERVAL_MS=5000" sync-v24.js
+          grep -Fq "canonicalSyncState" sync-v24.js
+          grep -Fq "treasurySemanticComparable" app.js
+          grep -Fq "window.__treasuryNoopReplaceCount" app.js
+          grep -Fq "./app.js?v=120" index.html
+          grep -Fq "./sync-v26.js?v=120" index.html
           ! grep -Fq "oldRemoteApply" sync-v26.js
           ! grep -Fq "coreSource.replace" sync-v26.js
           grep -Fq "payment_model:'REVOLVING'" revolving-card-v66.js

@@ -4,7 +4,7 @@
 
   // v70 phase 2: data/model compatibility remains, but legacy hidden UI boots are disabled.
   window.__householdConsolidatedUiV70 = true;
-  window.__householdRuntimeRelease = 'v124';
+  window.__householdRuntimeRelease = 'v125';
 
   const DERIVED_KEYS = new Set([
     'updatedAt',
@@ -112,7 +112,7 @@
   injectClassic('./card-import-corrections-v73.js?v=114', 'data-household-card-import-corrections-v73');
   injectClassic('./rakuten-enavi-v74.js?v=74', 'data-household-rakuten-enavi-v74');
   injectClassic('./integrity-hotfix-v57.js?v=57', 'data-household-integrity-hotfix-v57');
-  injectClassic('./bonus-allocation-v58.js?v=116', 'data-household-bonus-allocation-v58');
+  injectClassic('./bonus-allocation-v58.js?v=125', 'data-household-bonus-allocation-v58');
   injectClassic('./bonus-allocation-target-fix-v58.js?v=58', 'data-household-bonus-allocation-target-fix-v58');
   injectClassic('./mobile-cashflow-v59.js?v=116', 'data-household-mobile-cashflow-v59');
   // v60 row renderer retired in v70 phase 1. It competed for the mobile rows host.

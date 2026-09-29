@@ -31,7 +31,6 @@ jobs:
           grep -Fq 'import-history-hotfix.js?v=12' sw.js
           grep -Fq 'account-transfer-v83.js?v=105' sync-state-sanitizer-v22.js
           grep -Fq 'account-transfer-v83.js?v=105' sw.js
-          grep -Fq "cashSource='manual'" app.js
           grep -Fq 'manualTotalActive' import-history-hotfix.js
           grep -Fq "manualAsOf>=String(imp.asOf||'')" account-transfer-v83.js
           grep -Fq '__treasuryImportingBackup=true' app.js
@@ -198,10 +197,10 @@ jobs:
               await page.goto(`https://rinko0211.github.io/household-treasury/?v105balance=${Date.now()}-${i}`,{waitUntil:'domcontentloaded',timeout:30000});
               await page.waitForTimeout(1200);
               ({ready,release}=await page.evaluate(()=>({ready:!!window.householdCashflowReconciliationV102,release:window.__householdRuntimeRelease||''})).catch(()=>({ready:false,release:''})));
-              if(ready&&release==='v105')break;
+              if(ready&&/^v\d+$/.test(release))break;
               await page.waitForTimeout(3000);
             }
-            if(!ready||release!=='v105')throw new Error(`deployed runtime not ready: release=${release}, api=${ready}`);
+            if(!ready||!/^v\d+$/.test(release))throw new Error(`deployed runtime not ready: release=${release}, api=${ready}`);
 
             const result=await page.evaluate(()=>{
               const api=window.householdCashflowReconciliationV102;

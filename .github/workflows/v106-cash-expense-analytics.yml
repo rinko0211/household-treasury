@@ -52,8 +52,8 @@ jobs:
           grep -Fq "householdExpenseAnalyticsV106" planning-ui-v79.js
           grep -Fq "householdExpenseAnalyticsV106" dashboard-v39.js
           grep -Fq "cashExpenses" app.js
-          grep -Fq "app.js?v=115" index.html
-          grep -Fq "sync-state-sanitizer-v22.js?v=115" index.html
+          grep -Fq "app.js?v=116" index.html
+          grep -Fq "sync-state-sanitizer-v22.js?v=116" index.html
           grep -Fq "household-treasury-v116-realized-bonus-reserve" sw.js
           grep -Fq "__householdRuntimeRelease = 'v116'" sync-state-sanitizer-v22.js
       - name: Setup Node

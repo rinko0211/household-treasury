@@ -1,5 +1,5 @@
-// v65 compatibility loader: preserve v26 PostgREST fix, large encrypted-state safety,
-// mark remote-state application, and include newer state domains in conflict scoring.
+// v119 stable sync loader: keep only the PostgREST cache-buster cleanup.
+// All compatibility/safety logic now lives directly in sync-v24.js.
 const nativeFetch = window.fetch.bind(window);
 window.fetch = (input, init) => {
   try {
@@ -16,26 +16,4 @@ window.fetch = (input, init) => {
   return nativeFetch(input, init);
 };
 
-const coreResponse = await nativeFetch('./sync-v24.js?v=118', {cache:'no-store'});
-if (!coreResponse.ok) throw new Error(`同期コア取得失敗 (${coreResponse.status})`);
-let coreSource = await coreResponse.text();
-const oldCodec = "const b64=bytes=>btoa(String.fromCharCode(...bytes));\nconst unb64=s=>Uint8Array.from(atob(s),c=>c.charCodeAt(0));";
-const safeCodec = `const b64=bytes=>{\n  const CHUNK=0x8000,parts=[];\n  for(let i=0;i<bytes.length;i+=CHUNK)parts.push(String.fromCharCode(...bytes.subarray(i,Math.min(i+CHUNK,bytes.length))));\n  return btoa(parts.join(''));\n};\nconst unb64=s=>{\n  const bin=atob(s),out=new Uint8Array(bin.length);\n  for(let i=0;i<bin.length;i++)out[i]=bin.charCodeAt(i);\n  return out;\n};`;
-if (!coreSource.includes(oldCodec)) throw new Error('同期コアのBase64互換パッチを適用できません。');
-coreSource = coreSource.replace(oldCodec, safeCodec);
-const oldRemoteApply="window.replaceTreasuryState?.(next);window.repairTreasuryBankBalances?.();remoteRevision=Number(row.revision)||1;";
-const safeRemoteApply="window.__treasuryApplyingRemote=true;try{window.replaceTreasuryState?.(next)}finally{window.__treasuryApplyingRemote=false}window.repairTreasuryBankBalances?.();remoteRevision=Number(row.revision)||1;";
-if (!coreSource.includes(oldRemoteApply)) throw new Error('同期コアのremote apply保護パッチを適用できません。');
-coreSource = coreSource.replace(oldRemoteApply, safeRemoteApply);
-
-const oldScoreLoop="for(const k of ['cashTransactions','purchaseEvents','cardSettlements','investmentEvents','assetSnapshots','history','imports','rules','events'])n+=Math.min(20,Array.isArray(s[k])?s[k].length:0);";
-const newScoreLoop="for(const k of ['cashTransactions','purchaseEvents','cardSettlements','cardBillingLines','investmentEvents','assetSnapshots','history','imports','rules','events','automationRules','bonusPlans','masterOccurrenceOverrides'])n+=Math.min(20,Array.isArray(s[k])?s[k].length:0);for(const k of ['accounts','cards','liabilities','fixedExpenses'])n+=Math.min(20,Array.isArray(s.masters?.[k])?s.masters[k].length:0);";
-if (!coreSource.includes(oldScoreLoop)) throw new Error('同期コアのstateScore互換パッチを適用できません。');
-coreSource = coreSource.replace(oldScoreLoop, newScoreLoop);
-
-const blobUrl = URL.createObjectURL(new Blob([coreSource], {type:'text/javascript'}));
-try {
-  await import(blobUrl);
-} finally {
-  URL.revokeObjectURL(blobUrl);
-}
+await import('./sync-v24.js?v=119');

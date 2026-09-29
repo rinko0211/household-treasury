@@ -94,7 +94,7 @@ jobs:
           grep -Fq "realizedBonus" mobile-cashflow-v59.js
           node <<'NODE'
           const fs=require('fs'),vm=require('vm');
-          const item={id:'annual-1',name:'年払い',amount:120000,dueMonth:12,reservedAmount:0,reserveMode:'AUTO',bonusAllocations:[{month:9,amount:60000}]};
+          const item={id:'annual-1',name:'年払い',cadence:'ANNUAL',amount:120000,dueMonth:12,reservedAmount:0,reserveMode:'AUTO',bonusAllocations:[{month:9,amount:60000}]};
           const state={
             bonusPlans:[{id:'autumn',name:'秋賞与',date:'2026-09-20',expected_amount:80000,actual_amount:50000,actual_date:'2026-09-20',actual_transaction_id:'bonus-actual',allocations:[]}],
             cashTransactions:[{id:'bonus-actual',date:'2026-09-20',amount:50000,cashflow_type:'INCOME_BONUS',description_raw:'賞与'}],

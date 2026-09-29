@@ -145,7 +145,7 @@
   const originalRender=typeof render==='function'?render:null;
   if(originalRender){render=function(){originalRender();renderBankBreakdown()}}
   if(typeof window.replaceTreasuryState==='function'){
-    const originalReplace=window.replaceTreasuryState;window.replaceTreasuryState=function(next){originalReplace(next);const latest=repairCurrentCash({persist:true});if(latest&&window.setTreasurySaveStatus)window.setTreasurySaveStatus(`銀行合計を更新 (${latest.asOf})`)};
+    const originalReplace=window.replaceTreasuryState;window.replaceTreasuryState=function(next){const result=originalReplace(next);if(result===false)return false;const latest=repairCurrentCash({persist:true});if(latest&&window.setTreasurySaveStatus)window.setTreasurySaveStatus(`銀行合計を更新 (${latest.asOf})`);return result};
   }
   window.repairTreasuryBankBalances=()=>repairCurrentCash({persist:true});
   const repaired=repairCurrentCash({persist:true});renderBankBreakdown(repaired);if(repaired&&window.setTreasurySaveStatus)window.setTreasurySaveStatus(`銀行合計を更新 (${repaired.asOf})`);

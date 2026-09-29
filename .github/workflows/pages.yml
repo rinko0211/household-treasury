@@ -48,7 +48,7 @@ jobs:
           grep -Fq "master-manager-v27.js?v=110" sync-state-sanitizer-v22.js
           grep -Fq "cashflow-integration-v41.js?v=116" sync-state-sanitizer-v22.js
           grep -Fq "bonus-allocation-v58.js?v=116" sync-state-sanitizer-v22.js
-          grep -Fq "cashflow-reconciliation-v102.js?v=115" sync-state-sanitizer-v22.js
+          grep -Fq "cashflow-reconciliation-v102.js?v=123" sync-state-sanitizer-v22.js
           grep -Fq "household-treasury-v123-loop-diagnostics" sw.js
           grep -Fq "mobile-cashflow-v59.js?v=116" sync-state-sanitizer-v22.js
           ! grep -Fq "link-audit-v33.js" sync-state-sanitizer-v22.js

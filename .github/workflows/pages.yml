@@ -49,7 +49,7 @@ jobs:
           grep -Fq "cashflow-integration-v41.js?v=116" sync-state-sanitizer-v22.js
           grep -Fq "bonus-allocation-v58.js?v=125" sync-state-sanitizer-v22.js
           grep -Fq "cashflow-reconciliation-v102.js?v=123" sync-state-sanitizer-v22.js
-          grep -Fq "household-treasury-v125-bonus-oscillation-fix" sw.js
+          grep -Fq "household-treasury-v126-bonus-oscillation-fix" sw.js
           grep -Fq "mobile-cashflow-v59.js?v=116" sync-state-sanitizer-v22.js
           ! grep -Fq "link-audit-v33.js" sync-state-sanitizer-v22.js
           ! grep -Fq "link-audit-v33.js" sw.js
@@ -78,7 +78,7 @@ jobs:
           grep -Fq "window.__treasuryNoopReplaceCount" app.js
           grep -Fq "if(result===false)return false" cashflow-reconciliation-v102.js
           grep -Fq "if(result===false)return false" import-history-hotfix.js
-          grep -Fq "window.__householdRuntimeRelease = 'v125'" sync-state-sanitizer-v22.js
+          grep -Fq "window.__householdRuntimeRelease = 'v126'" sync-state-sanitizer-v22.js
           grep -Fq "./cashflow-reconciliation-v102.js?v=123" sync-state-sanitizer-v22.js
           grep -Fq "./storage-budget-v55.js?v=124" sync-state-sanitizer-v22.js
           grep -Fq "./bonus-allocation-v58.js?v=125" sync-state-sanitizer-v22.js
@@ -103,17 +103,25 @@ jobs:
           grep -Fq "data-v69-event-del" desktop-interaction-v69.js
           grep -Fq "data-v69-occ-del" desktop-interaction-v69.js
           grep -Fq "data-v69-forecast" desktop-interaction-v69.js
-      - name: Check v125 bonus transaction stability
+      - name: Check v126 bonus transaction stability
         shell: bash
         run: |
           node <<'NODE'
           const fs=require('fs'),vm=require('vm');
           let state={
-            bonusPlans:[{
-              id:'plan-1',name:'ボーナス',date:'2026-09-21',expected_amount:540000,
-              actual_transaction_id:'interest',actual_date:'2026-09-21',actual_amount:65,
-              actual_description:'給与・賞与・年金受取ボーナス金利利息',allocations:[]
-            }],
+            bonusPlans:[
+              {
+                id:'bonus-bank:interest',name:'給与・賞与受取ボーナス金利',date:'2026-09-21',
+                expected_amount:65,actual_amount:65,actual_date:'2026-09-21',
+                actual_transaction_id:'interest',actual_description:'給与・賞与・年金受取ボーナス金利利息',
+                allocations:[],autoCreated:true,actualOnly:true
+              },
+              {
+                id:'manual-plan',name:'ボーナス計画',date:'2026-09-21',expected_amount:540000,
+                actual_transaction_id:'salary',actual_date:'2026-09-18',actual_amount:540288,
+                actual_description:'給与',allocations:[]
+              }
+            ],
             cashTransactions:[
               {id:'salary',date:'2026-09-18',amount:540288,cashflow_type:'INCOME_SALARY',description_raw:'給与'},
               {id:'interest',date:'2026-09-21',amount:65,cashflow_type:'INCOME_OTHER',description_raw:'給与・賞与・年金受取ボーナス金利利息'}
@@ -133,15 +141,19 @@ jobs:
           const api=window.householdBonusAllocationV58;
           if(!api)throw new Error('bonus api missing');
           if(api.bankBonusExplicit(state.cashTransactions[1]))throw new Error('interest campaign misclassified as bonus');
+
           const first=api.syncActualBonusPlans(state);
-          if(!first)throw new Error('invalid interest binding should be repaired once');
-          if(state.bonusPlans[0].actual_transaction_id!=='salary')throw new Error('salary fallback not selected after invalid interest binding');
-          if(state.bonusPlans[0].actual_amount!==540288)throw new Error('salary amount mismatch');
+          if(!first)throw new Error('stale false bonus plan should be removed once');
+          if(state.bonusPlans.some(p=>p.id==='bonus-bank:interest'))throw new Error('false auto bonus plan survived cleanup');
+          const manual=state.bonusPlans.find(p=>p.id==='manual-plan');
+          if(!manual||manual.actual_transaction_id!=='salary'||manual.actual_amount!==540288)
+            throw new Error('valid salary binding changed unexpectedly: '+JSON.stringify(manual));
+
           const snap=JSON.stringify(state.bonusPlans);
           const second=api.syncActualBonusPlans(state);
           if(second)throw new Error('second pass must be stable, but changed again');
-          if(JSON.stringify(state.bonusPlans)!==snap)throw new Error('bonus plan oscillated on second pass');
-          console.log('V125_BONUS_STABILITY_PASS',state.bonusPlans[0]);
+          if(JSON.stringify(state.bonusPlans)!==snap)throw new Error('bonus state oscillated on second pass');
+          console.log('V126_BONUS_STABILITY_PASS',state.bonusPlans);
           NODE
 
       - name: Check v70 mobile single-owner phase 2

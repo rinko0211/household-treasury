@@ -16,4 +16,4 @@ window.fetch = (input, init) => {
   return nativeFetch(input, init);
 };
 
-await import('./sync-v24.js?v=123');
+await import('./sync-v24.js?v=127');

@@ -287,5 +287,33 @@ function importBackupState(obj){
 $('importJson').onclick=()=>$('jsonInput').click();
 $('jsonInput').onchange=e=>{const input=e.target,f=input.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{const obj=JSON.parse(r.result);if(!importRuleSpec(obj))importBackupState(obj)}catch{alert('JSONを読み込めませんでした')}finally{input.value=''}};r.readAsText(f)};
 document.querySelectorAll('.tab').forEach(b=>b.onclick=()=>{document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));document.querySelectorAll('.page').forEach(x=>x.classList.remove('active'));b.classList.add('active');$(b.dataset.page).classList.add('active');render()});
-window.getTreasuryState=()=>structuredClone(state);window.replaceTreasuryState=n=>{state=structuredClone(n);normalize();localStorage.setItem(KEY,JSON.stringify(state));injectUi();render()};window.setTreasurySaveStatus=t=>$('saveStatus').textContent=t;
+function treasurySemanticComparable(input){
+  const VOLATILE_TOP=new Set([
+    'updatedAt','bankBalanceAsOf','bankInstitutionBalances','bankAccountBalances',
+    'cashflowReconciliationV102','cashflowRolloverV101','recoveredCanonicalEvidenceV104'
+  ]);
+  const walk=v=>{
+    if(Array.isArray(v))return v.map(walk);
+    if(!v||typeof v!=='object')return v;
+    const out={};
+    for(const k of Object.keys(v).sort()){
+      if(VOLATILE_TOP.has(k))continue;
+      if(/(?:UpdatedAt|updatedAt|updated_at|savedAt|reconciledAt|archivedAt|lastLoadRebuildAt)$/.test(k))continue;
+      out[k]=walk(v[k]);
+    }
+    return out;
+  };
+  try{return JSON.stringify(walk(input||{}))}catch{return''}
+}
+window.getTreasuryState=()=>structuredClone(state);
+window.replaceTreasuryState=n=>{
+  const next=structuredClone(n||{});
+  const before=treasurySemanticComparable(state),after=treasurySemanticComparable(next);
+  if(before&&after&&before===after){
+    window.__treasuryNoopReplaceCount=(window.__treasuryNoopReplaceCount||0)+1;
+    return false;
+  }
+  state=next;normalize();localStorage.setItem(KEY,JSON.stringify(state));injectUi();render();return true
+};
+window.setTreasurySaveStatus=t=>$('saveStatus').textContent=t;
 load();render();

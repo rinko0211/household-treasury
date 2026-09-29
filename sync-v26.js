@@ -16,7 +16,7 @@ window.fetch = (input, init) => {
   return nativeFetch(input, init);
 };
 
-const coreResponse = await nativeFetch('./sync-v24.js?v=117', {cache:'no-store'});
+const coreResponse = await nativeFetch('./sync-v24.js?v=118', {cache:'no-store'});
 if (!coreResponse.ok) throw new Error(`同期コア取得失敗 (${coreResponse.status})`);
 let coreSource = await coreResponse.text();
 const oldCodec = "const b64=bytes=>btoa(String.fromCharCode(...bytes));\nconst unb64=s=>Uint8Array.from(atob(s),c=>c.charCodeAt(0));";

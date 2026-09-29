@@ -1,5 +1,5 @@
 
-name: Check v115 Unified Transactions
+name: Check v116 Unified Transactions
 
 on:
   push:
@@ -219,8 +219,14 @@ jobs:
             if(Number(settingsState.salaryDay)!==18||Number(settingsState.reservedSpecial)!==1234)throw new Error('saving basic settings changed hidden settings: '+JSON.stringify(settingsState));
 
             await page.click('[data-page="dashboard"]');
-            await spend.locator('[data-expense-scope-toggle="1"][data-expense-scope="SPECIAL"]').click();
-            await spend.locator('[data-expense-detail="1"][data-expense-scope="SPECIAL"][data-expense-category="TRAVEL"]').waitFor({state:'visible'});
+            const spendFinal=page.locator('#dashSpendV79');
+            await spendFinal.waitFor({state:'visible',timeout:10000});
+            await page.waitForTimeout(400);
+            const specialToggleFinal=spendFinal.locator('[data-expense-scope-toggle="1"][data-expense-scope="SPECIAL"]');
+            await specialToggleFinal.waitFor({state:'visible',timeout:10000});
+            await specialToggleFinal.click();
+            await spendFinal.locator('[data-expense-category-list="SPECIAL"]').waitFor({state:'visible',timeout:10000});
+            await spendFinal.locator('[data-expense-detail="1"][data-expense-scope="SPECIAL"][data-expense-category="TRAVEL"]').waitFor({state:'visible',timeout:10000});
 
             // Household CSV labels are normalized into analytically useful categories.
             await page.click('[data-page="imports"]');

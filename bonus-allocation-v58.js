@@ -59,7 +59,10 @@
     return /BONUS|ボーナス|賞与|期末勤勉|勤勉手当/.test(n)
   }
   function salaryLikeDeposit(t){
-    if(Number(t?.amount)<=0)return false;const k=String(t?.cashflow_type||t?.category||'').toUpperCase(),n=norm(t?.description_raw||t?.description||'');
+    if(Number(t?.amount)<=0)return false;
+    const k=String(t?.cashflow_type||t?.category||'').toUpperCase();
+    const n=norm(t?.description_raw||t?.description||'');
+    if(/INTEREST|利息|金利/.test(k)||/INTEREST|利息|金利/.test(n))return false;
     return k==='INCOME_SALARY'||/給与|俸給|SALARY/.test(n)
   }
   function dateDistance(a,b){const x=new Date(String(a||'')+'T12:00:00'),y=new Date(String(b||'')+'T12:00:00');return Number.isNaN(x.getTime())||Number.isNaN(y.getTime())?999:Math.abs(Math.round((x-y)/86400000))}

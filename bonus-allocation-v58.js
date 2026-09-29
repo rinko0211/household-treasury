@@ -69,10 +69,22 @@
   function syncActualBonusPlans(st){
     ensureShape(st);
     let changed=false;
-    const plans=st.bonusPlans||[];
     const tx=(st.cashTransactions||[]).filter(t=>Number(t?.amount)>0&&t?.date);
     const rows=tx.map((t,i)=>({t,i,id:String(t.id||`cash:${i}`)}));
     const byId=new Map(rows.map(x=>[x.id,x]));
+
+    // Remove bank-only plans that were auto-created from a transaction which is
+    // no longer a real bonus (e.g. "給与・賞与受取ボーナス金利" interest).
+    const beforePlans=st.bonusPlans.length;
+    st.bonusPlans=st.bonusPlans.filter(p=>{
+      if(!(p?.autoCreated&&p?.actualOnly))return true;
+      const id=String(p.actual_transaction_id||'');
+      const hit=byId.get(id);
+      return !!(hit&&bankBonusExplicit(hit.t));
+    });
+    if(st.bonusPlans.length!==beforePlans)changed=true;
+
+    const plans=st.bonusPlans;
     const used=new Set();
 
     const eligible=(p,x)=>{

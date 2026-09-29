@@ -87,7 +87,7 @@ jobs:
           grep -Fq "fingerprint:String(x?.fingerprint||'')" storage-budget-v55.js
           grep -Fq "caller:String(x?.caller||'')" storage-budget-v55.js
           grep -Fq "diff:Array.isArray(x?.diff)" storage-budget-v55.js
-          grep -Fq "./sync-state-sanitizer-v22.js?v=125" index.html
+          grep -Fq "./sync-state-sanitizer-v22.js?v=126" index.html
           grep -Fq "meaningfulChange=fp(current)!==fp(next)" recovery-safety.js
           grep -Fq "history[0]?.fingerprint!==fingerprint" recovery-safety.js
           grep -Fq "function diffPaths" recovery-safety.js

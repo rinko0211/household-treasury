@@ -47,9 +47,9 @@ jobs:
           grep -Fq "cash-expense-analytics-v106.js?v=110" sync-state-sanitizer-v22.js
           grep -Fq "master-manager-v27.js?v=110" sync-state-sanitizer-v22.js
           grep -Fq "cashflow-integration-v41.js?v=116" sync-state-sanitizer-v22.js
-          grep -Fq "bonus-allocation-v58.js?v=125" sync-state-sanitizer-v22.js
+          grep -Fq "bonus-allocation-v58.js?v=126" sync-state-sanitizer-v22.js
           grep -Fq "cashflow-reconciliation-v102.js?v=123" sync-state-sanitizer-v22.js
-          grep -Fq "household-treasury-v126-bonus-oscillation-fix" sw.js
+          grep -Fq "household-treasury-v126-bonus-cleanup" sw.js
           grep -Fq "mobile-cashflow-v59.js?v=116" sync-state-sanitizer-v22.js
           ! grep -Fq "link-audit-v33.js" sync-state-sanitizer-v22.js
           ! grep -Fq "link-audit-v33.js" sw.js
@@ -81,7 +81,7 @@ jobs:
           grep -Fq "window.__householdRuntimeRelease = 'v126'" sync-state-sanitizer-v22.js
           grep -Fq "./cashflow-reconciliation-v102.js?v=123" sync-state-sanitizer-v22.js
           grep -Fq "./storage-budget-v55.js?v=124" sync-state-sanitizer-v22.js
-          grep -Fq "./bonus-allocation-v58.js?v=125" sync-state-sanitizer-v22.js
+          grep -Fq "./bonus-allocation-v58.js?v=126" sync-state-sanitizer-v22.js
           grep -Fq "if(/INTEREST|利息|金利/.test(k)||/INTEREST|利息|金利/.test(n))return false" bonus-allocation-v58.js
           grep -Fq "const currentId=String(p.actual_transaction_id||'')" bonus-allocation-v58.js
           grep -Fq "fingerprint:String(x?.fingerprint||'')" storage-budget-v55.js

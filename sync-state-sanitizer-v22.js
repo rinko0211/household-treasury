@@ -10,7 +10,12 @@
     'updatedAt',
     'bankBalanceAsOf',
     'bankInstitutionBalances',
-    'bankAccountBalances'
+    'bankAccountBalances',
+    // Rebuilt locally from canonical bank/events data. Syncing these fields causes
+    // timestamp/derived-state churn and false dirty/conflict detection across devices.
+    'cashflowReconciliationV102',
+    'cashflowRolloverV101',
+    'recoveredCanonicalEvidenceV104'
   ]);
 
   function sanitize(obj) {

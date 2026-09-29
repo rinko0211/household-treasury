@@ -581,6 +581,9 @@
       const externalLoad=!!window.__treasuryApplyingRemote||!!window.__treasuryRecoveryRestoring||!!window.__treasuryImportingBackup;
       if(externalLoad)window.__treasuryLoadedStateNeedsRebuild=true;
       const result=previousReplace(next);
+      // Base replace returns false for a semantic no-op. Do not turn that no-op
+      // into another bank repair + reconciliation cycle.
+      if(result===false)return false;
       if(!internalWrite){
         try{window.repairTreasuryBankBalances?.()}catch{}
         schedule(externalLoad?0:120,{rebuildDerived:externalLoad});

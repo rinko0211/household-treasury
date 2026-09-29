@@ -4,7 +4,7 @@
 
   // v70 phase 2: data/model compatibility remains, but legacy hidden UI boots are disabled.
   window.__householdConsolidatedUiV70 = true;
-  window.__householdRuntimeRelease = 'v123';
+  window.__householdRuntimeRelease = 'v124';
 
   const DERIVED_KEYS = new Set([
     'updatedAt',
@@ -69,7 +69,7 @@
     document.head.appendChild(script);
   }
 
-  injectClassic('./storage-budget-v55.js?v=55', 'data-household-storage-budget-v55');
+  injectClassic('./storage-budget-v55.js?v=124', 'data-household-storage-budget-v55');
   injectClassic('./master-manager-v27.js?v=110', 'data-household-master-v27');
   injectClassic('./card-settings-unified-v77.js?v=77', 'data-household-card-settings-unified-v77');
   injectClassic('./import-engine-v28.js?v=28', 'data-household-import-v28');

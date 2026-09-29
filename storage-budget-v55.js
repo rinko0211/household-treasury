@@ -12,6 +12,9 @@
       savedAt:x?.savedAt||new Date().toISOString(),
       reason:x?.reason||'端末復旧',
       score:Number(x?.score)||0,
+      fingerprint:String(x?.fingerprint||''),
+      caller:String(x?.caller||'').slice(0,220),
+      diff:Array.isArray(x?.diff)?x.diff.slice(0,8).map(v=>String(v).slice(0,240)):[],
       state:x?.state||null
     })));
   }

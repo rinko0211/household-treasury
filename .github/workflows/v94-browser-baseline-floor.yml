@@ -39,10 +39,10 @@ jobs:
               await page.waitForTimeout(1200);
               release=await page.evaluate(()=>window.__householdRuntimeRelease||'').catch(()=> '');
               const ready=await page.evaluate(()=>!!window.householdCardBaselineFloorV94&&!!window.householdCardMasterBaselineV95).catch(()=>false);
-              if(/^v\\d+$/.test(release)&&ready)break;
+              if(/^v\d+$/.test(release)&&ready)break;
               await page.waitForTimeout(3000);
             }
-            if(!/^v\\d+$/.test(release))throw new Error(`deployed runtime is not versioned: ${release||'unknown'}`);
+            if(!/^v\d+$/.test(release))throw new Error(`deployed runtime is not versioned: ${release||'unknown'}`);
             await page.waitForFunction(()=>typeof window.replaceTreasuryState==='function'&&typeof window.forecast==='function'&&!!window.householdCardBaselineFloorV94&&!!window.householdCardMasterBaselineV95,{timeout:15000});
 
             await page.evaluate(()=>{

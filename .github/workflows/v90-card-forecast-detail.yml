@@ -21,9 +21,9 @@ jobs:
           grep -Eq "window.__householdRuntimeRelease = 'v[0-9]+'" sync-state-sanitizer-v22.js
           grep -Fq "card-baseline-floor-v94.js?v=94" sync-state-sanitizer-v22.js
           grep -Fq 'household-treasury-v94-card-baseline-floor' sw.js
-          grep -Fq './sync-state-sanitizer-v22.js?v=110' sw.js
+          grep -Fq './sync-state-sanitizer-v22.js?v=116' sw.js
           grep -Fq './card-baseline-floor-v94.js?v=94' sw.js
-          grep -Fq './sync-state-sanitizer-v22.js?v=110' index.html
+          grep -Fq './sync-state-sanitizer-v22.js?v=116' index.html
           ! grep -Fq 'card-forecast-authority-v92.js?v=93' sync-state-sanitizer-v22.js
           ! grep -Fq 'card-forecast-authority-v92.js?v=93' sw.js
           grep -Fq "updateViaCache:'none'" index.html

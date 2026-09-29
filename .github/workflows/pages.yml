@@ -69,7 +69,12 @@ jobs:
           ! grep -Fq "injectClassic('./card-detail-stability-v64.js" sync-state-sanitizer-v22.js
           ! grep -Fq "injectClassic('./mobile-cashflow-v60.js" sync-state-sanitizer-v22.js
           ! grep -Fq "injectClassic('./mobile-interaction-kernel-v68.js" sync-state-sanitizer-v22.js
-          grep -Fq "masterOccurrenceOverrides" sync-v26.js
+          grep -Fq "await import('./sync-v24.js?v=119')" sync-v26.js
+          grep -Fq "String(row.writer_device||'')===String(deviceId)" sync-v24.js
+          grep -Fq "window.__treasuryApplyingRemote=true" sync-v24.js
+          grep -Fq "const INIT_MIN_INTERVAL_MS=5000" sync-v24.js
+          ! grep -Fq "oldRemoteApply" sync-v26.js
+          ! grep -Fq "coreSource.replace" sync-v26.js
           grep -Fq "payment_model:'REVOLVING'" revolving-card-v66.js
           grep -Fq "CARD_REVOLVING_PAYMENT" revolving-card-v66.js
           grep -Fq "principal_unknown:true" revolving-card-v66.js

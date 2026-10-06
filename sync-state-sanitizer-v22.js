@@ -127,7 +127,7 @@
   injectClassic('./card-cashflow-edit-v75.js?v=91', 'data-household-card-cashflow-edit-v75');
   if (window.matchMedia?.('(min-width:821px)').matches) injectClassic('./desktop-interaction-v69.js?v=69', 'data-household-desktop-interaction-v69');
   injectClassic('./tab-router-v71.js?v=71', 'data-household-tab-router-v71');
-  injectClassic('./expense-tab-v129.js?v=129', 'data-household-expense-tab-v129');
+  injectClassic('./expense-tab-v130.js?v=130', 'data-household-expense-tab-v130');
   // v79/v80 provide card baseline and component models; v94 is the final baseline-floor authority.
   injectClassic('./planning-model-v79.js?v=116', 'data-household-planning-model-v79');
   injectClassic('./planning-ui-v79.js?v=107', 'data-household-planning-ui-v79');

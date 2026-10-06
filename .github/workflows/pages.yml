@@ -45,12 +45,12 @@ jobs:
           grep -Fq "semantic-model-v47.js" sync-state-sanitizer-v22.js
           grep -Fq "semantic-ui-v48.js?v=114" sync-state-sanitizer-v22.js
           grep -Fq "cash-expense-analytics-v106.js?v=110" sync-state-sanitizer-v22.js
-          grep -Fq "expense-tab-v129.js?v=129" sync-state-sanitizer-v22.js
+          grep -Fq "expense-tab-v130.js?v=130" sync-state-sanitizer-v22.js
           grep -Fq "master-manager-v27.js?v=110" sync-state-sanitizer-v22.js
           grep -Fq "cashflow-integration-v41.js?v=116" sync-state-sanitizer-v22.js
           grep -Fq "bonus-allocation-v58.js?v=126" sync-state-sanitizer-v22.js
           grep -Fq "cashflow-reconciliation-v102.js?v=123" sync-state-sanitizer-v22.js
-          grep -Fq "household-treasury-v129-expense-tab" sw.js
+          grep -Fq "household-treasury-v130-expense-edit" sw.js
           grep -Fq "mobile-cashflow-v59.js?v=116" sync-state-sanitizer-v22.js
           ! grep -Fq "link-audit-v33.js" sync-state-sanitizer-v22.js
           ! grep -Fq "link-audit-v33.js" sw.js
@@ -92,11 +92,14 @@ jobs:
           grep -Fq "fingerprint:String(x?.fingerprint||'')" storage-budget-v55.js
           grep -Fq "caller:String(x?.caller||'')" storage-budget-v55.js
           grep -Fq "diff:Array.isArray(x?.diff)" storage-budget-v55.js
-          grep -Fq "./sync-state-sanitizer-v22.js?v=129" index.html
+          grep -Fq "./sync-state-sanitizer-v22.js?v=130" index.html
           grep -Fq 'data-page="expenses">支出</button>' index.html
           grep -Fq 'id="expenses" class="page"' index.html
           grep -Fq 'id="expenseTabRootV129"' index.html
-          grep -Fq '"./expense-tab-v129.js?v=129"' sw.js
+          grep -Fq '"./expense-tab-v130.js?v=130"' sw.js
+          grep -Fq 'data-expense-tab-edit="1"' expense-tab-v130.js
+          grep -Fq 'openSemanticTransactionEditorV108' expense-tab-v130.js
+          grep -Fq 'watchEditorClose' expense-tab-v130.js
           grep -Fq "meaningfulChange=fp(current)!==fp(next)" recovery-safety.js
           grep -Fq "history[0]?.fingerprint!==fingerprint" recovery-safety.js
           grep -Fq "function diffPaths" recovery-safety.js

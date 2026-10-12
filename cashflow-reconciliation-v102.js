@@ -502,7 +502,7 @@
   }
   function planningStartBalanceFromState(st,now=today()) {
     // A dated balance is a snapshot, not a perpetually current balance.
-    // Carry forward unverified planned movements after that snapshot until today.
+    // Carry forward unverified planned movements strictly before today. Today's events remain in the future-event stream.
     const base=currentBalanceFromState(st,now);
     const imported=latestImportedAnchor(st);
     const manualDate=String(st.settings?.cashAsOf||'').slice(0,10);
@@ -511,9 +511,9 @@
     if(anchorDate>=now)return base;
     const model=ensureModel(st);
     const historical=[...(model.history||[])];
-    for(const x of backfillCandidates(st,anchorDate,addDaysDate(now,1)))if(!historical.some(y=>y.key===x.key))historical.push(x);
+    for(const x of backfillCandidates(st,anchorDate,now))if(!historical.some(y=>y.key===x.key))historical.push(x);
     const elapsed=historical.filter(x=>
-      String(x.date||'')>anchorDate && String(x.date||'')<=now &&
+      String(x.date||'')>anchorDate && String(x.date||'')<now &&
       Number.isFinite(Number(x.amount)) &&
       x.status!=='MATCHED_ACTUAL' && x.status!=='ANCHOR_ABSORBED' && x.status!=='ABSORBED_IN_BALANCE'
     );

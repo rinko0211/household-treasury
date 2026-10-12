@@ -118,6 +118,18 @@
       renderCashflowChart();
     };
   }
+  // Recompute after midnight or when returning to a tab left open across days.
+  let lastChartDay=new Date().toLocaleDateString('sv-SE');
+  const refreshForNewDay=()=>{
+    const day=new Date().toLocaleDateString('sv-SE');
+    if(day===lastChartDay)return;
+    lastChartDay=day;
+    try{window.householdCashflowReconciliationV102?.reconcile?.({persist:false,refresh:false});}catch{}
+    try{renderCashflowChart();}catch(e){console.error('cashflow daily refresh',e)}
+  };
+  document.addEventListener('visibilitychange',()=>{if(!document.hidden)refreshForNewDay()});
+  window.addEventListener('focus',refreshForNewDay);
+  setInterval(refreshForNewDay,60000);
   window.renderCashflowChartV21=renderCashflowChart;
   try{renderCashflowChart()}catch(e){console.error('cashflow chart v21',e)}
 })();

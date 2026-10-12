@@ -44,6 +44,18 @@ function generated(days=90){
       out.push({id:`rule:${r.id}:${month}`,date:ruleDate(y,m,r.day||1),name:r.name,amount,type:r.type||'fixed',ordinary_or_special:r.ordinary_or_special||'ORDINARY',generated:true,source:'rule'});
     }
   }
+  // Salary is a canonical forecast occurrence, even when no salary rule exists.
+  const monthlySalary=Math.max(0,Number(state.settings?.salary)||0);
+  if(monthlySalary){
+    const salaryDay=Math.min(31,Math.max(1,Number(state.settings?.salaryDay)||18));
+    for(let d=new Date(from.getFullYear(),from.getMonth(),1);d<=to;d.setMonth(d.getMonth()+1)){
+      const y=d.getFullYear(),m=d.getMonth()+1;
+      const salaryDate=ruleDate(y,m,salaryDay);
+      if(salaryDate<iso(from)||salaryDate>iso(to))continue;
+      const existing=out.some(e=>e.date===salaryDate && (String(e.type||'').toUpperCase().includes('SALARY')||/給与|俸給/.test(String(e.name||''))));
+      if(!existing)out.push({id:'salary:'+salaryDate.slice(0,7),date:salaryDate,name:'給与',amount:monthlySalary,type:'SALARY',generated:true,source:'settings_salary'});
+    }
+  }
   for(const s of state.cardSettlements){
     if(!s.due_date)continue;
     const amount=-Math.abs(Number(s.amount)||0);

@@ -506,11 +506,13 @@
     const base=currentBalanceFromState(st,now);
     const imported=latestImportedAnchor(st);
     const manualDate=String(st.settings?.cashAsOf||'').slice(0,10);
-    const manualValid=/^\\d{4}-\\d{2}-\\d{2}$/.test(manualDate);
-    const anchorDate=manualValid?manualDate:(imported?.date||now);
+    const manualValid=manualDate.length===10 && manualDate[4]==='-' && manualDate[7]==='-' && Number.isFinite(Date.parse(manualDate));
+    const anchorDate=manualValid && (!imported || manualDate>=imported.date)?manualDate:(imported?.date||now);
     if(anchorDate>=now)return base;
     const model=ensureModel(st);
-    const elapsed=(model.history||[]).filter(x=>
+    const historical=[...(model.history||[])];
+    for(const x of salaryOccurrences(st,anchorDate,now))if(!historical.some(y=>y.key===x.key))historical.push(x);
+    const elapsed=historical.filter(x=>
       String(x.date||'')>anchorDate && String(x.date||'')<now &&
       Number.isFinite(Number(x.amount)) &&
       x.status!=='MATCHED_ACTUAL' && x.status!=='ABSORBED_IN_BALANCE'

@@ -51,7 +51,18 @@
   }
 
   function isActualSalary(t){if(Number(t?.amount)<=0)return false;const k=String(t?.cashflow_type||t?.category||'').toUpperCase(),n=norm(t?.description_raw||t?.description||'');return k==='INCOME_SALARY'||/給与|俸給|SALARY/.test(n)}
-  function actualSalaryForMonth(st,ym){return(st.cashTransactions||[]).filter(t=>String(t?.date||'').slice(0,7)===ym&&isActualSalary(t)).sort((a,b)=>String(b.date||'').localeCompare(String(a.date||'')))[0]||null}
+  function actualSalaryForMonth(st,ym){
+    const salary=Math.max(0,Number(st.settings?.salary)||0),planned=dateFor(ym,Math.min(31,Math.max(1,Number(st.settings?.salaryDay)||18)));
+    if(!salary)return null;
+    const candidate=(st.cashTransactions||[]).filter(t=>
+      String(t?.date||'').slice(0,7)===ym && isActualSalary(t) &&
+      (t.account==='main'||(!t.account&&/Rakuten Bank|楽天銀行/i.test(String(t.source||'')))) &&
+      Number(t.amount)>=salary*0.5 &&
+      Math.abs((new Date(String(t.date)+'T12:00:00')-new Date(planned+'T12:00:00'))/86400000)<=7 &&
+      String(t.date||'')<=String(st.settings?.cashAsOf||'')
+    );
+    return candidate.sort((a,b)=>String(b.date||'').localeCompare(String(a.date||'')))[0]||null;
+  }
   function ensureSalaryRows(input,days=90){
     const st=stateNow(),salary=Math.max(0,Number(st.settings?.salary)||0);if(!salary)return input||[];
     const day=Math.min(31,Math.max(1,Number(st.settings?.salaryDay)||18)),rows=[...(input||[])],from=iso(new Date()),toD=new Date(`${from}T12:00:00`);toD.setDate(toD.getDate()+Math.max(0,Number(days)||90));const to=iso(toD),start=from.slice(0,7),months=Math.max(1,Math.ceil((Number(days)||90)/28)+1);

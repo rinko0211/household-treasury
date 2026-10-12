@@ -33,8 +33,8 @@
   function buildModel(){
     const horizon=Number(document.getElementById('forecastHorizon')?.value)||90;
     const f=forecast(horizon);
-    const current=Number(state.settings?.cash)||0;
-    const points=[{index:0,date:today(),name:'現在残高',amount:0,balance:current,type:'CURRENT'}];
+    const current=Number.isFinite(Number(f.planningStartBalanceV102))?Number(f.planningStartBalanceV102):(Number(state.settings?.cash)||0);
+    const points=[{index:0,date:today(),name:current!==Number(state.settings?.cash||0)?'推定現在残高':'現在残高',amount:0,balance:current,type:'CURRENT'}];
     f.rows.forEach((e,i)=>points.push({index:i+1,date:e.date,name:e.name||'',amount:Number(e.amount)||0,balance:Number(e.balance)||0,type:e.type||'',source:e.source||''}));
     return{horizon,f,current,points,reserve:Number(state.settings?.reserve)||0};
   }
@@ -44,7 +44,7 @@
     const last=model.points.at(-1),reserve=model.reserve,margin=Number(model.f.low)-reserve;
     const item=(label,value,sub='',klass='')=>`<div><span class="muted">${label}</span><b class="${klass}" style="display:block;font-size:20px;margin-top:5px">${value}</b>${sub?`<div class="tiny">${sub}</div>`:''}</div>`;
     box.innerHTML=[
-      item('現在残高',fmtYen(model.current)),
+      item('予測開始残高',fmtYen(model.current)),
       item(`${model.horizon}日後`,fmtYen(last?.balance??model.current),last?.date||''),
       item('期間内最低',fmtYen(model.f.low),model.f.lowDate,model.f.low<reserve?'bad':''),
       item('安全資金との差',`${margin>=0?'+':''}${fmtYen(margin)}`,`安全資金 ${fmtYen(reserve)}`,margin>=0?'good':'bad')

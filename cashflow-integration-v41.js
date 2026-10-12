@@ -87,14 +87,25 @@
     if(Number(t?.amount)<=0)return false;const k=String(t?.cashflow_type||t?.category||'').toUpperCase(),n=norm(t?.description_raw||t?.description||'');
     return k==='INCOME_SALARY'||/給与|俸給|SALARY/.test(n)
   }
-  function actualSalaryForMonth(st,ym){return(st.cashTransactions||[]).filter(t=>String(t?.date||'').slice(0,7)===ym&&isActualSalary(t)).sort((a,b)=>String(b.date||'').localeCompare(String(a.date||'')))[0]||null}
+  function actualSalaryForMonth(st,ym){
+    const salary=Math.max(0,Number(st.settings?.salary)||0),planned=dateFor(Number(ym.slice(0,4)),Number(ym.slice(5,7)),Math.min(31,Math.max(1,Number(st.settings?.salaryDay)||18)));
+    if(!salary)return null;
+    const candidate=(st.cashTransactions||[]).filter(t=>
+      String(t?.date||'').slice(0,7)===ym && isActualSalary(t) &&
+      (t.account==='main'||(!t.account&&/Rakuten Bank|楽天銀行/i.test(String(t.source||'')))) &&
+      Number(t.amount)>=salary*0.5 &&
+      Math.abs((new Date(String(t.date)+'T12:00:00')-new Date(planned+'T12:00:00'))/86400000)<=7 &&
+      String(t.date||'')<=String(st.settings?.cashAsOf||'')
+    );
+    return candidate.sort((a,b)=>String(b.date||'').localeCompare(String(a.date||'')))[0]||null;
+  }
   function salaryEvents(st,days,base){
     const salary=Math.max(0,Number(st.settings?.salary)||0),day=Math.min(31,Math.max(1,Number(st.settings?.salaryDay)||18));if(!salary)return[];
     const from=todayIso(),to=iso(new Date(Date.now()+Math.max(0,Number(days)||90)*86400000)),a=new Date(`${from}T12:00:00`),z=new Date(`${to}T12:00:00`),out=[];
     for(let d=new Date(a.getFullYear(),a.getMonth(),1);d<=z;d.setMonth(d.getMonth()+1)){
       const y=d.getFullYear(),m=d.getMonth()+1,date=dateFor(y,m,day);if(date<from||date>to)continue;const ym=date.slice(0,7);
       const actual=actualSalaryForMonth(st,ym);
-      const duplicate=!!actual||base.some(e=>String(e.date||'').slice(0,7)===ym&&Number(e.amount)>0&&(String(e.future_kind||'').toUpperCase()==='INCOME'||/給与|SALARY/i.test(String(e.name||e.type||''))));
+      const duplicate=!!actual||base.some(e=>String(e.date||'').slice(0,7)===ym&&Number(e.amount)>0&&(String(e.type||'').toUpperCase().includes('SALARY')||String(e.source||'').includes('salary')||/給与|俸給|SALARY/i.test(String(e.name||''))));
       if(!duplicate)out.push({id:`salary:${ym}`,date,name:'給与',amount:salary,type:'SALARY',future_kind:'INCOME',generated:true,source:'settings_salary'});
     }
     return out;

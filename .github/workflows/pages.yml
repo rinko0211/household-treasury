@@ -38,6 +38,14 @@ jobs:
                 ;;
             esac
           done
+      - name: Regression test cashflow salary and CSV rollforward
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --test tests/cashflow-salary-rollforward.test.cjs
+          grep -Fq "cashflow-salary-canonical-v135.js?v=135" sync-state-sanitizer-v22.js
+          grep -Fq "cashflow-salary-canonical-v135.js?v=135" sw.js
+          grep -Fq "cashflow-chart-v21.js?v=135" index.html
       - name: Check critical runtime loaders
         shell: bash
         run: |
@@ -47,10 +55,10 @@ jobs:
           grep -Fq "cash-expense-analytics-v106.js?v=110" sync-state-sanitizer-v22.js
           grep -Fq "expense-tab-v130.js?v=130" sync-state-sanitizer-v22.js
           grep -Fq "master-manager-v27.js?v=110" sync-state-sanitizer-v22.js
-          grep -Fq "cashflow-integration-v41.js?v=116" sync-state-sanitizer-v22.js
+          grep -Fq "cashflow-integration-v41.js?v=135" sync-state-sanitizer-v22.js
           grep -Fq "bonus-allocation-v58.js?v=126" sync-state-sanitizer-v22.js
-          grep -Fq "cashflow-reconciliation-v102.js?v=132" sync-state-sanitizer-v22.js
-          grep -Fq "household-treasury-v134-salary-forecast" sw.js
+          grep -Fq "cashflow-reconciliation-v102.js?v=135" sync-state-sanitizer-v22.js
+          grep -Fq "household-treasury-v135-salary-authority" sw.js
           grep -Fq "mobile-cashflow-v59.js?v=116" sync-state-sanitizer-v22.js
           ! grep -Fq "link-audit-v33.js" sync-state-sanitizer-v22.js
           ! grep -Fq "link-audit-v33.js" sw.js
@@ -84,7 +92,7 @@ jobs:
           grep -Fq "if(result===false)return false" cashflow-reconciliation-v102.js
           grep -Fq "if(result===false)return false" import-history-hotfix.js
           grep -Fq "window.__householdRuntimeRelease = 'v126'" sync-state-sanitizer-v22.js
-          grep -Fq "./cashflow-reconciliation-v102.js?v=132" sync-state-sanitizer-v22.js
+          grep -Fq "./cashflow-reconciliation-v102.js?v=135" sync-state-sanitizer-v22.js
           grep -Fq "./storage-budget-v55.js?v=124" sync-state-sanitizer-v22.js
           grep -Fq "./bonus-allocation-v58.js?v=126" sync-state-sanitizer-v22.js
           grep -Fq "if(/INTEREST|利息|金利/.test(k)||/INTEREST|利息|金利/.test(n))return false" bonus-allocation-v58.js
@@ -92,7 +100,7 @@ jobs:
           grep -Fq "fingerprint:String(x?.fingerprint||'')" storage-budget-v55.js
           grep -Fq "caller:String(x?.caller||'')" storage-budget-v55.js
           grep -Fq "diff:Array.isArray(x?.diff)" storage-budget-v55.js
-          grep -Fq "./sync-state-sanitizer-v22.js?v=132" index.html
+          grep -Fq "./sync-state-sanitizer-v22.js?v=135" index.html
           grep -Fq 'data-page="expenses">支出</button>' index.html
           grep -Fq 'id="expenses" class="page"' index.html
           grep -Fq 'id="expenseTabRootV129"' index.html
@@ -285,9 +293,9 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          grep -Fq "planning-model-v79.js?v=116" sync-state-sanitizer-v22.js
+          grep -Fq "planning-model-v79.js?v=135" sync-state-sanitizer-v22.js
           grep -Fq "planning-ui-v79.js?v=107" sync-state-sanitizer-v22.js
-          grep -Fq "planning-model-v79.js?v=116" sw.js
+          grep -Fq "planning-model-v79.js?v=135" sw.js
           grep -Fq "planning-ui-v79.js?v=107" sw.js
           grep -Fq "household-treasury-v79-planning-stability" sw.js
           grep -Fq "BASELINE_FLOOR" planning-model-v79.js

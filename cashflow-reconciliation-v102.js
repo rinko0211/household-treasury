@@ -501,9 +501,21 @@
     return anchorFor(st,now).balance;
   }
   function planningStartBalanceFromState(st,now=today()) {
-    // Forecast must start from the same current balance shown on Dashboard.
-    // Elapsed/unverified rows are review items only; never back-calculate today's cash.
-    return currentBalanceFromState(st,now);
+    // A dated balance is a snapshot, not a perpetually current balance.
+    // Carry forward unverified planned movements after that snapshot until today.
+    const base=currentBalanceFromState(st,now);
+    const imported=latestImportedAnchor(st);
+    const manualDate=String(st.settings?.cashAsOf||'').slice(0,10);
+    const manualValid=/^\\d{4}-\\d{2}-\\d{2}$/.test(manualDate);
+    const anchorDate=manualValid?manualDate:(imported?.date||now);
+    if(anchorDate>=now)return base;
+    const model=ensureModel(st);
+    const elapsed=(model.history||[]).filter(x=>
+      String(x.date||'')>anchorDate && String(x.date||'')<now &&
+      Number.isFinite(Number(x.amount)) &&
+      x.status!=='MATCHED_ACTUAL' && x.status!=='ABSORBED_IN_BALANCE'
+    );
+    return base+elapsed.reduce((sum,x)=>sum+Number(x.amount),0);
   }
   function currentBalance(){return currentBalanceFromState(stateNow(),today());}
   function planningStartBalance(){return planningStartBalanceFromState(stateNow(),today());}
@@ -515,7 +527,7 @@
       const st=stateNow(),f=previousForecast(days)||{rows:[],low:0,lowDate:today(),endBalance:0};
       const actual=currentBalanceFromState(st,today()),desired=planningStartBalanceFromState(st,today()),base=Number(st.settings?.cash)||0,delta=desired-base;
       const elapsed=activeElapsed(st,today()).rows.reduce((a,x)=>a+Number(x.amount||0),0);
-      const extra={actualBalanceV102:actual,actualBalanceAsOfV102:String(st.settings?.cashAsOf||today()),planningStartBalanceV102:desired,unverifiedElapsedImpactV102:0,unverifiedElapsedReferenceV105:elapsed};
+      const extra={actualBalanceV102:actual,actualBalanceAsOfV102:String(st.settings?.cashAsOf||today()),planningStartBalanceV102:desired,unverifiedElapsedImpactV102:desired-actual,unverifiedElapsedReferenceV105:elapsed};
       if(!delta)return {...f,...extra,rollforwardStartBalanceV101:desired,rollforwardDeltaV101:0};
       const rows=(f.rows||[]).map(r=>({...r,balance:Number.isFinite(Number(r.balance))?Number(r.balance)+delta:r.balance}));
       const out={...f,...extra,rows,low:Number(f.low||0)+delta,endBalance:Number(f.endBalance||0)+delta,rollforwardStartBalanceV101:desired,rollforwardDeltaV101:delta};
@@ -553,7 +565,7 @@
     const rec=model.lastReconciliation||{matched:0,absorbed:0,awaiting:rows.length,actualTransactions:mainBankRows(st).length};
     const imported=latestImportedAnchor(st);
     const card=ensureUi(),summary=$('cashflowReconciliationSummaryV102'),host=$('cashflowReconciliationRowsV102');
-    if(card&&summary)summary.innerHTML=`<div class="row"><div><b>現在残高</b><div class="tiny">${esc(String(st.settings?.cashAsOf||now))} · Dashboardと同じ開始残高</div></div><b class="amt">${yen(actual)}</b></div>${imported?`<div class="row"><div><span>銀行CSV最終確認</span><div class="tiny">${esc(imported.date)} · ${esc(imported.label)}</div></div><b class="amt">${yen(imported.balance)}</b></div>`:''}<div class="row"><span>CSV以降の未照合予定（参考）</span><b class="amt ${delta<0?'bad':delta>0?'good':''}">${delta>0?'+':''}${yen(delta)}</b></div><div class="row"><span>将来予測の開始残高</span><b class="amt">${yen(planning)}</b></div><div class="tiny" style="margin-top:6px">将来予測はDashboardの現在残高から開始します。CSV以降の過去予定は照合対象として残しますが、開始残高には加算・減算しません。</div><div class="tiny" style="margin-top:6px">照合: 実績一致 ${Number(rec.matched)||0}件 · 残高に包含 ${Number(rec.absorbed)||0}件 · 未照合 ${Number(rec.awaiting)||0}件 · 照合済み履歴 ${Number(rec.archivedTotal)||0}件 · 復旧原記録 ${Number(rec.recoveredEvidence)||0}件 · 銀行実績 ${Number(rec.actualTransactions)||0}件</div>`;
+    if(card&&summary)summary.innerHTML=`<div class="row"><div><b>現在残高</b><div class="tiny">${esc(String(st.settings?.cashAsOf||now))} · 記録された残高（予測開始額とは異なる場合があります）</div></div><b class="amt">${yen(actual)}</b></div>${imported?`<div class="row"><div><span>銀行CSV最終確認</span><div class="tiny">${esc(imported.date)} · ${esc(imported.label)}</div></div><b class="amt">${yen(imported.balance)}</b></div>`:''}<div class="row"><span>CSV以降の未照合予定（参考）</span><b class="amt ${delta<0?'bad':delta>0?'good':''}">${delta>0?'+':''}${yen(delta)}</b></div><div class="row"><span>将来予測の開始残高</span><b class="amt">${yen(planning)}</b></div><div class="tiny" style="margin-top:6px">将来予測は残高基準日から今日までの未照合予定を繰り越して開始します。銀行CSV等で残高を更新すると、基準日以前の予定は再計上しません。</div><div class="tiny" style="margin-top:6px">照合: 実績一致 ${Number(rec.matched)||0}件 · 残高に包含 ${Number(rec.absorbed)||0}件 · 未照合 ${Number(rec.awaiting)||0}件 · 照合済み履歴 ${Number(rec.archivedTotal)||0}件 · 復旧原記録 ${Number(rec.recoveredEvidence)||0}件 · 銀行実績 ${Number(rec.actualTransactions)||0}件</div>`;
     if(host){
       const recent=[...(model.history||[])].filter(x=>x.date<now).slice(-40).reverse();
       host.innerHTML=recent.length?recent.map(x=>{

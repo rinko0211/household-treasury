@@ -511,11 +511,11 @@
     if(anchorDate>=now)return base;
     const model=ensureModel(st);
     const historical=[...(model.history||[])];
-    for(const x of salaryOccurrences(st,anchorDate,now))if(!historical.some(y=>y.key===x.key))historical.push(x);
+    for(const x of backfillCandidates(st,anchorDate,addDaysDate(now,1)))if(!historical.some(y=>y.key===x.key))historical.push(x);
     const elapsed=historical.filter(x=>
-      String(x.date||'')>anchorDate && String(x.date||'')<now &&
+      String(x.date||'')>anchorDate && String(x.date||'')<=now &&
       Number.isFinite(Number(x.amount)) &&
-      x.status!=='MATCHED_ACTUAL' && x.status!=='ABSORBED_IN_BALANCE'
+      x.status!=='MATCHED_ACTUAL' && x.status!=='ANCHOR_ABSORBED' && x.status!=='ABSORBED_IN_BALANCE'
     );
     return base+elapsed.reduce((sum,x)=>sum+Number(x.amount),0);
   }

@@ -50,7 +50,7 @@ jobs:
           grep -Fq "cashflow-integration-v41.js?v=116" sync-state-sanitizer-v22.js
           grep -Fq "bonus-allocation-v58.js?v=126" sync-state-sanitizer-v22.js
           grep -Fq "cashflow-reconciliation-v102.js?v=132" sync-state-sanitizer-v22.js
-          grep -Fq "household-treasury-v133-daily-cashflow" sw.js
+          grep -Fq "household-treasury-v134-salary-forecast" sw.js
           grep -Fq "mobile-cashflow-v59.js?v=116" sync-state-sanitizer-v22.js
           ! grep -Fq "link-audit-v33.js" sync-state-sanitizer-v22.js
           ! grep -Fq "link-audit-v33.js" sw.js
@@ -105,7 +105,7 @@ jobs:
           grep -Fq "function diffPaths" recovery-safety.js
           grep -Fq "caller:" recovery-safety.js
           grep -Fq "./recovery-safety.js?v=127" index.html
-          grep -Fq "./app.js?v=123" index.html
+          grep -Fq "./app.js?v=134" index.html
           grep -Fq "./sync-v26.js?v=127" index.html
           ! grep -Fq "oldRemoteApply" sync-v26.js
           ! grep -Fq "coreSource.replace" sync-v26.js

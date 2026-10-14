@@ -91,6 +91,7 @@
     if(file.size>20*1024*1024)throw Error('MDC-F02: 20MBを超えるPDFは対応していません。');
     const bytes=new Uint8Array(await file.arrayBuffer());
     const providers=[
+      {module:'./vendor/pdfjs/pdf.min.mjs?v=137',worker:'./vendor/pdfjs/pdf.worker.min.mjs?v=137'},
       {module:'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.10.38/pdf.min.mjs',
        worker:'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.10.38/pdf.worker.min.mjs'},
       {module:'https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/pdf.min.mjs',

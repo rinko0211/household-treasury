@@ -5,55 +5,79 @@
   const yen=v=>new Intl.NumberFormat('ja-JP',{style:'currency',currency:'JPY',maximumFractionDigits:0}).format(v);
   const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const norm=s=>String(s??'').normalize('NFKC').replace(/[\s　]/g,'');
-  function lines(page){
-    const parts=(page.items||[]).filter(p=>p&&String(p.text||'').trim())
-      .map(p=>({x:Number(p.x)*595/Number(page.width||595),y:Number(p.y),text:String(p.text)}))
+  function items(page){
+    return (page.items||[]).filter(p=>p&&String(p.text||'').trim()).map(p=>({
+      x:Number(p.x)*595/Number(page.width||595),y:Number(p.y),text:String(p.text)
+    })).filter(p=>Number.isFinite(p.x)&&Number.isFinite(p.y))
       .sort((a,b)=>a.y-b.y||a.x-b.x);
+  }
+  function lines(page,tolerance=5.3){
     const rows=[];
-    for(const p of parts){
-      const last=rows.at(-1);
-      if(last&&Math.abs(last.y-p.y)<2.7)last.parts.push(p);
-      else rows.push({y:p.y,parts:[p]});
+    for(const part of items(page)){
+      const found=rows.findLast(r=>Math.abs(r.y-part.y)<=tolerance);
+      if(found)found.parts.push(part);
+      else rows.push({y:part.y,parts:[part]});
     }
     rows.forEach(r=>r.parts.sort((a,b)=>a.x-b.x));
     return rows;
   }
+  function nearField(page,label){
+    const ps=items(page);
+    const found=ps.find(p=>norm(p.text).includes(label));
+    if(!found)return '';
+    return norm(ps.filter(p=>Math.abs(p.y-found.y)<8&&p.x>=found.x)
+      .sort((a,b)=>a.x-b.x).map(p=>p.text).join(''));
+  }
   function readStatement(pages){
-    if(!Array.isArray(pages)||pages.length<2)throw Error('明細ページが不足しています。');
+    if(!Array.isArray(pages)||pages.length<2)throw Error('MDC-P01: 明細ページが不足しています。');
     const head=lines(pages[0]).map(row=>norm(row.parts.map(p=>p.text).join('')));
     const all=head.join('');
     if(!all.includes('ご利用明細書')||!all.includes('当月ご請求額')||!all.includes('お支払日'))
-      throw Error('MDCのご利用明細書を認識できません。');
-    const pay=head.find(s=>s.includes('お支払日')&&/令和\d+年\d+月\d+日/.test(s));
-    const p=pay&&pay.match(/お支払日.*?令和(\d+)年(\d+)月(\d+)日/);
-    if(!p)throw Error('支払日が判読できません。');
+      throw Error('MDC-P02: MDCのご利用明細書を認識できません。');
+    let pay=head.find(s=>s.includes('お支払日')&&/令和\d+年\d+月\d+日/.test(s))||'';
+    if(!pay)pay=nearField(pages[0],'お支払日');
+    const p=pay.match(/お支払日.*?令和(\d+)年(\d+)月(\d+)日/);
+    if(!p)throw Error('MDC-P03: 支払日が判読できません。');
     const paymentDate=[2018+Number(p[1]),String(Number(p[2])).padStart(2,'0'),String(Number(p[3])).padStart(2,'0')].join('-');
-    const summary=head.find(s=>s.includes('当月ご請求額')&&/[\d,]+円/.test(s));
-    const match=summary&&summary.match(/当月ご請求額([\d,]+)円/);
-    if(!match)throw Error('請求合計が判読できません。');
+    let summary=head.find(s=>s.includes('当月ご請求額')&&/[\d,]+円/.test(s))||'';
+    if(!/当月ご請求額[\d,]+円/.test(summary))summary=nearField(pages[0],'当月ご請求額');
+    const match=summary.match(/当月ご請求額([\d,]+)円/);
+    if(!match)throw Error('MDC-P04: 請求合計が判読できません。');
     const total=Number(match[1].replace(/,/g,''));
+    if(!Number.isSafeInteger(total)||total<0)throw Error('MDC-P05: 請求合計が不正です。');
     const entries=[];
     for(const page of pages.slice(1)){
-      for(const row of lines(page)){
-        const dateRaw=norm(row.parts.filter(x=>x.x<57).map(x=>x.text).join(''));
+      const ps=items(page), dates=[];
+      // Associate each purchase with its date row, not the preceding/following fee annotation.
+      const dateParts=ps.filter(x=>x.x<57),dateRows=[];
+      for(const part of dateParts){
+        const hit=dateRows.findLast(r=>Math.abs(r.y-part.y)<=4.7);
+        if(hit)hit.parts.push(part);
+        else dateRows.push({y:part.y,parts:[part]});
+      }
+      for(const row of dateRows){
+        const dateRaw=norm(row.parts.sort((a,b)=>a.x-b.x).map(x=>x.text).join(''));
         const d=dateRaw.match(/^(\d{1,2})\/(\d{1,2})\/(\d{1,2})$/);
         if(!d)continue;
         const year=2018+Number(d[1]),month=Number(d[2]),day=Number(d[3]);
         const dt=new Date(year,month-1,day);
-        if(dt.getFullYear()!==year||dt.getMonth()+1!==month||dt.getDate()!==day)throw Error('利用日が不正: '+dateRaw);
+        if(dt.getFullYear()!==year||dt.getMonth()+1!==month||dt.getDate()!==day)
+          throw Error('MDC-P06: 利用日が不正です ('+dateRaw+')');
         const date=[year,String(month).padStart(2,'0'),String(day).padStart(2,'0')].join('-');
-        const merchant=row.parts.filter(x=>x.x>=57&&x.x<268).map(x=>x.text).join('').trim();
-        const num=norm(row.parts.filter(x=>x.x>=299&&x.x<354).map(x=>x.text).join('')).replace(/,/g,'');
+        const line=ps.filter(x=>Math.abs(x.y-row.y)<5.1).sort((a,b)=>a.x-b.x);
+        const merchant=line.filter(x=>x.x>=57&&x.x<268).map(x=>x.text).join('').trim();
+        const num=norm(line.filter(x=>x.x>=299&&x.x<354).map(x=>x.text).join('')).replace(/,/g,'');
         const amount=/^\d+$/.test(num)?Number(num):NaN;
-        const count=Number(norm(row.parts.filter(x=>x.x>=268&&x.x<299).map(x=>x.text).join('')))||1;
-        if(!merchant||!Number.isSafeInteger(amount)||amount<=0)throw Error('明細行を判読できません: '+date);
+        const count=Number(norm(line.filter(x=>x.x>=268&&x.x<299).map(x=>x.text).join('')))||1;
+        if(!merchant||!Number.isSafeInteger(amount)||amount<=0)
+          throw Error('MDC-P07: 利用明細の行が判読できません ('+date+'、'+entries.length+'件目の次)');
         entries.push({date,merchant,amount,count});
       }
     }
-    if(!entries.length)throw Error('テキスト明細を抽出できません。画像のみのPDFは非対応です。');
-    if(entries.length>400)throw Error('明細件数が上限を超えています。');
+    if(!entries.length)throw Error('MDC-P08: 利用明細の文字を抽出できません。');
+    if(entries.length>400)throw Error('MDC-P09: 明細件数が上限を超えています。');
     const sum=entries.reduce((n,e)=>n+e.amount,0);
-    if(sum!==total)throw Error('明細合計 '+yen(sum)+' と請求額 '+yen(total)+' が不一致のため、取込を停止しました。');
+    if(sum!==total)throw Error('MDC-P10: 明細'+entries.length+'件の合計 '+yen(sum)+' と請求額 '+yen(total)+' が不一致。保存は実行していません。');
     return {entries,paymentDate,total,card:all.includes('JALカード')?'JALカード':'MDCカード'};
   }
   function toCsv(p){

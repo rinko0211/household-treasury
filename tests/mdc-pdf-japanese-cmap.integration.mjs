@@ -33,6 +33,7 @@ function makeCidPdf() {
   return new Uint8Array(pdf);
 }
 
+pdfjs.GlobalWorkerOptions.workerSrc = new URL('../vendor/pdfjs/pdf.worker.min.mjs',import.meta.url).href;
 for(const name of ['Adobe-Japan1-UCS2','UniJIS-UCS2-H']){
   assert.ok(fs.statSync('vendor/pdfjs/cmaps/'+name+'.bcmap').size>20);
 }

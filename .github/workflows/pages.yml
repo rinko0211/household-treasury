@@ -46,6 +46,14 @@ jobs:
           grep -Fq "cashflow-salary-canonical-v135.js?v=135" sync-state-sanitizer-v22.js
           grep -Fq "cashflow-salary-canonical-v135.js?v=135" sw.js
           grep -Fq "cashflow-chart-v21.js?v=135" index.html
+      - name: Test MDC PDF import and legacy card deduplication
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --test tests/mdc-pdf-import.test.cjs
+          grep -Fq 'mdc-pdf-import-v136.js?v=136' sync-state-sanitizer-v22.js
+          grep -Fq 'mdc-pdf-import-v136.js?v=136' sw.js
+          grep -Fq 'sync-state-sanitizer-v22.js?v=136' index.html
       - name: Check critical runtime loaders
         shell: bash
         run: |
@@ -58,7 +66,7 @@ jobs:
           grep -Fq "cashflow-integration-v41.js?v=135" sync-state-sanitizer-v22.js
           grep -Fq "bonus-allocation-v58.js?v=126" sync-state-sanitizer-v22.js
           grep -Fq "cashflow-reconciliation-v102.js?v=135" sync-state-sanitizer-v22.js
-          grep -Fq "household-treasury-v135-salary-authority" sw.js
+          grep -Fq "household-treasury-v136-mdc-pdf" sw.js
           grep -Fq "mobile-cashflow-v59.js?v=116" sync-state-sanitizer-v22.js
           ! grep -Fq "link-audit-v33.js" sync-state-sanitizer-v22.js
           ! grep -Fq "link-audit-v33.js" sw.js

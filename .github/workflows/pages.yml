@@ -51,13 +51,16 @@ jobs:
         run: |
           set -euo pipefail
           node --test tests/mdc-pdf-import.test.cjs
-          grep -Fq 'mdc-pdf-import-v136.js?v=138' sync-state-sanitizer-v22.js
-          grep -Fq 'mdc-pdf-import-v136.js?v=138' sw.js
+          node --test tests/mdc-card-import-scope.test.cjs
+          grep -Fq 'mdc-card-import-scope-v139.js?v=139' sync-state-sanitizer-v22.js
+          grep -Fq 'mdc-card-import-scope-v139.js?v=139' sw.js
+          grep -Fq 'mdc-pdf-import-v136.js?v=139' sync-state-sanitizer-v22.js
+          grep -Fq 'mdc-pdf-import-v136.js?v=139' sw.js
           grep -Fq 'vendor/pdfjs/pdf.min.mjs?v=137' sw.js
           grep -Fq 'vendor/pdfjs/pdf.worker.min.mjs?v=137' sw.js
           grep -Fq 'vendor/pdfjs/cmaps/Adobe-Japan1-UCS2.bcmap' sw.js
           grep -Fq 'cMapUrl:' mdc-pdf-import-v136.js
-          grep -Fq 'sync-state-sanitizer-v22.js?v=138' index.html
+          grep -Fq 'sync-state-sanitizer-v22.js?v=139' index.html
       - name: Check critical runtime loaders
         shell: bash
         run: |
@@ -70,7 +73,7 @@ jobs:
           grep -Fq "cashflow-integration-v41.js?v=135" sync-state-sanitizer-v22.js
           grep -Fq "bonus-allocation-v58.js?v=126" sync-state-sanitizer-v22.js
           grep -Fq "cashflow-reconciliation-v102.js?v=135" sync-state-sanitizer-v22.js
-          grep -Fq "household-treasury-v138-mdc-japanese-cmap" sw.js
+          grep -Fq "household-treasury-v139-mdc-card-expense" sw.js
           grep -Fq "mobile-cashflow-v59.js?v=116" sync-state-sanitizer-v22.js
           ! grep -Fq "link-audit-v33.js" sync-state-sanitizer-v22.js
           ! grep -Fq "link-audit-v33.js" sw.js
@@ -112,7 +115,7 @@ jobs:
           grep -Fq "fingerprint:String(x?.fingerprint||'')" storage-budget-v55.js
           grep -Fq "caller:String(x?.caller||'')" storage-budget-v55.js
           grep -Fq "diff:Array.isArray(x?.diff)" storage-budget-v55.js
-          grep -Fq "./sync-state-sanitizer-v22.js?v=138" index.html
+          grep -Fq "./sync-state-sanitizer-v22.js?v=139" index.html
           grep -Fq 'data-page="expenses">支出</button>' index.html
           grep -Fq 'id="expenses" class="page"' index.html
           grep -Fq 'id="expenseTabRootV129"' index.html

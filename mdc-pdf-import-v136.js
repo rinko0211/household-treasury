@@ -87,27 +87,46 @@
       .map(row=>row.map(quote).join(',')).join('\r\n')+'\r\n';
   }
   async function parseFile(file){
-    if(!/\.pdf$/i.test(file.name)&&file.type!=='application/pdf')throw Error('PDFを選択してください。');
-    if(file.size>20*1024*1024)throw Error('20MBを超えるPDFは対応していません。');
-    let pdfjs;
-    try{pdfjs=await import(cdn+'pdf.min.mjs');}
-    catch{throw Error('PDF解析ライブラリを取得できません。ネット接続を確認してください。');}
-    pdfjs.GlobalWorkerOptions.workerSrc=cdn+'pdf.worker.min.mjs';
-    let doc;
-    try{
-      doc=await pdfjs.getDocument({data:new Uint8Array(await file.arrayBuffer()),isEvalSupported:false}).promise;
-      if(doc.numPages>30)throw Error('ページ数が多すぎます。');
-      const pages=[];
-      for(let i=1;i<=doc.numPages;i++){
-        const pg=await doc.getPage(i),content=await pg.getTextContent();
-        const w=pg.view[2]-pg.view[0],h=pg.view[3]-pg.view[1];
-        pages.push({width:w,items:content.items.filter(x=>typeof x.str==='string').map(t=>({
-          x:t.transform[4]-pg.view[0],y:h-(t.transform[5]-pg.view[1]),text:t.str
-        }))});
-        pg.cleanup();
-      }
-      return readStatement(pages);
-    }finally{if(doc)await doc.destroy();}
+    if(!/\.pdf$/i.test(file.name)&&file.type!=='application/pdf')throw Error('MDC-F01: PDFを選択してください。');
+    if(file.size>20*1024*1024)throw Error('MDC-F02: 20MBを超えるPDFは対応していません。');
+    const bytes=new Uint8Array(await file.arrayBuffer());
+    const providers=[
+      {module:'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.10.38/pdf.min.mjs',
+       worker:'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.10.38/pdf.worker.min.mjs'},
+      {module:'https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/pdf.min.mjs',
+       worker:'https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/pdf.worker.min.mjs'},
+      {module:'https://unpkg.com/pdfjs-dist@4.10.38/build/pdf.min.mjs',
+       worker:'https://unpkg.com/pdfjs-dist@4.10.38/build/pdf.worker.min.mjs'}
+    ];
+    const failures=[];
+    for(let i=0;i<providers.length;i++){
+      const provider=providers[i];
+      let doc;
+      try{
+        const pdfjs=await import(provider.module);
+        pdfjs.GlobalWorkerOptions.workerSrc=provider.worker;
+        doc=await pdfjs.getDocument({data:bytes.slice(),isEvalSupported:false}).promise;
+        if(doc.numPages>30)throw Error('ページ数が多すぎます。');
+        const pages=[];
+        for(let j=1;j<=doc.numPages;j++){
+          const page=await doc.getPage(j),content=await page.getTextContent();
+          const width=page.view[2]-page.view[0],height=page.view[3]-page.view[1];
+          pages.push({width,items:content.items.filter(t=>typeof t.str==='string').map(t=>({
+            x:t.transform[4]-page.view[0],y:height-(t.transform[5]-page.view[1]),text:t.str
+          }))});
+          page.cleanup();
+        }
+        if(pages.reduce((n,page)=>n+page.items.length,0)<25)
+          throw Error('PDFの文字情報が不足しています。画像のみのPDFには対応していません。');
+        return readStatement(pages);
+      }catch(e){
+        const message=String(e?.message||e||'不明なエラー').slice(0,160);
+        // Data and statement-structure errors will not improve by trying a different CDN.
+        if(/^MDC-P\d+:/.test(message))throw e;
+        failures.push((i+1)+':'+message);
+      }finally{if(doc)try{await doc.destroy()}catch{}}
+    }
+    throw Error('MDC-F03: PDF解析ライブラリの起動に失敗しました。'+failures.join(' / '));
   }
   function mount(){
     const grid=document.querySelector('#imports .grid');

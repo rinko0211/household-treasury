@@ -362,6 +362,7 @@ jobs:
             if [ "$success" -ne 1 ]; then echo "Missing Japanese PDF CMap: $cmap" >&2; exit 1; fi
           done
           printf '%s\n' 'PDF.js 4.10.38, Apache License 2.0, https://github.com/mozilla/pdf.js' > vendor/pdfjs/NOTICE.txt
+          node tests/mdc-pdf-japanese-cmap.integration.mjs
       - name: Setup Pages
         uses: actions/configure-pages@v5
       - name: Upload site

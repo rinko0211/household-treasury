@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
-import * as pdfjs from '../vendor/pdfjs/pdf.min.mjs';
+import * as pdfjs from '../vendor/pdfjs/pdf.legacy.mjs';
 
 // Small synthetic Japanese CID document with no /ToUnicode map, matching
 // the font property that breaks iOS-exported MDC statements.

@@ -348,6 +348,19 @@ jobs:
           fetch_pdfjs pdf.worker.min.mjs
           node --check vendor/pdfjs/pdf.min.mjs
           node --check vendor/pdfjs/pdf.worker.min.mjs
+          mkdir -p vendor/pdfjs/cmaps
+          for cmap in Adobe-Japan1-UCS2 Adobe-Japan1-0 Adobe-Japan1-1 Adobe-Japan1-2 Adobe-Japan1-3 Adobe-Japan1-4 Adobe-Japan1-5 Adobe-Japan1-6 UniJIS-UCS2-H UniJIS-UTF16-H 90ms-RKSJ-H; do
+            success=0
+            for base in \
+              "https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/cmaps" \
+              "https://unpkg.com/pdfjs-dist@4.10.38/cmaps"; do
+              if curl -fsSL --connect-timeout 15 --max-time 60 --retry 2 \
+                   "${base}/${cmap}.bcmap" -o "vendor/pdfjs/cmaps/${cmap}.bcmap"; then
+                if [ "$(wc -c < "vendor/pdfjs/cmaps/${cmap}.bcmap")" -gt 20 ]; then success=1; break; fi
+              fi
+            done
+            if [ "$success" -ne 1 ]; then echo "Missing Japanese PDF CMap: $cmap" >&2; exit 1; fi
+          done
           printf '%s\n' 'PDF.js 4.10.38, Apache License 2.0, https://github.com/mozilla/pdf.js' > vendor/pdfjs/NOTICE.txt
       - name: Setup Pages
         uses: actions/configure-pages@v5

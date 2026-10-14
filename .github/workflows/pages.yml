@@ -322,6 +322,31 @@ jobs:
           ! grep -Fq "MutationObserver" planning-ui-v79.js
           ! grep -Fq "setInterval" planning-model-v79.js
           ! grep -Fq "setInterval" planning-ui-v79.js
+      - name: Bundle PDF.js parser for same-origin iPhone import
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p vendor/pdfjs
+          fetch_pdfjs() {
+            local file="$1"
+            for base in \
+              "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.10.38" \
+              "https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build" \
+              "https://unpkg.com/pdfjs-dist@4.10.38/build"; do
+              if curl -fsSL --connect-timeout 15 --max-time 90 --retry 2 \
+                   "${base}/${file}" -o "vendor/pdfjs/${file}"; then
+                if [ "$file" = "pdf.min.mjs" ] && [ "$(wc -c < vendor/pdfjs/$file)" -gt 100000 ]; then return 0; fi
+                if [ "$file" = "pdf.worker.min.mjs" ] && [ "$(wc -c < vendor/pdfjs/$file)" -gt 500000 ]; then return 0; fi
+              fi
+            done
+            echo "PDF.js runtime download failed: $file" >&2
+            exit 1
+          }
+          fetch_pdfjs pdf.min.mjs
+          fetch_pdfjs pdf.worker.min.mjs
+          node --check vendor/pdfjs/pdf.min.mjs
+          node --check vendor/pdfjs/pdf.worker.min.mjs
+          printf '%s\n' 'PDF.js 4.10.38, Apache License 2.0, https://github.com/mozilla/pdf.js' > vendor/pdfjs/NOTICE.txt
       - name: Setup Pages
         uses: actions/configure-pages@v5
       - name: Upload site

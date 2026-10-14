@@ -78,13 +78,34 @@
     if(entries.length>400)throw Error('MDC-P09: 明細件数が上限を超えています。');
     const sum=entries.reduce((n,e)=>n+e.amount,0);
     if(sum!==total)throw Error('MDC-P10: 明細'+entries.length+'件の合計 '+yen(sum)+' と請求額 '+yen(total)+' が不一致。保存は実行していません。');
-    return {entries,paymentDate,total,card:all.includes('JALカード')?'JALカード':'MDCカード'};
+    const card=all.includes('JALカード')?'JALカード':'MDCカード';
+    const numberLine=head.find(x=>x.includes('会員番号'))||'';
+    const masked=numberLine.match(/会員番号([0-9X＊*x\\-‑‐－ー]{12,32})/i)?.[1]||'';
+    const memberToken=masked.replace(/[^0-9X]/gi,'').toUpperCase();
+    const fingerprint=s=>{
+      let h=2166136261;
+      for(const c of s){h^=c.charCodeAt(0);h=Math.imul(h,16777619)}
+      return (h>>>0).toString(16).padStart(8,'0').toUpperCase();
+    };
+    const cardLabel=memberToken.length>=12?card+'-'+fingerprint(memberToken).slice(-6):card+'①';
+    return {entries,paymentDate,total,card,cardLabel,cardIdentityDetected:memberToken.length>=12};
   }
-  function toCsv(p){
+  function toLegacyCsv(p){
     const quote=s=>'"'+String(s??'').replace(/"/g,'""')+'"';
     const header=['確定情報','ご利用日','ご利用店名（海外ご利用店名／海外都市名）','ご利用金額（円）','支払回数','何回目','お支払日'];
     return [header,...p.entries.map(e=>['確定',e.date.replace(/-/g,'/'),e.merchant,e.amount,e.count,'',p.paymentDate.replace(/-/g,'/')])]
       .map(row=>row.map(quote).join(',')).join('\r\n')+'\r\n';
+  }
+  function toCsv(p,identity=p.cardLabel||'JALカード①',oldFilename=''){
+    const quote=s=>'"'+String(s??'').replace(/"/g,'""')+'"';
+    const header=['確定情報','ご利用日','ご利用店名（海外ご利用店名／海外都市名）','ご利用金額（円）','支払回数','何回目','お支払日','MDCカード識別子','MDC旧版CSVファイル'];
+    return [header,...p.entries.map(e=>['確定',e.date.replace(/-/g,'/'),e.merchant,e.amount,e.count,'',p.paymentDate.replace(/-/g,'/'),identity,oldFilename])]
+      .map(row=>row.map(quote).join(',')).join('\r\n')+'\r\n';
+  }
+  async function syntheticFilename(p,csv){
+    const digest=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(csv));
+    const shortHash=Array.from(new Uint8Array(digest).slice(0,8),x=>x.toString(16).padStart(2,'0')).join('');
+    return 'MDC_PDF_'+p.paymentDate.slice(0,7)+'_'+shortHash+'.csv';
   }
   async function parseFile(file){
     if(!/\.pdf$/i.test(file.name)&&file.type!=='application/pdf')throw Error('MDC-F01: PDFを選択してください。');
@@ -152,7 +173,12 @@
           '<div class="row"><span>支払日</span><b>'+esc(p.paymentDate)+'</b></div>'+
           '<div class="row"><span>明細</span><b>'+p.entries.length+'件</b></div>'+
           '<div class="row"><span>請求額＝明細合計</span><b>'+yen(p.total)+'</b></div>'+
+          '<div class="tiny" style="margin-top:9px">カード識別名（異なるJALカードは別名、同じカードは同じ名前）</div>'+
+          '<input id="mdcPdfCardLabelV139" type="text" maxlength="70" value="'+esc(p.cardLabel)+'" style="width:100%;margin-top:4px">'+
+          '<div class="tiny">'+(p.cardIdentityDetected?'カード番号の伏字部分から自動識別。必要なら変更できます。':'カード番号を自動識別できません。別カードなら識別名を変更してください。')+'</div>'+
+          '<div class="tiny" style="margin-top:6px">支出は引落月ではなく利用月に計上されます。'+[...new Set(p.entries.map(e=>e.date.slice(0,7)))].sort().join('、')+'の明細が対象です。</div>'+
           '<details><summary>明細プレビュー（6件）</summary>'+list+'</details>'+
+          '<div class="note" style="margin:9px 0">まだ支出へ登録していません。次の「確認して取り込む」で保存します。</div>'+
           '<button class="btn" id="mdcPdfCommitV136" type="button">確認して取り込む</button>'+
           '<div class="tiny" id="mdcPdfResultV136" style="margin-top:8px"></div>';
         const saveBtn=card.querySelector('#mdcPdfCommitV136'),status=card.querySelector('#mdcPdfResultV136');
@@ -161,13 +187,29 @@
           if(typeof importOne!=='function'){status.textContent='既存の取込エンジンが利用できません。';return;}
           saveBtn.disabled=true;status.textContent='重複照合と登録中…';
           try{
-            const csv=toCsv(p);
-            const digest=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(csv));
-            const shortHash=Array.from(new Uint8Array(digest).slice(0,8),x=>x.toString(16).padStart(2,'0')).join('');
-            const name='MDC_PDF_'+p.paymentDate.slice(0,7)+'_'+shortHash+'.csv';
+            const identity=String(card.querySelector('#mdcPdfCardLabelV139')?.value||'').normalize('NFKC').trim();
+            if(!identity)throw Error('カード識別名を入力してください。');
+            const oldName=await syntheticFilename(p,toLegacyCsv(p));
+            const csv=toCsv(p,identity,oldName);
+            const name=await syntheticFilename(p,csv);
             const synthetic=new File([csv],name,{type:'text/csv;charset=utf-8'});
             const result=await importOne(synthetic);
-            status.textContent='取込完了: 新規'+(result.added||0)+'件、重複'+(result.duplicates||0)+'件、要確認'+(result.review||0)+'件。';
+            const months=[...new Set(p.entries.map(e=>e.date.slice(0,7)))].sort();
+            const counts=Object.fromEntries(months.map(month=>[month,p.entries.filter(e=>e.date.startsWith(month)).length]));
+            status.innerHTML='<b>取込済み</b>：新規'+Number(result.added||0)+'件、既存'+Number(result.duplicates||0)+'件、旧版データ識別更新'+Number(result.upgraded||0)+'件。<div class="tiny">利用月：'+months.map(m=>m+'（'+counts[m]+'件）').join('、')+'。支払月'+p.paymentDate.slice(0,7)+'ではありません。</div>'+
+              '<div class="controls" id="mdcPdfMonthLinksV139"></div>';
+            const host=card.querySelector('#mdcPdfMonthLinksV139');
+            for(const month of months){
+              const button=document.createElement('button');button.type='button';button.className='btn secondary';
+              button.textContent=month.slice(0,4)+'年'+Number(month.slice(5,7))+'月の支出を見る';
+              button.addEventListener('click',()=>{
+                const tab=document.querySelector('[data-page="expenses"]');
+                if(tab)tab.click();
+                window.householdExpenseTabV130?.render?.(month);
+              });
+              host.appendChild(button);
+            }
+            window.dispatchEvent(new CustomEvent('treasury:expenses-imported',{detail:{months,source:'MDC_PDF'}}));
             if(typeof render==='function')render();
           }catch(e){saveBtn.disabled=false;status.textContent='取込失敗: '+String(e?.message||e);}
         };
@@ -175,7 +217,7 @@
       finally{input.value='';}
     };
   }
-  window.householdMdcPdfImportV136={readStatement,toCsv,mount};
+  window.householdMdcPdfImportV136={readStatement,toCsv,toLegacyCsv,syntheticFilename,mount};
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',mount,{once:true});
   else setTimeout(mount,0);
 })();

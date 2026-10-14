@@ -116,8 +116,11 @@
           if(typeof importOne!=='function'){status.textContent='既存の取込エンジンが利用できません。';return;}
           saveBtn.disabled=true;status.textContent='重複照合と登録中…';
           try{
-            const name='MDC_PDF_'+p.paymentDate.slice(0,7)+'_'+p.entries.length+'.csv';
-            const synthetic=new File([toCsv(p)],name,{type:'text/csv;charset=utf-8'});
+            const csv=toCsv(p);
+            const digest=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(csv));
+            const shortHash=Array.from(new Uint8Array(digest).slice(0,8),x=>x.toString(16).padStart(2,'0')).join('');
+            const name='MDC_PDF_'+p.paymentDate.slice(0,7)+'_'+shortHash+'.csv';
+            const synthetic=new File([csv],name,{type:'text/csv;charset=utf-8'});
             const result=await importOne(synthetic);
             status.textContent='取込完了: 新規'+(result.added||0)+'件、重複'+(result.duplicates||0)+'件、要確認'+(result.review||0)+'件。';
             if(typeof render==='function')render();

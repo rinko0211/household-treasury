@@ -81,3 +81,22 @@ test('fragmented vertically shifted salary-date-like payment header is still det
   pages[0].items.push(...line(26.1,[141,'令和 8年'],[209,'11月10日']));
   assert.equal(api.readStatement(pages).paymentDate,'2026-11-10');
 });
+
+test('PDF account identity is derived from masked card number; second physical card differs',()=>{
+  const api=run(),first=fixture(),other=fixture();
+  first[0].items.push(...line(48,[125,'会員番号'],[260,'4534-41XX-XXXX-90XX']));
+  other[0].items.push(...line(48,[125,'会員番号'],[260,'4534-41XX-XXXX-91XX']));
+  const a=api.readStatement(first),b=api.readStatement(other);
+  assert.equal(a.cardIdentityDetected,true);
+  assert.equal(b.cardIdentityDetected,true);
+  assert.notEqual(a.cardLabel,b.cardLabel);
+});
+test('new scoped CSV contains card identity and links legacy original converter file',()=>{
+  const api=run(),p=api.readStatement(fixture());
+  const old=api.toLegacyCsv(p);
+  const next=api.toCsv(p,'JAL-SECOND','MDC_PDF_old.csv');
+  assert.ok(!old.includes('MDCカード識別子'));
+  assert.ok(next.includes('MDCカード識別子'));
+  assert.ok(next.includes('JAL-SECOND'));
+  assert.ok(next.includes('MDC_PDF_old.csv'));
+});

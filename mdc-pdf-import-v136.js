@@ -80,8 +80,7 @@
     if(sum!==total)throw Error('MDC-P10: 明細'+entries.length+'件の合計 '+yen(sum)+' と請求額 '+yen(total)+' が不一致。保存は実行していません。');
     const card=all.includes('JALカード')?'JALカード':'MDCカード';
     const numberLine=head.find(x=>x.includes('会員番号'))||'';
-    const masked=numberLine.match(/会員番号([0-9X＊*x\\-‑‐－ー]{12,32})/i)?.[1]||'';
-    const memberToken=masked.replace(/[^0-9X]/gi,'').toUpperCase();
+    const memberToken=String(numberLine.split('会員番号')[1]||'').slice(0,35).replace(/[^0-9Xx]/g,'').toUpperCase();
     const fingerprint=s=>{
       let h=2166136261;
       for(const c of s){h^=c.charCodeAt(0);h=Math.imul(h,16777619)}

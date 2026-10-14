@@ -106,7 +106,7 @@
       try{
         const pdfjs=await import(provider.module);
         pdfjs.GlobalWorkerOptions.workerSrc=provider.worker;
-        doc=await pdfjs.getDocument({data:bytes.slice(),isEvalSupported:false}).promise;
+        doc=await pdfjs.getDocument({data:bytes.slice(),isEvalSupported:false,cMapUrl:'./vendor/pdfjs/cmaps/',cMapPacked:true,useSystemFonts:true}).promise;
         if(doc.numPages>30)throw Error('ページ数が多すぎます。');
         const pages=[];
         for(let j=1;j<=doc.numPages;j++){
@@ -117,13 +117,14 @@
           }))});
           page.cleanup();
         }
-        if(pages.reduce((n,page)=>n+page.items.length,0)<25)
-          throw Error('PDFの文字情報が不足しています。画像のみのPDFには対応していません。');
+        const itemCounts=pages.map(page=>page.items.filter(x=>String(x.text||'').trim()).length);
+        if(!itemCounts.some(Boolean))
+          throw Error('MDC-F04: PDFから文字を抽出できません。ページ別文字項目数: '+itemCounts.join(',')+'。この形式では日本語CMapが必要です。');
         return readStatement(pages);
       }catch(e){
         const message=String(e?.message||e||'不明なエラー').slice(0,160);
         // Data and statement-structure errors will not improve by trying a different CDN.
-        if(/^MDC-P\d+:/.test(message))throw e;
+        if(/^MDC-[PF]\d+:/.test(message))throw e;
         failures.push((i+1)+':'+message);
       }finally{if(doc)try{await doc.destroy()}catch{}}
     }

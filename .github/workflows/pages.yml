@@ -108,7 +108,7 @@ jobs:
           grep -Fq "fingerprint:String(x?.fingerprint||'')" storage-budget-v55.js
           grep -Fq "caller:String(x?.caller||'')" storage-budget-v55.js
           grep -Fq "diff:Array.isArray(x?.diff)" storage-budget-v55.js
-          grep -Fq "./sync-state-sanitizer-v22.js?v=135" index.html
+          grep -Fq "./sync-state-sanitizer-v22.js?v=136" index.html
           grep -Fq 'data-page="expenses">支出</button>' index.html
           grep -Fq 'id="expenses" class="page"' index.html
           grep -Fq 'id="expenseTabRootV129"' index.html

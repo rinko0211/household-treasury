@@ -71,3 +71,18 @@ test('the spending month is the purchase month, not the statement billing month'
   assert.equal(x.billing_month,'2026-11');
   assert.equal(x.economic_type,'EXPENSE');
 });
+
+test('unscoped MUFG card CSV purchase is adopted without double counting PDF and CSV',()=>{
+  const original={card:'MUFG/DC/JAL',source_file:'2026-2025.csv',purchase_date:'2026-09-22',
+    merchant_raw:'ETC AOMORI',original_amount:850,occurrence_index:1,economic_type:'EXPENSE'};
+  const s=makeRuntime([original]),row={date:'2026/09/22',merchant:'ETC AOMORI',amount:850};
+  const a=s.parse('JAL-card-1',[row],'pdf1.csv');
+  assert.equal(a.added,0);
+  assert.equal(a.upgraded,1);
+  assert.equal(s.state.purchaseEvents.length,1);
+  assert.equal(original.pdf_card_identity,'JAL-card-1');
+  const b=s.parse('JAL-card-2',[row],'pdf2.csv');
+  assert.equal(b.added,1);
+  assert.equal(s.state.purchaseEvents.length,2);
+  assert.equal(s.state.purchaseEvents.reduce((n,p)=>n+p.original_amount,0),1700);
+});

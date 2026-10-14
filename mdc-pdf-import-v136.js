@@ -3,7 +3,7 @@
   window.__mdcPdfImportV136=true;
   const cdn='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.10.38/';
   const yen=v=>new Intl.NumberFormat('ja-JP',{style:'currency',currency:'JPY',maximumFractionDigits:0}).format(v);
-  const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','"':'&#39;'}[c]));
+  const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const norm=s=>String(s??'').normalize('NFKC').replace(/[\s　]/g,'');
   function lines(page){
     const parts=(page.items||[]).filter(p=>p&&String(p.text||'').trim())

@@ -157,7 +157,9 @@
   injectClassic('./cashflow-reconciliation-v102.js?v=135', 'data-household-cashflow-reconciliation-v102');
   // v135: final salary authority after all forecast wrappers; prevents partial salary deposits suppressing payroll.
   injectClassic('./cashflow-salary-canonical-v135.js?v=135', 'data-household-salary-canonical-v135');
+  // v139: scope MDC statement purchases by physical card, not generic JAL card name.
+  injectClassic('./mdc-card-import-scope-v139.js?v=139', 'data-household-mdc-card-scope-v139');
   // v136: parse validated MDC card PDF locally, preview, then route through existing card CSV importer.
-  injectClassic('./mdc-pdf-import-v136.js?v=138', 'data-household-mdc-pdf-import-v136');
+  injectClassic('./mdc-pdf-import-v136.js?v=139', 'data-household-mdc-pdf-import-v136');
   // v92/v93 exact d-card overlay retired in v94.
 })();

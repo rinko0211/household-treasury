@@ -62,9 +62,18 @@
         x.pdf_card_identity===r.identity &&
         Number(x.occurrence_index||1)===r.occurrence);
       if(sameIdentity){duplicates++;continue;}
-      // For old non-PDF card CSV data with no identity, never infer
-      // whether an identical transaction belongs to a second physical card.
-      // Leave it intact and add the explicitly identified PDF purchase.
+      // First named PDF may correspond to a legacy CSV row with the same
+      // economic purchase. Attach its card identity rather than count it twice.
+      // Additional physical cards then remain distinct because the adopted row
+      // can no longer match a different identity.
+      const legacyUnscoped=existing.find(x=>
+        !x.pdf_card_identity && norm(x.card)==='MUFGDCJAL');
+      if(legacyUnscoped){
+        legacyUnscoped.pdf_card_identity=r.identity;
+        legacyUnscoped.pdf_statement_migrated_v139=true;
+        upgraded++;duplicates++;continue;
+      }
+
       const category=classifyMerchant(r.merchant);
       const scope=String(category.ordinary_or_special||'ORDINARY').toUpperCase()==='SPECIAL'?'SPECIAL':'NORMAL';
       const purchaseId=hash32(['MDC-PDF-SCOPED',r.identity,r.date,

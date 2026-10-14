@@ -51,3 +51,33 @@ test('produces headers consumed by existing MUFG card import',()=>{
 test('rejects an unrelated or image-only PDF',()=>{
   assert.throws(()=>run().readStatement([{width:595,items:[]},{width:595,items:[]}]),/認識できません/);
 });
+
+test('seventeen synthetic MDC rows with real statement geometry reconcile to invoice',()=>{
+  const api=run();
+  const base={width:595,items:[
+    ...line(13,[20,'ご利用明細書']),
+    ...line(112.8,[35,'お支払日']),...line(112.4,[152,'令和 8年11月10日']),
+    ...line(181.4,[38,'当月お支払合計額'],[158,'当月ご請求額']),
+    ...line(181.0,[223,'52,170']),...line(180.6,[296,'円'])
+  ]};
+  const page={width:595,items:[]};
+  for(let i=0;i<17;i++){
+    const y=104.0+10.1*i+(i>12?20.2:0);
+    const num=i===16?4170:3000;
+    page.items.push(...line(y,[21.4,i<9?'8/ 9/22':'8/10/ 3'],
+      [60.3,'ＴＥＳＴ　架空利用先 '+String(i+1)],[270.5,'１']));
+    page.items.push(...line(y-0.9,[304.0,num.toLocaleString('en-US')]));
+    if(i===12)page.items.push(...line(y+10.1,[354.6,'内海外利用事務手数料　２０円']));
+  }
+  const parsed=api.readStatement([base,page]);
+  assert.equal(parsed.entries.length,17);
+  assert.equal(parsed.total,52170);
+  assert.equal(parsed.entries.reduce((n,e)=>n+e.amount,0),52170);
+  assert.equal(parsed.paymentDate,'2026-11-10');
+});
+test('fragmented vertically shifted salary-date-like payment header is still detected',()=>{
+  const api=run(),pages=fixture();
+  pages[0].items=pages[0].items.filter(x=>x.text!=='令和 8年11月10日');
+  pages[0].items.push(...line(26.1,[141,'令和 8年'],[209,'11月10日']));
+  assert.equal(api.readStatement(pages).paymentDate,'2026-11-10');
+});

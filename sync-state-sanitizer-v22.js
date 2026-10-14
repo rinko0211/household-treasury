@@ -158,6 +158,6 @@
   // v135: final salary authority after all forecast wrappers; prevents partial salary deposits suppressing payroll.
   injectClassic('./cashflow-salary-canonical-v135.js?v=135', 'data-household-salary-canonical-v135');
   // v136: parse validated MDC card PDF locally, preview, then route through existing card CSV importer.
-  injectClassic('./mdc-pdf-import-v136.js?v=137', 'data-household-mdc-pdf-import-v136');
+  injectClassic('./mdc-pdf-import-v136.js?v=138', 'data-household-mdc-pdf-import-v136');
   // v92/v93 exact d-card overlay retired in v94.
 })();

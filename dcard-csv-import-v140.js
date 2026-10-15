@@ -53,6 +53,9 @@
       if(!validCalendarDate(date))throw Error((i+1)+'行目: 利用日が不正です。');
       if(!merchant)throw Error((i+1)+'行目: 利用先が空です。');
       if(amount===null)throw Error((i+1)+'行目: 金額が不正、または返金行です。返金は現段階では自動登録しません。');
+      if(/分割|リボ|ボーナス|据置|後から/i.test(norm(method))||
+        (/(\d+)回/.test(norm(method))&&Number((norm(method).match(/(\d+)回/)||[])[1])>1))
+        throw Error((i+1)+'行目: 分割・リボ等の明細は経済支出の重複防止を検証できないため、取込を停止しました。');
       const installment=(norm(method).match(/(\d+)回/)||[])[1];
       const cardTopup=/PASMO|SUICA|スイカ|パスモ/i.test(norm(merchant)) &&
         /チャージ|CHARGE|入金/i.test(norm(merchant)+' '+norm(note));

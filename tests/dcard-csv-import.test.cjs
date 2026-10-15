@@ -104,3 +104,12 @@ test('genuine unrelated MUFG CSV is routed to the pre-existing parser',()=>{
   const {context}=sandbox();
   assert.equal(context.parseMufg({text:'確定情報,ご利用日,ご利用金額（円）'},{name:'other.csv'}).source,'ORIGINAL');
 });
+
+test('installment and revolving payments fail closed before writing any purchases',()=>{
+  for(const method of ['3回払い','リボ払い']){
+    const {state,parse}=sandbox();
+    const modified=rows.map((r,i)=>i===0?[...r.slice(0,4),method,...r.slice(5)]:r);
+    assert.throws(()=>parse(csv(modified)),/分割・リボ等/);
+    assert.equal(state.purchaseEvents.length,0);
+  }
+});

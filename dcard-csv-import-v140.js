@@ -163,10 +163,59 @@
       return previousMufg(src,file);
     };
   }
+
+  function dryRun(text,st=stateNow()){
+    const entries=parseRows(text);
+    const existing=(st?.purchaseEvents||[]).filter(p=>isDCard(p.card));
+    const grouped=new Map();
+    for(const p of existing){
+      const k=rowKeyOf(p),list=grouped.get(k)||[];
+      list.push(Number(p.occurrence_index||1));grouped.set(k,list);
+    }
+    let added=0,duplicates=0,hold=0,newConsumption=0,newTransfer=0;
+    const previewOccurrences=new Map();
+    for(const e of entries){
+      const count=(previewOccurrences.get(e.signature)||0)+1;
+      previewOccurrences.set(e.signature,count);
+      if((grouped.get(e.signature)||[]).includes(count)){duplicates++;continue}
+      added++;
+      if(e.review)hold++;
+      if(e.transfer)newTransfer+=e.amount;
+      else newConsumption+=e.amount;
+    }
+    return {source:'dカード',read:entries.length,added,duplicates,updates:0,hold,
+      newConsumption,newTransfer,
+      fileTotal:entries.reduce((n,e)=>n+e.amount,0),
+      purchaseMonths:[...new Set(entries.map(x=>x.date.slice(0,7)))].sort(),
+      billMonths:[...new Set(entries.map(x=>x.billing))].sort()};
+  }
+  function confirmDryRun(diff) {
+    const text=[
+      'dカードCSV｜登録前の差分確認',
+      '明細 '+diff.read+'件・ファイル収録利用額 '+diff.fileTotal.toLocaleString('ja-JP')+'円',
+      '新規 '+diff.added+'件 / 既存重複 '+diff.duplicates+'件 / 更新 '+diff.updates+'件',
+      '利用店名等の要確認 '+diff.hold+'件（登録後、明細から編集可）',
+      '新規の家計消費 '+diff.newConsumption.toLocaleString('ja-JP')+'円',
+      '新規のチャージ等の資金移動 '+diff.newTransfer.toLocaleString('ja-JP')+'円',
+      '利用月 '+diff.purchaseMonths.join('、')+'　請求月 '+diff.billMonths.join('、'),
+      '※請求額の確定やカード引落明細の作成はしません。',
+      '既存の家計データを保持したまま、この差分を登録しますか？'
+    ].join('\n');
+    if(typeof window.confirm!=='function')
+      throw Error('差分の保存確認を表示できないため、登録を停止しました。');
+    return window.confirm(text);
+  }
+
   let latestImport=null;
   const previousImport=typeof importOne==='function'?importOne:null;
   if(previousImport){
     importOne=async function importOneWithDCardV140(file){
+      const buffer=await file.arrayBuffer(),utf=new TextDecoder('utf-8').decode(buffer);
+      const dcard=dCardHeaderIndex(parseCsv(utf))>=0;
+      if(dcard){
+        const preview=dryRun(utf);
+        if(!confirmDryRun(preview))return {source:'dカード（キャンセル）',added:0,duplicates:preview.duplicates,review:preview.hold,read:preview.read,cancelled:true,skipped:true};
+      }
       const result=await previousImport(file);
       if(result?.detectedType==='dcard_csv'||result?.source==='dカード'){
         latestImport=result;
@@ -201,5 +250,5 @@
     }
     window.dispatchEvent(new CustomEvent('treasury:expenses-imported',{detail:{source:'dcard',months}}));
   }
-  window.householdDCardCsvV140={parseRows,importDCard,showSummary,isDCard};
+  window.householdDCardCsvV140={parseRows,importDCard,dryRun,confirmDryRun,showSummary,isDCard};
 })();

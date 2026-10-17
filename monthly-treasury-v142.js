@@ -10,7 +10,7 @@ function monthlyTreasuryCalculate(st,selectedMonth,basis,referenceDate){
   const month=validMonth(selectedMonth)?selectedMonth:ref.slice(0,7);
   const salaryDay=Math.max(1,Math.min(28,Number(st?.settings?.salaryDay)||18));
   const start=basis==='calendar'?month+'-01':dateOf(month,salaryDay);
-  const end=basis==='calendar'?dateOf(month,31):dateOf(addMonth(month,1),salaryDay-1);
+  const end=basis==='calendar'?dateOf(month,31):(salaryDay===1?dateOf(month,31):dateOf(addMonth(month,1),salaryDay-1));
   const within=d=>/^\d{4}-\d{2}-\d{2}$/.test(String(d||''))&&d>=start&&d<=end;
   const tidy=s=>String(s??'').normalize('NFKC').replace(/[\s　()（）\-_/・.]/g,'').toUpperCase();
   const cashType=t=>String(t?.cashflow_type||t?.category||'').normalize('NFKC').toUpperCase();
@@ -111,6 +111,7 @@ function monthlyTreasuryCalculate(st,selectedMonth,basis,referenceDate){
   }));
   if(!bankInRange.length)warnings.push('この期間の銀行出金明細がありません。支出・返済の確認が不十分です');
   if(!recordedSalary&&salarySetting)warnings.push('給与は設定額による推計です。実入金ではありません');
+  if(actual.some(x=>x.source==='現金')&&bankInRange.some(x=>/妻|家計費|生活費の送金|生活費渡し/.test(String(x.description_raw||x.description||''))))warnings.push('家族への生活費送金と現金明細に重複の可能性があります。計上方式を確認してください');
   if(pending.some(x=>x.kind==='card'))warnings.push('カード請求は銀行引落と未照合です。実際の引落を確認してください');
   if(pending.some(x=>x.source==='固定費マスター'))warnings.push('固定費・ローンの支払未照合予定を含みます。実績支出と区別してください');
   if(end>ref)warnings.push('未到来の日付を含むため、この期間の実績は途中経過です');
@@ -169,7 +170,7 @@ function monthlyTreasuryCalculate(st,selectedMonth,basis,referenceDate){
     document.getElementById('monthlyMonthV142').value=selected;
     const salaryDay=Math.max(1,Math.min(28,Number(st.settings?.salaryDay)||18));
     document.getElementById('monthlyPeriodV142').textContent=v.start+' 〜 '+v.end+
-      (basis==='payday'?'（毎月'+salaryDay+'日〜翌'+(salaryDay-1)+'日）':'（1日〜月末）')+' | 実績と未照合予定を分離して表示';
+      (basis==='payday'?'（毎月'+salaryDay+'日〜'+(salaryDay===1?'当月末':'翌'+(salaryDay-1)+'日')+'）':'（1日〜月末）')+' | 実績と未照合予定を分離して表示';
     const grid=document.getElementById('monthlyOverviewV142');
     const kpi=(name,value,sub,color)=>'<div class="card kpi"><div class="muted">'+name+'</div><b class="'+(color||'')+'">'+yen(value)+'</b><div class="tiny">'+sub+'</div></div>';
     let html=kpi('収入 合計',v.incomeTotal,'入金確認 '+yen(v.incomeActual)+' ／ 未確認 '+yen(v.incomePending))+

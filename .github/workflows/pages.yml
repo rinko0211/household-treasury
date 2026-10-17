@@ -72,14 +72,6 @@ jobs:
           grep -Fq 'dcard-csv-import-v140.js?v=141' sync-state-sanitizer-v22.js
           grep -Fq 'dcard-csv-import-v140.js?v=141' sw.js
           grep -Fq 'sync-state-sanitizer-v22.js?v=141' index.html
-      - name: Regression test d-card UTF-8 imports and accounting separation
-        shell: bash
-        run: |
-          set -euo pipefail
-          node --test tests/dcard-csv-import.test.cjs
-          grep -Fq 'dcard-csv-import-v140.js?v=140' sync-state-sanitizer-v22.js
-          grep -Fq 'dcard-csv-import-v140.js?v=140' sw.js
-          grep -Fq 'sync-state-sanitizer-v22.js?v=140' index.html
       - name: Check critical runtime loaders
         shell: bash
         run: |

@@ -89,6 +89,24 @@ function monthlyTreasuryCalculate(st,selectedMonth,basis,referenceDate){
       add(pending,d,name+'（支払未照合）',-v,kind,'固定費マスター');
     }
   }
+  // Legacy rules are fallback evidence only for debt. Never import the old
+  // household allowance or annual one-off forecasts into monthly spending.
+  const seenDebtRules=new Set();
+  for(const rule of st?.rules||[]){
+    if(rule?.enabled===false)continue;
+    const name=String(rule?.name||''),type=String(rule?.type||'').toUpperCase();
+    if(!(/ローン|返済|借入/.test(name)||/DEBT|LOAN/.test(type)||String(rule?.ordinary_or_special||'').toUpperCase()==='DEBT'))continue;
+    const v=Math.abs(Number(rule?.amount)||0);
+    if(!v)continue;
+    for(const m of [firstMonth,nextMonth]){
+      const d=dateOf(m,rule?.day||1);if(!within(d))continue;
+      const key=String(rule.id||tidy(name))+'|'+d;if(seenDebtRules.has(key))continue;seenDebtRules.add(key);
+      const covered=[...actual,...pending].some(x=>x.amount<0&&Math.abs(Math.abs(x.amount)-v)<=1&&
+        dayDiff(x.date,d)<=4&&(x.kind==='debt'||tidy(x.label).includes(tidy(name))));
+      if(covered)continue;
+      add(pending,d,name+'（旧ルール・支払未照合）',-v,'debt','旧固定費ルール');
+    }
+  }
   const recordedSalary=actual.some(t=>t.kind==='salary');
   const salarySetting=Math.max(0,Number(st?.settings?.salary)||0);
   if(!recordedSalary&&salarySetting){
@@ -114,6 +132,7 @@ function monthlyTreasuryCalculate(st,selectedMonth,basis,referenceDate){
   if(actual.some(x=>x.source==='現金')&&bankInRange.some(x=>/妻|家計費|生活費の送金|生活費渡し/.test(String(x.description_raw||x.description||''))))warnings.push('家族への生活費送金と現金明細に重複の可能性があります。計上方式を確認してください');
   if(pending.some(x=>x.kind==='card'))warnings.push('カード請求は銀行引落と未照合です。実際の引落を確認してください');
   if(pending.some(x=>x.source==='固定費マスター'))warnings.push('固定費・ローンの支払未照合予定を含みます。実績支出と区別してください');
+  if(pending.some(x=>x.source==='旧固定費ルール'))warnings.push('旧ルール上のローン予定を補完しています。支払日・残債の照合が必要です');
   if(end>ref)warnings.push('未到来の日付を含むため、この期間の実績は途中経過です');
   const rows=[...actual.map(x=>({...x,status:'確認済'})),...pending.map(x=>({...x,status:'未確認・予定'}))].sort((a,b)=>b.date.localeCompare(a.date)||a.label.localeCompare(b.label,'ja'));
   return {month,start,end,basis,incomeActual,incomePending,outActual,outPending,

@@ -163,6 +163,8 @@
   injectClassic('./mdc-pdf-import-v136.js?v=139', 'data-household-mdc-pdf-import-v136');
   // v140: d-card statement CSV has its own validated ingestion and economic categories.
   // Preserve the legacy MUFG/JAL parser for every other card statement.
-  injectClassic('./dcard-csv-import-v140.js?v=140', 'data-household-dcard-csv-v140');
+  // v141: opt-in read-only audit for handoff QA; no canonical state mutation.
+  injectClassic('./handoff-audit-readonly-v141.js?v=141', 'data-household-handoff-audit-v141');
+  injectClassic('./dcard-csv-import-v140.js?v=141', 'data-household-dcard-csv-v140');
   // v92/v93 exact d-card overlay retired in v94.
 })();

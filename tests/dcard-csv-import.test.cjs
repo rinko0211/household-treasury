@@ -113,3 +113,34 @@ test('installment and revolving payments fail closed before writing any purchase
     assert.equal(state.purchaseEvents.length,0);
   }
 });
+
+test('read-only import dry run counts spending and card top-ups before saving',()=>{
+  const {state,win}=sandbox();
+  const preview=win.householdDCardCsvV140.dryRun(csv(),state);
+  assert.equal(preview.read,5);
+  assert.equal(preview.added,5);
+  assert.equal(preview.newConsumption,19704);
+  assert.equal(preview.newTransfer,10000);
+  assert.equal(preview.updates,0);
+  assert.equal(state.purchaseEvents.length,0);
+});
+test('user cancellation at the pre-import dry-run never changes the ledger',async()=>{
+  const {state,win,context}=sandbox();
+  let calls=0;
+  win.confirm=()=>{calls++;return false};
+  const raw=Buffer.from(csv(),'utf8');
+  const file={name:'dcard.csv',arrayBuffer:async()=>raw.buffer.slice(raw.byteOffset,raw.byteOffset+raw.byteLength)};
+  const result=await context.importOne(file);
+  assert.equal(calls,1);
+  assert.equal(result.cancelled,true);
+  assert.equal(state.purchaseEvents.length,0);
+});
+test('pre-import dry run identifies existing records as duplicates',()=>{
+  const {state,parse,win}=sandbox();
+  parse();
+  const result=win.householdDCardCsvV140.dryRun(csv(),state);
+  assert.equal(result.added,0);
+  assert.equal(result.duplicates,5);
+  assert.equal(result.newConsumption,0);
+  assert.equal(result.newTransfer,0);
+});

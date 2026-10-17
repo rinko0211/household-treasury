@@ -211,7 +211,8 @@
   if(previousImport){
     importOne=async function importOneWithDCardV140(file){
       const buffer=await file.arrayBuffer(),utf=new TextDecoder('utf-8').decode(buffer);
-      const dcard=dCardHeaderIndex(parseCsv(utf))>=0;
+      let dcard=false;
+      try{dcard=dCardHeaderIndex(parseCsv(utf))>=0}catch{}
       if(dcard){
         const preview=dryRun(utf);
         if(!confirmDryRun(preview))return {source:'dカード（キャンセル）',added:0,duplicates:preview.duplicates,review:preview.hold,read:preview.read,cancelled:true,skipped:true};

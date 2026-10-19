@@ -209,8 +209,14 @@
     const salary=Math.max(0,Number(st.settings?.salary)||0);
     if(!salary)return[];
     const day=Math.min(31,Math.max(1,Number(st.settings?.salaryDay)||18));
+    // Shift a Saturday/Sunday payday to the preceding Friday.
+    // Bank statements, not scheduled income, remain authoritative.
+    const businessPayDate = ym => {
+      const nominal=dateForYm(ym,day),weekday=new Date(nominal+'T12:00:00').getDay();
+      return weekday===0?addDaysDate(nominal,-2):weekday===6?addDaysDate(nominal,-1):nominal;
+    };
     return monthsBetween(fromExclusive,toExclusive).map(ym=>({
-      id:`salary:${ym}`,date:dateForYm(ym,day),name:'給与',amount:salary,type:'SALARY',source:'settings_salary'
+      id:`salary:${ym}`,date:businessPayDate(ym),name:'給与',amount:salary,type:'SALARY',source:'settings_salary'
     })).filter(x=>inElapsedRange(x.date,fromExclusive,toExclusive)).map(x=>compact(x,'BACKFILL_SALARY'));
   }
 
@@ -492,7 +498,8 @@
 
   function activeElapsed(st,now=today()) {
     const model=ensureModel(st),anchor=anchorFor(st,now);
-    const rows=(model.history||[]).filter(x=>x.date>anchor.date&&x.date<now&&Number.isFinite(Number(x.amount)));
+    const rows=(model.history||[]).filter(x=>x.date>anchor.date&&x.date<now&&Number.isFinite(Number(x.amount))&&
+      !(Number(x.amount)>0&&plannedKind(x)==='SALARY'));
     return {anchor,rows};
   }
   function currentBalanceFromState(st,now=today()) {
@@ -515,6 +522,9 @@
     const elapsed=historical.filter(x=>
       String(x.date||'')>anchorDate && String(x.date||'')<now &&
       Number.isFinite(Number(x.amount)) &&
+      // A past salary is never money to be created by a forecast. If a bank
+      // statement lacks the deposit, keep it unverified; do not inflate cash.
+      !(Number(x.amount)>0&&plannedKind(x)==='SALARY') &&
       x.status!=='MATCHED_ACTUAL' && x.status!=='ANCHOR_ABSORBED' && x.status!=='ABSORBED_IN_BALANCE'
     );
     return base+elapsed.reduce((sum,x)=>sum+Number(x.amount),0);

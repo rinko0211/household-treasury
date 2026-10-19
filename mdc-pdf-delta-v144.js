@@ -189,6 +189,16 @@
     }
     return candidates;
   }
+  function crossCardWarnings(st){
+    const rows=(st.purchaseEvents||[]).filter(x=>pdfSource(x)&&cardId(x));
+    const groups=groupBy(rows,rowSig);
+    const out=[];
+    for(const group of groups.values()){
+      const ids=[...new Set(group.map(cardId))];
+      if(ids.length>1)out.push({record:group[0],identities:ids});
+    }
+    return out;
+  }
   function mountAudit(){
     const root=document.querySelector('#imports .grid');
     if(!root)return;
@@ -197,9 +207,13 @@
       box=document.createElement('div');box.id='mdcDuplicateAuditV144';box.className='card full';
       root.appendChild(box);
     }
-    const items=duplicatesAudit(stateNow());
+    const items=duplicatesAudit(stateNow()),cross=crossCardWarnings(stateNow());
     box.innerHTML='<div class="title">MDC PDF 重複登録の点検</div>'+
       '<div class="tiny">既存データを自動削除しません。別ファイルから取り込まれた、同一カード・請求月・利用日・店舗・金額・同一出現番号の重複候補だけ表示します。</div>'+
+      (cross.length?'<div class="note" style="margin-top:8px">カード識別名が異なる明細で '+cross.length+
+        '組の一致候補があります。実際に別カードの可能性もあるため自動整理しません。'+
+        cross.slice(0,8).map(x=>'<div class="tiny">'+esc(x.record.purchase_date)+' '+esc(x.record.merchant_raw)+
+          ' '+yen(x.record.original_amount)+' / '+x.identities.map(esc).join(' と ')+'</div>').join('')+'</div>':'')+
       (items.length?'<div class="note" style="margin-top:8px">'+items.length+'件の重複候補。残す明細を確認してから整理してください。</div>'+
         '<div style="max-height:260px;overflow:auto">'+items.slice(0,100).map((v,j)=>
           '<label class="row"><span><input type="checkbox" data-mdc-duplicate-index="'+v.index+'"> '+
@@ -228,7 +242,7 @@
       mountAudit();
     };
   }
-  window.householdMdcPdfDeltaV144={signature,parse,plan,dryRun,previewPdf,duplicatesAudit,mountAudit};
+  window.householdMdcPdfDeltaV144={signature,parse,plan,dryRun,previewPdf,duplicatesAudit,crossCardWarnings,mountAudit};
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',mountAudit,{once:true});
   else setTimeout(mountAudit,0);
   document.addEventListener('click',e=>{

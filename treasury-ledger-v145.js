@@ -184,7 +184,7 @@
       const key=[norm(s.card||''),date,amount].join('|');
       if(settlements.has(key))continue;settlements.add(key);
       const kind=cardKind(st,s.card);
-      const matched=matchBank(date,amount,kind,s.card,'',4);
+      const matched=matchBank(date,amount,kind,s.card,'',4)||bankOut.find(({t,row})=>!usedActual.has(row.identity)&&daysBetween(t.date,date)<=3&&isCardBank(t)&&norm(textOf(t)).includes(norm(s.card)));
       if(matched){
         usedActual.add(matched.row.identity);
         matched.row.kind=kind;

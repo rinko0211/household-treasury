@@ -76,13 +76,29 @@ function applyDeletion(selected){
  return {count:plan.count,sum:plan.sum};
 }
 let file='',visible=new Map();
+function installShortcut(){
+ const page=$('expenses');if(!page||$('pdfCorrectionShortcutV146'))return;
+ const div=document.createElement('div');div.id='pdfCorrectionShortcutV146';
+ div.className='card';div.style.marginBottom='12px';
+ div.innerHTML='<div class="title">PDFの誤取込を修正</div>'+
+   '<div class="tiny" style="margin-bottom:8px">同じ明細の重複や読取間違いは、元のPDFファイル別に選んで削除できます。</div>'+
+   '<button type="button" id="pdfCorrectionShortcutButtonV146" class="btn secondary">誤取込の明細を選んで削除</button>';
+ page.prepend(div);
+ div.querySelector('button').onclick=()=>{
+   const tab=document.querySelector('nav.tabs [data-page="imports"]');
+   if(tab)tab.click();
+   render();
+   $('mdcPdfRecordManagerV146')?.scrollIntoView?.({behavior:'smooth',block:'start'});
+ };
+}
 function render(){
+ installShortcut();
  const root=document.querySelector('#imports .grid');
  if(!root)return false;
  let box=$('mdcPdfRecordManagerV146');
  if(!box){
    box=document.createElement('div');box.id='mdcPdfRecordManagerV146';box.className='card full';
-   const audit=$('mdcDuplicateAuditV144');audit?root.insertBefore(box,audit):root.appendChild(box);
+   root.prepend(box); // Keep correction above all import tools on small screens.
  }
  const groups=sources();
  if(!groups.length){

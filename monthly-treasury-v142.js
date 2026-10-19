@@ -55,12 +55,31 @@
       tab.type='button';tab.dataset.page='monthlyTreasuryPageV142';tab.textContent='月次収支';
       const expenses=nav.querySelector('[data-page="expenses"]');nav.insertBefore(tab,expenses||null);
     }
+    // Do not rely on the boot-time router seeing a dynamically inserted tab.
+    // Static index.html contains this tab; the direct handler is a fallback.
+    tab.onclick=()=>{
+      document.querySelectorAll('nav.tabs .tab').forEach(x=>x.classList.remove('active'));
+      document.querySelectorAll('section.page').forEach(x=>x.classList.remove('active'));
+      tab.classList.add('active');
+      $('monthlyTreasuryPageV142')?.classList.add('active');
+      window.dispatchEvent(new CustomEvent('treasury:pagechange',{detail:{page:'monthlyTreasuryPageV142'}}));
+      render();
+    };
     let page=$('monthlyTreasuryPageV142');
     if(!page){
       page=document.createElement('section');page.className='page';page.id='monthlyTreasuryPageV142';
       page.innerHTML=
         '<div class="card" style="margin-bottom:12px">'+
           '<div class="title">月次・年間の資金収支</div>'+
+          '<div class="tiny" style="margin-bottom:10px">v146 · 表示切替を選ぶと、期間・明細・年間集計も切り替わります。</div>'+
+          '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px">'+
+            '<button type="button" class="btn" id="treasuryCyclePaydayV146">給与サイクル</button>'+
+            '<button type="button" class="btn secondary" id="treasuryCycleCalendarV146">暦月（1日〜末日）</button>'+
+          '</div>'+
+          '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px">'+
+            '<button type="button" class="btn" id="treasuryLensCashV146">資金流出（ローン等含む）</button>'+
+            '<button type="button" class="btn secondary" id="treasuryLensEconomicV146">消費支出のみ</button>'+
+          '</div>'+
           '<div class="controls" style="display:flex;flex-wrap:wrap;gap:9px;align-items:end">'+
             '<div class="field"><label for="treasuryBasisV145">集計サイクル</label><select id="treasuryBasisV145"><option value="payday">給与サイクル（給与日基準）</option><option value="calendar">暦月（1日〜末日）</option></select></div>'+
             '<div class="field"><label for="treasuryLensV145">集計の見方</label><select id="treasuryLensV145"><option value="cash">給与からの資金流出（ローン・投資含む）</option><option value="economic">消費支出（カード利用日基準）</option></select></div>'+
@@ -79,8 +98,15 @@
           '<div id="treasuryAnnualV145"></div></div>'+
         '<div class="card" style="margin-top:12px"><div class="title">明細と根拠</div><div id="treasuryDetailsV145"></div></div>';
       const before=$('expenses');before?.parentNode?.insertBefore(page,before);
-      $('treasuryBasisV145').onchange=e=>{basis=e.target.value;month=currentPeriod();annualYear=Number(month.slice(0,4));render()};
-      $('treasuryLensV145').onchange=e=>{lens=e.target.value;render()};
+      // Keep the selected month label when comparing payroll vs calendar cycles.
+      const setBasis=choice=>{basis=choice;if(!month)month=currentPeriod();annualYear=Number(month.slice(0,4));render()};
+      const setLens=choice=>{lens=choice;render()};
+      $('treasuryCyclePaydayV146').onclick=()=>setBasis('payday');
+      $('treasuryCycleCalendarV146').onclick=()=>setBasis('calendar');
+      $('treasuryLensCashV146').onclick=()=>setLens('cash');
+      $('treasuryLensEconomicV146').onclick=()=>setLens('economic');
+      $('treasuryBasisV145').onchange=e=>setBasis(e.target.value);
+      $('treasuryLensV145').onchange=e=>setLens(e.target.value);
       $('treasuryMonthV145').onchange=e=>{month=e.target.value;annualYear=Number(month.slice(0,4));render()};
       $('treasuryPrevV145').onclick=()=>{month=engine().addMonth(month||currentPeriod(),-1);annualYear=Number(month.slice(0,4));render()};
       $('treasuryNextV145').onclick=()=>{month=engine().addMonth(month||currentPeriod(),1);annualYear=Number(month.slice(0,4));render()};
@@ -97,6 +123,14 @@
     if(!annualYear)annualYear=Number(month.slice(0,4));
     const st=stateNow(),ref=today(),estimates=cardEstimates(),revolving=revolvingEstimates();
     const v=calculate(st,month,basis,ref,estimates,revolving);
+    for(const [id,active] of [
+      ['treasuryCyclePaydayV146',basis==='payday'],['treasuryCycleCalendarV146',basis==='calendar'],
+      ['treasuryLensCashV146',lens==='cash'],['treasuryLensEconomicV146',lens==='economic']
+    ]){
+      const button=$(id);if(!button)continue;
+      button.className=active?'btn':'btn secondary';
+      button.setAttribute('aria-pressed',active?'true':'false');
+    }
     $('treasuryBasisV145').value=basis;
     $('treasuryLensV145').value=lens;
     $('treasuryMonthV145').value=month;

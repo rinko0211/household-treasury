@@ -126,6 +126,7 @@ function render(){
        '・請求月 '+esc(r.record.billing_month||'不明')+'</div></span>'+
      '<b>'+yen(Math.abs(Number(r.record.original_amount)||0))+'</b></label>').join('')+
    '</div><div class="tiny" style="margin:8px 0">削除前の家計データを端末復旧履歴に保存します。削除後は月次・年間収支も再計算されます。</div>'+
+   '<button id="pdfCorrectionBackupV146" class="btn secondary" type="button">削除前の全データをJSON保存</button> '+
    '<button id="pdfCorrectionDeleteV146" class="btn danger" type="button" disabled>選択した明細を削除</button>'+
    '<div id="pdfCorrectionStatusV146" class="tiny" role="status" style="margin-top:10px"></div>';
  const selected=()=>[...box.querySelectorAll('[data-pdf-correction-row]:checked')];
@@ -142,6 +143,7 @@ function render(){
  $('pdfCorrectionClearV146').onclick=()=>{
    box.querySelectorAll('[data-pdf-correction-row]').forEach(x=>x.checked=false);update();
  };
+ $('pdfCorrectionBackupV146').onclick=()=>{const btn=$('exportJson');if(btn)btn.click();else $('pdfCorrectionStatusV146').textContent='Settings → バックアップ書出しから保存してください。'};
  $('pdfCorrectionDeleteV146').onclick=()=>{
    const chosen=selected().map(x=>({index:Number(x.dataset.pdfCorrectionRow),token:visible.get(Number(x.dataset.pdfCorrectionRow))}));
    let plan;

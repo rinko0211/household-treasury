@@ -5,12 +5,14 @@ function monthlyTreasuryCalculate(st,selectedMonth,basis,referenceDate){
   const addMonth=(m,n)=>{const a=String(m).split('-').map(Number),d=new Date(a[0],a[1]-1+n,1);return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')};
   const lastDay=m=>{const a=String(m).split('-').map(Number);return new Date(a[0],a[1],0).getDate()};
   const dateOf=(m,day)=>m+'-'+String(Math.min(lastDay(m),Math.max(1,Number(day)||1))).padStart(2,'0');
+  const addDay=(date,n)=>{const d=new Date(date+'T12:00:00');d.setDate(d.getDate()+n);return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')};
+  const payday=m=>{const nominal=dateOf(m,Number(st?.settings?.salaryDay)||18),w=new Date(nominal+'T12:00:00').getDay();return w===0?addDay(nominal,-2):w===6?addDay(nominal,-1):nominal};
   const dayDiff=(a,b)=>Math.abs(Math.round((new Date(a+'T12:00:00')-new Date(b+'T12:00:00'))/86400000));
   const ref=String(referenceDate||'').slice(0,10);
   const month=validMonth(selectedMonth)?selectedMonth:ref.slice(0,7);
   const salaryDay=Math.max(1,Math.min(28,Number(st?.settings?.salaryDay)||18));
-  const start=basis==='calendar'?month+'-01':dateOf(month,salaryDay);
-  const end=basis==='calendar'?dateOf(month,31):(salaryDay===1?dateOf(month,31):dateOf(addMonth(month,1),salaryDay-1));
+  const start=basis==='calendar'?month+'-01':payday(month);
+  const end=basis==='calendar'?dateOf(month,31):addDay(payday(addMonth(month,1)),-1);
   const within=d=>/^\d{4}-\d{2}-\d{2}$/.test(String(d||''))&&d>=start&&d<=end;
   const tidy=s=>String(s??'').normalize('NFKC').replace(/[\s　()（）\-_/・.]/g,'').toUpperCase();
   const cashType=t=>String(t?.cashflow_type||t?.category||'').normalize('NFKC').toUpperCase();
@@ -111,8 +113,10 @@ function monthlyTreasuryCalculate(st,selectedMonth,basis,referenceDate){
   const salarySetting=Math.max(0,Number(st?.settings?.salary)||0);
   if(!recordedSalary&&salarySetting){
     for(const m of [firstMonth,nextMonth]){
-      const d=dateOf(m,salaryDay);
-      if(within(d)){add(pending,d,'給与（設定額・入金未確認）',salarySetting,'salary','設定');break}
+      const d=payday(m);
+      // A passed payday cannot create new forecast income. If the statement
+      // is missing, income is unverified—not extra money in the balance.
+      if(within(d)&&d>ref){add(pending,d,'給与（予定・未入金）',salarySetting,'salary','設定');break}
     }
   }
   const cardPurchase=(st?.purchaseEvents||[]).reduce((n,p)=>{
@@ -128,7 +132,8 @@ function monthlyTreasuryCalculate(st,selectedMonth,basis,referenceDate){
     kind,actual:sum(actual,x=>x.kind===kind&&x.amount<0),pending:sum(pending,x=>x.kind===kind&&x.amount<0)
   }));
   if(!bankInRange.length)warnings.push('この期間の銀行出金明細がありません。支出・返済の確認が不十分です');
-  if(!recordedSalary&&salarySetting)warnings.push('給与は設定額による推計です。実入金ではありません');
+  if(!recordedSalary&&salarySetting)warnings.push(
+    payday(month)<=ref?'給与日を過ぎていますが、銀行明細上の入金確認がありません。残高へ予測加算しません':'給与は設定額による推計です。実入金ではありません');
   if(actual.some(x=>x.source==='現金')&&bankInRange.some(x=>/妻|家計費|生活費の送金|生活費渡し/.test(String(x.description_raw||x.description||''))))warnings.push('家族への生活費送金と現金明細に重複の可能性があります。計上方式を確認してください');
   if(pending.some(x=>x.kind==='card'))warnings.push('カード請求は銀行引落と未照合です。実際の引落を確認してください');
   if(pending.some(x=>x.source==='固定費マスター'))warnings.push('固定費・ローンの支払未照合予定を含みます。実績支出と区別してください');
@@ -151,7 +156,12 @@ function monthlyTreasuryCalculate(st,selectedMonth,basis,referenceDate){
   const getState=()=>{try{return (window.getTreasuryStateRaw||window.getTreasuryState)?.()||{}}catch{return {}}};
   const labels={living:'生活費・その他',fixed:'固定費',cash:'現金支出',card:'カード引落',debt:'ローン・返済',investment:'投資・積立',special:'特別費'};
   let basis='payday',selected='';
-  const todayPeriod=()=>{const t=localDate(),st=getState(),day=Math.max(1,Math.min(28,Number(st.settings?.salaryDay)||18));return basis==='payday'&&Number(t.slice(8))<day?plusMonth(t.slice(0,7),-1):t.slice(0,7)};
+  const todayPeriod=()=>{
+    const t=localDate(),st=getState(),day=Math.max(1,Math.min(28,Number(st.settings?.salaryDay)||18));
+    const month=t.slice(0,7),nominal=month+'-'+String(day).padStart(2,'0');
+    const p=window.householdSalaryCanonicalV135?.previousBankingDay?.(nominal)||nominal;
+    return basis==='payday'&&t<p?plusMonth(month,-1):month;
+  };
   function ensure(){
     let tab=document.getElementById('monthlyTreasuryTabV142');
     if(!tab){
@@ -189,7 +199,7 @@ function monthlyTreasuryCalculate(st,selectedMonth,basis,referenceDate){
     document.getElementById('monthlyMonthV142').value=selected;
     const salaryDay=Math.max(1,Math.min(28,Number(st.settings?.salaryDay)||18));
     document.getElementById('monthlyPeriodV142').textContent=v.start+' 〜 '+v.end+
-      (basis==='payday'?'（毎月'+salaryDay+'日〜'+(salaryDay===1?'当月末':'翌'+(salaryDay-1)+'日')+'）':'（1日〜月末）')+' | 実績と未照合予定を分離して表示';
+      (basis==='payday'?'（毎月'+salaryDay+'日基準・土日繰上げ）':'（1日〜月末）')+' | 実績と未照合予定を分離して表示';
     const grid=document.getElementById('monthlyOverviewV142');
     const kpi=(name,value,sub,color)=>'<div class="card kpi"><div class="muted">'+name+'</div><b class="'+(color||'')+'">'+yen(value)+'</b><div class="tiny">'+sub+'</div></div>';
     let html=kpi('収入 合計',v.incomeTotal,'入金確認 '+yen(v.incomeActual)+' ／ 未確認 '+yen(v.incomePending))+

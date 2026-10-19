@@ -98,7 +98,8 @@
           '<div id="treasuryAnnualV145"></div></div>'+
         '<div class="card" style="margin-top:12px"><div class="title">明細と根拠</div><div id="treasuryDetailsV145"></div></div>';
       const before=$('expenses');before?.parentNode?.insertBefore(page,before);
-      const setBasis=choice=>{basis=choice;month=currentPeriod();annualYear=Number(month.slice(0,4));render()};
+      // Keep the selected month label when comparing payroll vs calendar cycles.
+      const setBasis=choice=>{basis=choice;if(!month)month=currentPeriod();annualYear=Number(month.slice(0,4));render()};
       const setLens=choice=>{lens=choice;render()};
       $('treasuryCyclePaydayV146').onclick=()=>setBasis('payday');
       $('treasuryCycleCalendarV146').onclick=()=>setBasis('calendar');

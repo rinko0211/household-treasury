@@ -19,10 +19,17 @@
       return Array.isArray(plan?.rows)?plan.rows:[];
     }catch{return[]}
   }
-  function calculate(st,m,b,ref,estimates=[]){
+  function revolvingEstimates(){
+    try{
+      if(typeof generated!=='function')return [];
+      return (generated(460)||[]).filter(x=>
+        String(x?.type||'').toUpperCase()==='CARD_REVOLVING_PAYMENT'&&Number(x.amount)<0);
+    }catch{return []}
+  }
+  function calculate(st,m,b,ref,estimates=[],revolving=[]){
     const api=engine();
     if(!api?.calculate)throw Error('月次台帳の集計機能を読み込めませんでした。');
-    return api.calculate(st,m,b,ref,{cardEstimates:estimates});
+    return api.calculate(st,m,b,ref,{cardEstimates:estimates,revolvingEstimates:revolving});
   }
   function currentPeriod(){
     const d=today(),m=d.slice(0,7);
@@ -88,8 +95,8 @@
     if(!ensure()||!engine())return;
     if(!month)month=currentPeriod();
     if(!annualYear)annualYear=Number(month.slice(0,4));
-    const st=stateNow(),ref=today(),estimates=cardEstimates();
-    const v=calculate(st,month,basis,ref,estimates);
+    const st=stateNow(),ref=today(),estimates=cardEstimates(),revolving=revolvingEstimates();
+    const v=calculate(st,month,basis,ref,estimates,revolving);
     $('treasuryBasisV145').value=basis;
     $('treasuryLensV145').value=lens;
     $('treasuryMonthV145').value=month;
@@ -117,9 +124,9 @@
       cards+=kpi('記録された現金・銀行残高',v.currentBankBalance,
         '残高の記録日 '+esc(v.currentBankBalanceAsOf||'不明')+'。月次差引を足し直さない');
     }
-    const liabilities=Math.max(0,Number(st.assets?.liabilities)||0),revolving=Math.max(0,Number(st.assets?.revolvingBalance)||0);
+    const liabilities=Math.max(0,Number(st.assets?.liabilities)||0),revolvingDebt=Math.max(0,Number(st.assets?.revolvingBalance)||0);
     if(liabilities)cards+=kpi('負債残高（登録値）',liabilities,'元金残高の参考値。今月の返済流出とは別');
-    if(revolving)cards+=kpi('リボ残高（登録値）',revolving,'負債残高への内包有無が不明なため、合算しません');
+    if(revolvingDebt)cards+=kpi('リボ残高（登録値）',revolvingDebt,'負債残高への内包有無が不明なため、合算しません');
     $('treasuryKpisV145').innerHTML=cards;
     const cashGroupRows=v.groups.map(g=>'<div class="row"><span>'+names[g.kind]+'</span>'+
       '<div style="text-align:right"><b>'+yen(g.actual)+'</b>'+ (g.pending?'<div class="tiny">未照合 '+yen(g.pending)+'</div>':'')+
@@ -139,14 +146,14 @@
     let history='<table><thead><tr><th>対象月</th><th>実入金</th><th>'+
       (lens==='cash'?'実流出':'消費支出')+'</th><th>確認済み差引</th><th>未照合支払</th></tr></thead><tbody>';
     for(let i=0;i<trendLength;i++){
-      const m=engine().addMonth(month,-i),a=calculate(st,m,basis,ref,estimates);
+      const m=engine().addMonth(month,-i),a=calculate(st,m,basis,ref,estimates,revolving);
       const cost=lens==='cash'?a.outActual:a.spentActual;
       history+='<tr><td><button type="button" class="btn secondary" data-treasury-month="'+esc(m)+'">'+esc(m)+'</button></td>'+
         '<td>'+yen(a.incomeActual)+'</td><td>'+yen(cost)+'</td><td>'+yen(a.remainderActual)+'</td>'+
         '<td>'+yen(a.outPending)+'</td></tr>';
     }
     $('treasuryHistoryV145').innerHTML=history+'</tbody></table>';
-    const annual=engine().annual(st,annualYear,basis,ref,{cardEstimates:estimates});
+    const annual=engine().annual(st,annualYear,basis,ref,{cardEstimates:estimates,revolvingEstimates:revolving});
     const annualTotals='<div class="grid">'+
       kpi('年間の給与実入金',annual.salaryActual,'確認できた給与の入金のみ')+
       kpi('年間の賞与実入金',annual.bonusActual,'確認できたボーナスの入金のみ')+
@@ -177,6 +184,8 @@
   window.addEventListener('focus',()=>{if($('monthlyTreasuryPageV142')?.classList.contains('active'))render()});
   window.addEventListener('pageshow',()=>{ensure();if($('monthlyTreasuryPageV142')?.classList.contains('active'))render()});
   window.householdMonthlySummaryV142=calculate;
-  window.householdAnnualSummaryV145=(st,year,b,ref)=>engine()?.annual(st,year,b,ref,{cardEstimates:cardEstimates()});
+  window.householdAnnualSummaryV145=(st,year,b,ref)=>engine()?.annual(st,year,b,ref,{
+    cardEstimates:cardEstimates(),revolvingEstimates:revolvingEstimates()
+  });
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',ensure,{once:true});else ensure();
 })();

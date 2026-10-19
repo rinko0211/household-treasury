@@ -56,7 +56,7 @@
   // Distinct physical cards can have identical purchases. The fallback below
   // never silently assigns a different scoped card to the incoming file.
   function identityConflicts(st,entries){
-    const direct=entries[0].identity;
+    const direct=String(entries[0].identity||'').normalize('NFKC').trim();
     const matching=new Map();
     for(const old of st.purchaseEvents||[]){
       if(!pdfSource(old)||!cardId(old)||cardId(old)===direct)continue;
@@ -71,7 +71,7 @@
   }
   function plan(st,entries,fileName=''){
     const existing=st.purchaseEvents||[],updates=[],additions=[],issues=[];
-    const conflicts=identityConflicts(st,entries),identity=entries[0].identity;
+    const conflicts=identityConflicts(st,entries),identity=String(entries[0].identity||'').normalize('NFKC').trim();
     const direct=entries.filter(r=>existing.some(x=>cardId(x)===identity&&rowSig(x)===r.key)).length;
     if(conflicts.length && direct===0 && !entries[0].differentCard){
       issues.push('MDC-D11: 既存カード「'+conflicts[0].identity+'」と同一明細が'+conflicts[0].count+

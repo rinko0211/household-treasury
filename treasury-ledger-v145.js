@@ -33,7 +33,7 @@
   const isCashMovement=t=>{
     const k=cf(t);
     return k==='CASH_WITHDRAWAL_UNCLASSIFIED'||k==='CASH_WITHDRAWAL'||k==='ATM_WITHDRAWAL'||
-      /^(ATM|CASHWITHDRAWAL)/.test(k)||/ATM出金|現金引出/.test(textOf(t));
+      /^(ATM|CASHWITHDRAWAL)/.test(k)||/ATM出金|現金引出|カード出金|ENET/.test(textOf(t));
   };
   const isTransfer=t=>t?.is_transfer===true||econ(t)==='TRANSFER'||
     ['INTERNAL_TRANSFER','TRANSFER','BROKER_TRANSFER','ACCOUNT_TRANSFER'].includes(cf(t));

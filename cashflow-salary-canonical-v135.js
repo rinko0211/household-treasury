@@ -17,6 +17,12 @@
     const [y,m] = ym.split('-').map(Number);
     return ym+'-'+String(Math.min(Math.max(1,day),new Date(y,m,0).getDate())).padStart(2,'0');
   };
+  const previousBankingDay = date => {
+    const d=new Date(date+'T12:00:00'),w=d.getDay();
+    if(w===0)d.setDate(d.getDate()-2);
+    else if(w===6)d.setDate(d.getDate()-1);
+    return iso(d);
+  };
   const distance = (a,b) => {
     const x = new Date(a+'T12:00:00'),y = new Date(b+'T12:00:00');
     return Math.abs(Math.round((x-y)/86400000));
@@ -54,22 +60,29 @@
     const to=addDays(from,Math.max(0,Number(days)||0));
     const begin=new Date(from.slice(0,7)+'-01T12:00:00'),end=new Date(to.slice(0,7)+'-01T12:00:00');
     for(let d=begin;d<=end;d.setMonth(d.getMonth()+1)){
-      const ym=iso(d).slice(0,7),planned=dateFor(ym,day);
-      if(planned<from||planned>to)continue;
+      const ym=iso(d).slice(0,7),nominal=dateFor(ym,day),planned=previousBankingDay(nominal);
       const candidates=rows.map((row,index)=>({row,index})).filter(({row})=>
-        String(row.date||'').slice(0,7)===ym && isRegular(row,planned,expected));
+        String(row.date||'').slice(0,7)===ym && 
+        (isRegular(row,planned,expected)||isRegular(row,nominal,expected)));
+      // Friday payday for Sunday 2026-10-18 is 2026-10-16. A prediction on
+      // the 18th must not re-add pay after the bank's payday has passed.
       const verified=actualPaid(st,ym,planned,expected);
-      if(verified) {
-        // Confirmed regular payday is already contained in the bank balance.
+      const stale=planned<from || verified;
+      if(stale) {
         for(let i=candidates.length-1;i>=0;i--)rows.splice(candidates[i].index,1);
         continue;
       }
+      if(planned>to)continue;
       if(!candidates.length) {
         rows.push({id:'salary:canonical:'+ym,date:planned,name:'給与',
           amount:expected,type:'SALARY',future_kind:'INCOME',economic_type:'INCOME',
           generated:true,source:'salary_canonical_v135'});
         continue;
       }
+      // Normalize stale nominal-day estimates to the banking-day date.
+      const candidate=candidates[0];
+      if(candidate?.row?.generated && candidate.row.date!==planned)
+        rows[candidate.index]={...candidate.row,date:planned};
       if(candidates.length>1) {
         const priority=e=>e.source==='rule'?4:!e.generated?3:e.source==='settings_salary'?2:1;
         candidates.sort((a,b)=>priority(b.row)-priority(a.row)||a.index-b.index);
@@ -88,5 +101,5 @@
       return normalize(previousGenerated(days),stateNow(),iso(new Date()),days);
     };
   }
-  window.householdSalaryCanonicalV135={normalize,actualPaid,isRegular};
+  window.householdSalaryCanonicalV135={normalize,actualPaid,isRegular,previousBankingDay};
 })();

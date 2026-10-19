@@ -104,4 +104,22 @@ const eq=(actual,expected,description)=>{assert.equal(actual,expected,descriptio
   eq(a.periods[0].start,'2026-01-16','First cycle begins on prior banking day');
   eq(a.periods[11].end,'2027-01-17','Last annual payroll cycle includes next January');
 }
+{
+  const s=seed();s.settings.salary=0;
+  s.cashTransactions=[{date:'2026-10-18',amount:-17000,cashflow_type:'CARD_SETTLEMENT',description_raw:'楽天カード'}];
+  s.cardSettlements=[{card:'Rakuten',due_date:'2026-10-18',amount:16000}];
+  const v=calc(s);
+  eq(v.outActual,17000,'Bank actual wins when card estimate differs');
+  eq(v.outPending,0,'No duplicate pending for mismatched but identified card debit');
+  assert.ok(v.warnings.some(x=>x.includes('差があります')));assertions++;
+  s.cardSettlements=[];
+  eq(calc(s,'2026-10','payday',{cardEstimates:[{date:'2026-10-18',card:'Rakuten',amount:-16000}]}).outPending,
+    0,'Issuer-matched bank debit suppresses different card forecast amount');
+}
+{
+  const s=seed();s.settings.salary=0;
+  s.cashTransactions=[{date:'2026-10-17',amount:-10000,cashflow_type:'UNKNOWN',description_raw:'カード出金 ENET'}];
+  eq(calc(s).outActual,0,'ATM cash withdrawal is not a new economic outflow');
+  eq(calc(s).spentActual,0,'ATM cash withdrawal is not household consumption');
+}
 console.log('PASS '+assertions+' treasury ledger v145 assertions');

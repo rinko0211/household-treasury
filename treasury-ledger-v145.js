@@ -56,9 +56,10 @@
     !isCardBank(t)&&!isDebtBank(t)&&n(t.amount)<0&&econ(t)!=='INVESTMENT'&&econ(t)!=='TRANSFER';
   function bankKind(t){
     if(isInvestmentBank(t)||(isTransfer(t)&&isBroker(t)&&n(t.amount)<0))return 'investment';
-    if(isCashMovement(t)||isTransfer(t))return 'transfer';
+    if(isCashMovement(t))return 'transfer';
     if(isCardBank(t))return 'card';
     if(isDebtBank(t))return 'debt';
+    if(isTransfer(t))return 'transfer';
     if(String(t?.ordinary_or_special||'').toUpperCase()==='SPECIAL')return 'special';
     if(isFixed(t))return 'fixed';
     return 'living';
@@ -168,7 +169,7 @@
             (ct==='JAL'&&/JAL|MUFG|NICOS|ニコス|三菱UFJ/.test(descr))||
             (ct==='D_CARD'&&/DCカ|DOCOMO|Dカード|DCARD/.test(descr))||
             (ct==='DC'&&/DCカ|MUFG|NICOS|ニコス/.test(descr))||
-            (cf(t)==='CARD_SETTLEMENT'&&!ct);
+            cf(t)==='CARD_SETTLEMENT';
         }
         if(query){
           const descr=norm(textOf(t));
@@ -180,7 +181,7 @@
     for(const [i,s] of (st.cardSettlements||[]).entries()){
       const date=iso(s.due_date),amount=Math.abs(n(s.amount));
       if(!inside(date)||!amount)continue;
-      const key=[s.settlement_id||s.id||'',s.card||'',date,amount].join('|');
+      const key=[norm(s.card||''),date,amount].join('|');
       if(settlements.has(key))continue;settlements.add(key);
       const kind=cardKind(st,s.card);
       const matched=matchBank(date,amount,kind,s.card,'',4);
@@ -248,6 +249,14 @@
     for(const [i,e] of (st.events||[]).entries()){
       const date=iso(e.date),amount=n(e.amount),name=String(e.name||'臨時収支');
       if(!inside(date)||!amount||e.generated===true||String(e.recurring||'NONE').toUpperCase()!=='NONE')continue;
+      if(e.is_transfer===true||econ(e)==='TRANSFER'||/TRANSFER|INTERNAL_TRANSFER/.test(String(e.type||'').toUpperCase()))continue;
+      // A cash transfer or manual schedule already represented by an active
+      // master must not become a second monthly outflow.
+      if(amount<0&&(st.masters?.fixedExpenses||[]).some(m=>m.active!==false&&
+        Math.abs(n(m.amount)-Math.abs(amount))<=1&&
+        norm(m.name)===norm(name)&&
+        masterRoute(m)==='DIRECT'&&
+        masterOccurs(m,date.slice(0,7))&&daysBetween(masterDate(m,date.slice(0,7)),date)<=4))continue;
       if(/妻.*通常生活費/.test(name)&&Math.abs(amount)===230000){quality.add('旧妻生活費23万円の単発イベントは要確認のため除外');continue}
       const key=[e.id||'',date,amount,norm(name)].join('|');if(seenEvents.has(key))continue;seenEvents.add(key);
       const kind=eventKind(e);
@@ -280,6 +289,12 @@
     const countPositive=arr=>arr.filter(x=>x.amount>0).reduce((s,x)=>s+x.amount,0);
     const countNegative=arr=>arr.filter(x=>x.amount<0).reduce((s,x)=>s-x.amount,0);
     const incomeActual=countPositive(actual),incomePending=countPositive(pending);
+    const incomeBreakdown={
+      salaryActual:actual.filter(x=>x.kind==='salary'&&x.amount>0).reduce((s,x)=>s+x.amount,0),
+      bonusActual:actual.filter(x=>x.kind==='bonus'&&x.amount>0).reduce((s,x)=>s+x.amount,0),
+      salaryPending:pending.filter(x=>x.kind==='salary'&&x.amount>0).reduce((s,x)=>s+x.amount,0),
+      bonusPending:pending.filter(x=>x.kind==='bonus'&&x.amount>0).reduce((s,x)=>s+x.amount,0)
+    };
     const outActual=countNegative(actual),outPending=countNegative(pending);
     const spentActual=economic.reduce((s,x)=>s+x.amount,0);
     const groups=['living','fixed','cash','card','debt','investment','special'].map(kind=>({
@@ -304,7 +319,7 @@
       Number.isFinite(Number(st.settings?.cash))?Number(st.settings.cash):null;
     const rows=[...actual,...pending].sort((a,b)=>String(b.date).localeCompare(String(a.date))||String(a.label).localeCompare(String(b.label),'ja'));
     return {...p,referenceDate:ref,rows,economicRows:economic,
-      incomeActual,incomePending,incomeTotal:incomeActual+incomePending,
+      incomeActual,incomePending,incomeBreakdown,incomeTotal:incomeActual+incomePending,
       outActual,outPending,outTotal:outActual+outPending,
       remainderActual:incomeActual-outActual,
       remainder:incomeActual+incomePending-outActual-outPending,
@@ -323,6 +338,10 @@
     const allKinds=['living','fixed','cash','card','debt','investment','special'];
     return {year:yyyy,basis,periods,
       incomeActual:sum('incomeActual'),incomePending:sum('incomePending'),
+      salaryActual:periods.reduce((s,p)=>s+n(p.incomeBreakdown.salaryActual),0),
+      bonusActual:periods.reduce((s,p)=>s+n(p.incomeBreakdown.bonusActual),0),
+      salaryPending:periods.reduce((s,p)=>s+n(p.incomeBreakdown.salaryPending),0),
+      bonusPending:periods.reduce((s,p)=>s+n(p.incomeBreakdown.bonusPending),0),
       outActual:sum('outActual'),outPending:sum('outPending'),
       remainderActual:sum('remainderActual'),remainder:sum('remainder'),
       spentActual:sum('spentActual'),cardPurchase:sum('cardPurchase'),

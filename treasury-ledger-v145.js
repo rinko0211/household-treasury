@@ -207,6 +207,23 @@
       add(pending,{date,label:card+' 見込請求（未確定）',amount:-amount,kind:cardKind(st,card),
         source:'カード見込',status:date<ref?'unverified':'forecast',identity:'estimate:'+i});
     }
+    // Existing revolving-card engine owns repayment caps and payoff dates.
+    // Use only its repayment forecast rows, never its salary or purchase events.
+    const revolvingEstimates=Array.isArray(options.revolvingEstimates)?options.revolvingEstimates:[];
+    const revolvingSeen=new Set();
+    for(const [i,r] of revolvingEstimates.entries()){
+      const date=iso(r.date),amount=Math.abs(n(r.amount)),card=String(r.card||'');
+      if(!inside(date)||!amount)continue;
+      const key=[norm(card),date].join('|');
+      if(revolvingSeen.has(key))continue;revolvingSeen.add(key);
+      if((st.cardSettlements||[]).some(x=>sameCard(x.card,card)&&
+        String(x.due_date||'').slice(0,7)===date.slice(0,7)))continue;
+      const already=bankOut.some(({t})=>Math.abs(Math.abs(n(t.amount))-amount)<=1&&
+        daysBetween(t.date,date)<=4&&(isCardBank(t)||isDebtBank(t)));
+      if(already)continue;
+      add(pending,{date,label:card+' リボ返済予定（未照合）',amount:-amount,kind:'debt',
+        source:'カード返済計画',status:date<ref?'unverified':'forecast',identity:'revolving:'+i});
+    }
     const candidateMonths=[...new Set([p.start.slice(0,7),p.end.slice(0,7)])],seenPlan=new Set();
     for(const [i,m] of (st.masters?.fixedExpenses||[]).entries()){
       if(m?.active===false||m?.forecastEnabled===false||masterRoute(m)!=='DIRECT')continue;

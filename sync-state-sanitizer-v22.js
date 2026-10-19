@@ -154,9 +154,9 @@
   // v97: JAL/DC with a known revolving payoff automatically use full-payment forecasting for spends on/after the projected payoff date.
   injectClassic('./revolving-to-full-v97.js?v=97', 'data-household-revolving-to-full-v97');
   // v102: imported balance_after is the actual current balance. Elapsed plans after the last import stay unverified and affect forecast only.
-  injectClassic('./cashflow-reconciliation-v102.js?v=135', 'data-household-cashflow-reconciliation-v102');
+  injectClassic('./cashflow-reconciliation-v102.js?v=143', 'data-household-cashflow-reconciliation-v102');
   // v135: final salary authority after all forecast wrappers; prevents partial salary deposits suppressing payroll.
-  injectClassic('./cashflow-salary-canonical-v135.js?v=135', 'data-household-salary-canonical-v135');
+  injectClassic('./cashflow-salary-canonical-v135.js?v=143', 'data-household-salary-canonical-v135');
   // v139: scope MDC statement purchases by physical card, not generic JAL card name.
   injectClassic('./mdc-card-import-scope-v139.js?v=139', 'data-household-mdc-card-scope-v139');
   // v136: parse validated MDC card PDF locally, preview, then route through existing card CSV importer.

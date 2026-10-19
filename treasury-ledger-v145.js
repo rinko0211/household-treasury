@@ -188,6 +188,7 @@
       if(matched){
         usedActual.add(matched.row.identity);
         matched.row.kind=kind;
+        if(Math.abs(Math.abs(n(matched.t.amount))-amount)>1)quality.add('カード請求額と銀行実績に差があります。銀行実績のみ計上しました');
         accountedCardDates.add([String(s.card||''),date.slice(0,7)].join('|'));
       } else add(pending,{date,label:String(s.card||'カード')+' 引落（未照合）',amount:-amount,kind,
         source:'カード請求',status:date<ref?'unverified':'forecast',identity:'settlement:'+i});

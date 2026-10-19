@@ -15,7 +15,8 @@
   function cardEstimates(){
     try {
       const api=window.householdCardCycleV81;
-      return Array.isArray(api?.buildPlan?.(460)?.rows)?api.buildPlan(460).rows:[];
+      const plan=api?.buildPlan?.(460);
+      return Array.isArray(plan?.rows)?plan.rows:[];
     }catch{return[]}
   }
   function calculate(st,m,b,ref,estimates=[]){
@@ -94,7 +95,7 @@
     $('treasuryMonthV145').value=month;
     $('treasuryYearV145').value=annualYear;
     $('treasuryPeriodNoteV145').textContent=v.start+' 〜 '+v.end+
-      (basis==='payday'?' ｜ 原則18日基準、土日なら前倒し':' ｜ 暦月1日〜末日')+
+      (basis==='payday'?' ｜ 毎月'+(Number(st.settings?.salaryDay)||18)+'日基準、土日なら前倒し':' ｜ 暦月1日〜末日')+
       ' ｜ 確認済みと未照合の予定は別に集計します';
     const actualNet=v.remainderActual,forecastNet=v.remainder;
     const note=(s)=>'<div class="tiny">'+s+'</div>';
@@ -117,10 +118,8 @@
         '残高の記録日 '+esc(v.currentBankBalanceAsOf||'不明')+'。月次差引を足し直さない');
     }
     const liabilities=Math.max(0,Number(st.assets?.liabilities)||0),revolving=Math.max(0,Number(st.assets?.revolvingBalance)||0);
-    if(liabilities||revolving){
-      cards+=kpi('登録された負債残高',liabilities+revolving,
-        '参考：資産設定の負債＋リボ残高。返済額とは別（重複登録の可能性あり）');
-    }
+    if(liabilities)cards+=kpi('負債残高（登録値）',liabilities,'元金残高の参考値。今月の返済流出とは別');
+    if(revolving)cards+=kpi('リボ残高（登録値）',revolving,'負債残高への内包有無が不明なため、合算しません');
     $('treasuryKpisV145').innerHTML=cards;
     const cashGroupRows=v.groups.map(g=>'<div class="row"><span>'+names[g.kind]+'</span>'+
       '<div style="text-align:right"><b>'+yen(g.actual)+'</b>'+ (g.pending?'<div class="tiny">未照合 '+yen(g.pending)+'</div>':'')+
@@ -149,12 +148,14 @@
     $('treasuryHistoryV145').innerHTML=history+'</tbody></table>';
     const annual=engine().annual(st,annualYear,basis,ref,{cardEstimates:estimates});
     const annualTotals='<div class="grid">'+
+      kpi('年間の給与実入金',annual.salaryActual,'確認できた給与の入金のみ')+
+      kpi('年間の賞与実入金',annual.bonusActual,'確認できたボーナスの入金のみ')+
       kpi('年間の実入金',annual.incomeActual,'給与・賞与・その他の銀行入金')+
       kpi('年間の実流出',annual.outActual,'ローン・投資・カード引落を含む')+
       kpi('年間の確認済み差引',annual.remainderActual,'実入金－実流出',annual.remainderActual<0?'bad':'good')+
       kpi('年間の消費支出',annual.spentActual,'購入日基準のカード・現金・直接支出')+
       kpi('未照合の年間支払予定',annual.outPending,'確認済みの実支出ではありません')+
-      kpi('未入金の年間予定',annual.incomePending,'登録済み予定のみ。確定入金ではありません')+
+      kpi('未入金の年間予定',annual.incomePending,'うち給与予定 '+yen(annual.salaryPending)+' ／ 賞与予定 '+yen(annual.bonusPending)) +
       '</div>';
     let annualGroups='<div style="margin-top:12px"><b>年間の流出内訳</b>';
     for(const g of annual.groups)annualGroups+='<div class="row"><span>'+names[g.kind]+'</span>'+

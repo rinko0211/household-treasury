@@ -200,8 +200,10 @@
       if(!inside(date)||!amount)continue;
       const key=[card,date.slice(0,7)].join('|');
       if(seenEstimates.has(key)||accountedCardDates.has(key))continue;seenEstimates.add(key);
-      const hasActual=bankOut.some(({t})=>Math.abs(n(t.amount)+amount)<=1&&daysBetween(String(t.date),date)<=4&&
-        (isCardBank(t)||isDebtBank(t)));
+      const hasActual=bankOut.some(({t})=>daysBetween(String(t.date),date)<=4&&isCardBank(t)&&
+        (Math.abs(Math.abs(n(t.amount))-amount)<=1||norm(textOf(t)).includes(norm(card))||
+          (norm(card).includes('RAKUTEN')&&/楽天|ラクテン/.test(textOf(t)))||
+          (norm(card).includes('JAL')&&/JAL|MUFG|NICOS|ニコス/.test(textOf(t)))));
       const hasStatement=(st.cardSettlements||[]).some(s=>inside(s.due_date)&&sameCard(s.card,card)&&
         String(s.due_date).slice(0,7)===date.slice(0,7));
       if(hasActual||hasStatement)continue;

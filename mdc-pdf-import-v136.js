@@ -95,10 +95,10 @@
     return [header,...p.entries.map(e=>['確定',e.date.replace(/-/g,'/'),e.merchant,e.amount,e.count,'',p.paymentDate.replace(/-/g,'/')])]
       .map(row=>row.map(quote).join(',')).join('\r\n')+'\r\n';
   }
-  function toCsv(p,identity=p.cardLabel||'JALカード①',oldFilename=''){
+  function toCsv(p,identity=p.cardLabel||'JALカード①',oldFilename='',differentCard=false){
     const quote=s=>'"'+String(s??'').replace(/"/g,'""')+'"';
-    const header=['確定情報','ご利用日','ご利用店名（海外ご利用店名／海外都市名）','ご利用金額（円）','支払回数','何回目','お支払日','MDCカード識別子','MDC旧版CSVファイル'];
-    return [header,...p.entries.map(e=>['確定',e.date.replace(/-/g,'/'),e.merchant,e.amount,e.count,'',p.paymentDate.replace(/-/g,'/'),identity,oldFilename])]
+    const header=['確定情報','ご利用日','ご利用店名（海外ご利用店名／海外都市名）','ご利用金額（円）','支払回数','何回目','お支払日','MDCカード識別子','MDC旧版CSVファイル','MDC別カードとして登録'];
+    return [header,...p.entries.map(e=>['確定',e.date.replace(/-/g,'/'),e.merchant,e.amount,e.count,'',p.paymentDate.replace(/-/g,'/'),identity,oldFilename,differentCard?'YES':''])]
       .map(row=>row.map(quote).join(',')).join('\r\n')+'\r\n';
   }
   async function syntheticFilename(p,csv){
@@ -177,25 +177,57 @@
           '<div class="tiny">'+(p.cardIdentityDetected?'カード番号の伏字部分から自動識別。必要なら変更できます。':'カード番号を自動識別できません。別カードなら識別名を変更してください。')+'</div>'+
           '<div class="tiny" style="margin-top:6px">支出は引落月ではなく利用月に計上されます。'+[...new Set(p.entries.map(e=>e.date.slice(0,7)))].sort().join('、')+'の明細が対象です。</div>'+
           '<details><summary>明細プレビュー（6件）</summary>'+list+'</details>'+
+          '<div class="note" id="mdcPdfDeltaPreviewV144" style="margin-top:9px">登録済み明細との差分を照合中…</div>'+
+          '<label class="tiny" style="display:block;margin:9px 0"><input type="checkbox" id="mdcPdfDifferentCardV144"> 既存と明細が重なりますが、実際に別のカードとして登録する（確認が必要な場合のみ）</label>'+
           '<div class="note" style="margin:9px 0">まだ支出へ登録していません。次の「確認して取り込む」で保存します。</div>'+
           '<button class="btn" id="mdcPdfCommitV136" type="button">確認して取り込む</button>'+
           '<div class="tiny" id="mdcPdfResultV136" style="margin-top:8px"></div>';
         const saveBtn=card.querySelector('#mdcPdfCommitV136'),status=card.querySelector('#mdcPdfResultV136');
+        const labelInput=card.querySelector('#mdcPdfCardLabelV139'),
+          otherCard=card.querySelector('#mdcPdfDifferentCardV144'),
+          previewBox=card.querySelector('#mdcPdfDeltaPreviewV144');
+        const checkDelta=()=>{
+          const identity=String(labelInput.value||'').normalize('NFKC').trim();
+          if(!identity){saveBtn.disabled=true;previewBox.textContent='カード識別名が必要です。';return null}
+          const engine=window.householdMdcPdfDeltaV144;
+          if(!engine?.previewPdf){saveBtn.disabled=true;previewBox.textContent='差分照合機能が読み込まれていません。';return null}
+          try{
+            const delta=engine.previewPdf(p,identity,otherCard.checked);
+            const blocked=delta.issues.some(x=>x.startsWith('MDC-D11:'));
+            previewBox.innerHTML=
+              '<b>今回の差分：新規 '+delta.added+'件／登録済み '+delta.duplicates+'件／旧版識別更新 '+delta.upgraded+'件</b>'+
+              '<div class="tiny">同じ明細は再登録されません。ファイルの更新日・ファイル名は重複判定に使いません。</div>'+
+              (delta.issues.length?'<div class="tiny" style="margin-top:7px">'+
+                delta.issues.map(esc).join(' / ')+'</div>':'')+
+              (delta.conflicts?.length&&blocked?'<button class="btn secondary" id="mdcPdfUseExistingV144" type="button" style="margin-top:8px">以前のカード識別名「'+esc(delta.conflicts[0].identity)+'」を使う</button>':'');
+            const useExisting=card.querySelector('#mdcPdfUseExistingV144');
+            if(useExisting)useExisting.onclick=()=>{labelInput.value=delta.conflicts[0].identity;otherCard.checked=false;checkDelta()};
+            saveBtn.disabled=blocked;
+            return blocked?null:delta;
+          }catch(e){saveBtn.disabled=true;previewBox.textContent='差分照合できません: '+String(e?.message||e);return null}
+        };
+        labelInput.addEventListener('input',checkDelta);
+        otherCard.addEventListener('change',checkDelta);
+        checkDelta();
         saveBtn.onclick=async()=>{
           if(saveBtn.disabled)return;
           if(typeof importOne!=='function'){status.textContent='既存の取込エンジンが利用できません。';return;}
-          saveBtn.disabled=true;status.textContent='重複照合と登録中…';
+          const verifiedDelta=checkDelta();
+          if(!verifiedDelta)return;
+          saveBtn.disabled=true;status.textContent='差分照合と登録中…';
           try{
             const identity=String(card.querySelector('#mdcPdfCardLabelV139')?.value||'').normalize('NFKC').trim();
             if(!identity)throw Error('カード識別名を入力してください。');
             const oldName=await syntheticFilename(p,toLegacyCsv(p));
-            const csv=toCsv(p,identity,oldName);
+            const csv=toCsv(p,identity,oldName,otherCard.checked);
             const name=await syntheticFilename(p,csv);
             const synthetic=new File([csv],name,{type:'text/csv;charset=utf-8'});
             const result=await importOne(synthetic);
             const months=[...new Set(p.entries.map(e=>e.date.slice(0,7)))].sort();
             const counts=Object.fromEntries(months.map(month=>[month,p.entries.filter(e=>e.date.startsWith(month)).length]));
-            status.innerHTML='<b>取込済み</b>：新規'+Number(result.added||0)+'件、既存'+Number(result.duplicates||0)+'件、旧版データ識別更新'+Number(result.upgraded||0)+'件。<div class="tiny">利用月：'+months.map(m=>m+'（'+counts[m]+'件）').join('、')+'。支払月'+p.paymentDate.slice(0,7)+'ではありません。</div>'+
+            status.innerHTML='<b>取込済み</b>：新規'+Number(result.added||0)+'件、既存'+Number(result.duplicates||0)+'件、旧版データ識別更新'+Number(result.upgraded||0)+'件。'+
+              ((result.issues||[]).length?'<div class="tiny">'+(result.issues||[]).map(esc).join(' / ')+'</div>':'')+
+              '<div class="tiny">利用月：'+months.map(m=>m+'（'+counts[m]+'件）').join('、')+'。支払月'+p.paymentDate.slice(0,7)+'ではありません。</div>'+
               '<div class="controls" id="mdcPdfMonthLinksV139"></div>';
             const host=card.querySelector('#mdcPdfMonthLinksV139');
             for(const month of months){
@@ -210,6 +242,7 @@
             }
             window.dispatchEvent(new CustomEvent('treasury:expenses-imported',{detail:{months,source:'MDC_PDF'}}));
             if(typeof render==='function')render();
+            checkDelta();
           }catch(e){saveBtn.disabled=false;status.textContent='取込失敗: '+String(e?.message||e);}
         };
       }catch(e){output.textContent='解析停止: '+String(e?.message||e);}

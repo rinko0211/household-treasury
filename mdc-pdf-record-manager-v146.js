@@ -83,7 +83,7 @@ function installShortcut(){
  div.innerHTML='<div class="title">PDFの誤取込を修正</div>'+
    '<div class="tiny" style="margin-bottom:8px">同じ明細の重複や読取間違いは、元のPDFファイル別に選んで削除できます。</div>'+
    '<button type="button" id="pdfCorrectionShortcutButtonV146" class="btn secondary">誤取込の明細を選んで削除</button>';
- page.prepend(div);
+ page.appendChild(div); // Keep the unified monthly dashboard first on mobile.
  div.querySelector('button').onclick=()=>{
    const tab=document.querySelector('nav.tabs [data-page="imports"]');
    if(tab)tab.click();

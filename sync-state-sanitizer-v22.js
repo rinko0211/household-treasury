@@ -169,6 +169,6 @@
   // v144: final PDF statement delta resolver; must load after all CSV wrappers.
   injectClassic('./mdc-pdf-delta-v144.js?v=144', 'data-household-mdc-pdf-delta-v144');
   // v146: always-visible PDF row/file deletion with recovery snapshot, not duplicate-only.
-  injectClassic('./mdc-pdf-record-manager-v146.js?v=146', 'data-household-mdc-pdf-record-manager-v146');
+  injectClassic('./mdc-pdf-record-manager-v146.js?v=148', 'data-household-mdc-pdf-record-manager-v146');
   // v92/v93 exact d-card overlay retired in v94.
 })();

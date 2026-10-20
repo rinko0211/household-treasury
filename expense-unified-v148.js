@@ -12,7 +12,7 @@ const semantics=()=>window.householdSemanticV47;
 const localDate=()=>{const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')};
 const labelByKind={living:'生活費',fixed:'固定費',cash:'現金支出',special:'特別費',debt:'ローン・リボ返済',card:'カード引落',investment:'NISA・iDeCoなど',cardPurchase:'カード利用'};
 const tones={direct:'#13c7b5',card:'#67b9f4',debt:'#ff9f35',investment:'#987efd',consumption:'#13c7b5'};
-let cycle='payday',lens='cash',month='',openBucket='',openCategory='',groups=[];
+let cycle='payday',lens='cash',month='',openBucket='',openCategory='',groups=[],annualOpen=false;
 function initialMonth(){
  const now=localDate(),m=now.slice(0,7);
  return cycle==='calendar'||!engine()?m:(now<engine().payday(stateNow(),m)?engine().addMonth(m,-1):m);
@@ -174,11 +174,28 @@ function render(){
    (settingOnly?'給与入金が未照合です。設定手取りとの比較であり、銀行残高の確定値ではありません。':
     'この差額は期間中の収支の比較値で、銀行残高ではありません。')+'</div>'+
    v.quality.slice(0,3).map(q=>'<div style="margin-top:7px">'+esc(q)+'</div>').join('')+'</div>';
+ const annual=engine().annual(st,Number(month.slice(0,4)),cycle,localDate(),{
+   cardEstimates:cardEstimates(),revolvingEstimates:revolvingEstimates()
+ });
+ const annualDebt=annual.groups.find(g=>g.kind==='debt')?.actual||0;
+ const annualInvestment=annual.groups.find(g=>g.kind==='investment')?.actual||0;
+ html+='<details class="hub-card" id="hubAnnualV148"'+(annualOpen?' open':'')+'>'+
+   '<summary style="cursor:pointer;font-weight:750;font-size:16px">年間の収支を見る（'+esc(annual.year)+'年）</summary>'+
+   '<div class="hub-muted" style="margin:10px 0">同じ'+(cycle==='payday'?'給与サイクル':'暦月')+'の12期間で集計。実績と未照合の予定を分けて表示します。</div>'+
+   [['年間の給与実入金',annual.salaryActual],['年間の賞与実入金',annual.bonusActual],
+    ['年間の実入金合計',annual.incomeActual],['年間の資金流出',annual.outActual],
+    ['うちローン・リボ返済',annualDebt],['うち投資積立',annualInvestment],
+    ['年間の消費・購入額',annual.spentActual],['年間の差額（実績のみ）',annual.remainderActual],
+    ['未照合の支払予定',annual.outPending],['未入金の予定',annual.incomePending]]
+     .map(x=>'<div class="hub-totals" style="font-size:13px"><span>'+x[0]+'</span><b>'+yen(x[1])+'</b></div>').join('')+
+   '<p class="hub-muted">銀行明細のない期間：'+annual.missingBankPeriods+
+   '。予定は実績残高に足しません。給与サイクルの12月分は翌年1月の次回給与日前日まで含みます。</p></details>';
  root.innerHTML=html;
  bind(root);
  return true;
 }
 function bind(root){
+ const annually=$('hubAnnualV148');if(annually)annually.addEventListener('toggle',()=>{annualOpen=annually.open});
  root.querySelectorAll('[data-hub-cycle]').forEach(btn=>btn.addEventListener('click',()=>{
    if(cycle===btn.dataset.hubCycle)return;
    cycle=btn.dataset.hubCycle;openBucket='';openCategory='';render();

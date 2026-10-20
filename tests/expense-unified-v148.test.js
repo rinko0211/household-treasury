@@ -55,6 +55,11 @@ dom.set('expenses',expense);dom.set('expenseTabRootV129',legacy);
 const listeners={};
 const events=[];
 const window={
+ householdSemanticV47:{
+   normalizeCategoryValue:x=>x||null,
+   inferCategory:()=> 'OTHER',
+   CATEGORY_DEFS:{FOOD:{label:'食費'},GIFTS_EVENTS:{label:'イベント・贈答'},OTHER:{label:'その他'}}
+ },
  getTreasuryStateRaw:()=>state,
  addEventListener:(kind,fn)=>(listeners[kind]??=[]).push(fn),
  householdCardCycleV81:{buildPlan:()=>({rows:[]})},

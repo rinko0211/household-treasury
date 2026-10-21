@@ -125,8 +125,8 @@
     // purchase with a distinct id is preserved.
     const seenCash=new Set();
     for(const [i,c] of (st.cashExpenses||[]).entries()){
-      const date=iso(c.date),amount=Math.abs(n(c.amount)),name=textOf(c)||'現金支出';
-      if(!inside(date)||!amount||econ(c)==='TRANSFER')continue;
+      const date=iso(c.date),amount=Math.abs(n(c.purchase_total??c.amount)),name=textOf(c)||'現金支出';
+      if(!inside(date)||!amount||econ(c)==='TRANSFER'||c.count_in_spending===false||c.reconciliation_status==='ABSORBED_DUPLICATE')continue;
       const sig=String(c.id||[date,norm(name),amount,c.category,c.spending_class].join('|'));
       if(seenCash.has(sig)){quality.add('同一IDの現金支出重複を除外しました');continue}
       seenCash.add(sig);
@@ -142,7 +142,7 @@
     const seenPurchase=new Set();
     for(const [i,b] of (st.purchaseEvents||[]).entries()){
       const date=iso(b.purchase_date),amount=Math.abs(n(b.original_amount));
-      if(!inside(date)||!amount||econ(b)==='TRANSFER'||b.is_refinance_adjustment||b.is_refinanced)continue;
+      if(!inside(date)||!amount||econ(b)!=='EXPENSE'||b.count_in_spending===false||b.is_refinance_adjustment||b.is_refinanced)continue;
       const sig=[b.card,b.pdf_card_identity,b.billing_month,date,norm(b.merchant_raw||b.merchant_normalized),
         amount,b.occurrence_index||1,b.installment_number||0].join('|');
       if(seenPurchase.has(sig)){quality.add('PDF等からの同一カード利用明細が複数登録されています。元データの重複点検が必要です');continue}

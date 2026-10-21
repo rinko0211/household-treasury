@@ -9,6 +9,7 @@ const n=v=>Number.isFinite(Number(v))?Number(v):0;
 const stateNow=()=>{try{return (window.getTreasuryStateRaw||window.getTreasuryState)?.()||{}}catch{return {}}};
 const engine=()=>window.treasuryLedgerV145;
 const semantics=()=>window.householdSemanticV47;
+const nature=()=>window.householdExpenseNatureV152;
 const localDate=()=>{const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')};
 const labelByKind={living:'生活費',fixed:'固定費',cash:'現金支出',special:'特別費',debt:'ローン・リボ返済',card:'カード引落',investment:'NISA・iDeCoなど',cardPurchase:'カード利用'};
 const tones={living:'#13c7b5',fixed:'#ff9f35',ideco:'#987efd',investment:'#67b9f4',special:'#eab86d',consumption:'#13c7b5'};
@@ -69,65 +70,64 @@ function rowDetails(row,st){
  const [kind,sIndex]=String(row.identity||'').split(':'),i=Number(sIndex);
  let source=null,editKind='',editId='';
  if(Number.isSafeInteger(i)&&i>=0){
-  if(kind==='purchase'){source=st.purchaseEvents?.[i];editKind='purchase';editId=String(source?.purchase_id||'purchase:'+i)}
-  if(kind==='bank'){source=st.cashTransactions?.[i];editKind='cash';editId=String(source?.id||'cash:'+i)}
-  if(kind==='cash'){source=st.cashExpenses?.[i];editKind='cash_expense';editId=String(source?.id||'cash-expense:'+i)}
+   if(kind==='purchase'){source=st.purchaseEvents?.[i];editKind='purchase';editId=String(source?.purchase_id||'purchase:'+i)}
+   if(kind==='bank'){source=st.cashTransactions?.[i];editKind='cash';editId=String(source?.id||'cash:'+i)}
+   if(kind==='cash'){source=st.cashExpenses?.[i];editKind='cash_expense';editId=String(source?.id||'cash-expense:'+i)}
  }
- const cat=semantics()?.normalizeCategoryValue?.(source?.category)||
-   semantics()?.inferCategory?.(row.label,source?.category)||'OTHER';
- const special=row.kind==='special'||String(source?.spending_class||source?.expense_scope||source?.ordinary_or_special||'').toUpperCase()==='SPECIAL';
- return {...row,category:cat,scope:special?'SPECIAL':'NORMAL',editKind,editId};
+ const sem=semantics();
+ const category=sem?.normalizeCategoryValue?.(source?.category)||
+   sem?.inferCategory?.(row.label,source?.category)||'OTHER';
+ const subcategory=sem?.inferSubcategory?.(category,row.label,source?.subcategory)||'OTHER';
+ const rule=window.householdExpenseNatureV152?.classify({
+   category,subcategory,source,kind:row.kind,label:row.label,semantic:sem
+ })||{nature:'REVIEW',key:''};
+ return {...row,category,subcategory,costNature:rule.nature,
+   costNatureKey:rule.key,costNatureReason:rule.reason,editKind,editId};
 }
 function buckets(st,v,mode=lens){
- const actual=(v.rows||[]).filter(r=>r.status==='confirmed'&&r.amount<0);
- const cashSpec=[
-   {id:'living',label:'通常の生活費（家族カード・現金など）',color:tones.living,
-    rows:actual.filter(r=>['living','cash','card'].includes(r.kind))},
-   {id:'fixed',label:'固定費・通常ローン',color:tones.fixed,
-    rows:actual.filter(r=>r.kind==='fixed'||r.kind==='debt')},
-   {id:'ideco',label:'iDeCo',color:tones.ideco,
-    rows:actual.filter(r=>r.kind==='investment'&&isIdecoText(r.label))},
-   {id:'investment',label:'その他の投資・積立',color:tones.investment,
-    rows:actual.filter(r=>r.kind==='investment'&&!isIdecoText(r.label))},
-   {id:'special',label:'特別費',color:tones.special,
-    rows:actual.filter(r=>r.kind==='special')}
+ const actual=(mode==='cash'?(v.rows||[]).filter(r=>r.status==='confirmed'&&r.amount<0):(v.economicRows||[]))
+   .map(x=>rowDetails(x,st));
+ const expense=actual.filter(r=>!['investment','debt','card'].includes(r.kind));
+ const specs=[
+  {id:'fixed',label:'通常費（固定費・ローン）',color:'#ff9f35',
+   rows:[...expense.filter(r=>r.costNature==='FIXED'),...(mode==='cash'?actual.filter(r=>r.kind==='debt'):[])]},
+  {id:'variable',label:'通常費（変動費）',color:'#13c7b5',rows:expense.filter(r=>r.costNature==='VARIABLE')},
+  {id:'special',label:'特別費',color:'#eab86d',rows:expense.filter(r=>r.costNature==='SPECIAL')},
+  {id:'review',label:'要確認（明細ごとに判断）',color:'#b4a1a1',rows:expense.filter(r=>r.costNature==='REVIEW')}
  ];
- const specs=mode==='cash'?cashSpec:[
-   {id:'living',label:'通常の生活費（カード利用・現金など）',color:tones.living,
-    rows:(v.economicRows||[]).filter(r=>r.kind!=='special')},
-   {id:'special',label:'特別費',color:tones.special,
-    rows:(v.economicRows||[]).filter(r=>r.kind==='special')}
- ];
- return specs.map(b=>{
-   const items=b.rows.map(x=>rowDetails(x,st));
-   return {id:b.id,label:b.label,color:b.color,items,amount:items.reduce((sum,x)=>sum+Math.abs(n(x.amount)),0)};
- });
+ if(mode==='cash')specs.splice(3,0,
+   {id:'cardUnallocated',label:'カード引落（用途未配分）',color:'#5899b3',rows:actual.filter(r=>r.kind==='card')},
+   {id:'ideco',label:'iDeCo（固定拠出）',color:'#987efd',
+      rows:actual.filter(r=>r.kind==='investment'&&isIdecoText(r.label))},
+   {id:'investment',label:'その他の投資・積立',color:'#67b9f4',
+      rows:actual.filter(r=>r.kind==='investment'&&!isIdecoText(r.label))}
+ );
+ return specs.map(b=>({id:b.id,label:b.label,color:b.color,items:b.rows,
+    amount:b.rows.reduce((sum,x)=>sum+Math.abs(n(x.amount)),0)}));
 }
 function subgroups(bucket,mode=lens){
  const map=new Map();
  for(const x of bucket.items){
    let key,label;
-   if(bucket.id==='living'&&x.kind==='card'){
-     key='living|card';label='家族カード・その他カード引落';
-   }else if(bucket.id==='living'||bucket.id==='special'){
-     key=x.scope+'|'+x.category;
-     label=(x.scope==='SPECIAL'?'特別費 / ':'')+
-       (semantics()?.CATEGORY_DEFS?.[x.category]?.label||
-        window.householdExpenseAnalyticsV106?.categoryLabel?.(x.category)||'その他');
-   }else if(bucket.id==='fixed'){
-     const kind=/リボ/.test(x.label)?'revolving':x.kind==='debt'?'loan':'fixed';
-     if(kind!=='fixed'){
-       key='fixed|'+kind;
-       label=kind==='revolving'?'リボ返済':'車ローン等の返済';
-     }else{
-       key='fixed|'+x.category;
-       label=semantics()?.CATEGORY_DEFS?.[x.category]?.label||
-         window.householdExpenseAnalyticsV106?.categoryLabel?.(x.category)||'その他の固定費';
-     }
+   if(x.kind==='debt'){
+     const name=String(x.label||'');
+     key='DEBT|'+(/プラド|PRADO/i.test(name)?'PRADO':/ラパン|LAPIN/i.test(name)?'LAPIN':/リボ/.test(name)?'REVOLVING':'OTHER');
+     label=key.endsWith('PRADO')?'プラドローン返済':key.endsWith('LAPIN')?'ラパンローン返済':key.endsWith('REVOLVING')?'リボ返済':'ローン返済（元金等）';
+   }else if(bucket.id==='cardUnallocated'){
+     key='CARD|'+x.source;label=x.source||'カード引落';
    }else if(bucket.id==='ideco'){
-     key='investment|ideco';label='iDeCo';
+     key='INVESTMENT|IDECO';label='iDeCo';
+   }else if(bucket.id==='investment'){
+     key='INVESTMENT|OTHER';label='NISA・証券積立等';
    }else{
-     key='investment|other';label='NISA・証券積立等';
+     const defs=semantics()?.CATEGORY_DEFS||{};
+     const categoryName=defs[x.category]?.label||
+       window.householdExpenseAnalyticsV106?.categoryLabel?.(x.category)||'その他';
+     const subLabel=window.householdExpenseNatureV152?.subcategoryLabels?.[x.category+'.'+x.subcategory]||
+       x.subcategory||'その他';
+     key=x.costNatureKey||x.category+'.'+x.subcategory;
+     label=categoryName+' / '+subLabel;
+     if(bucket.id==='review')label+='（個別判断）';
    }
    let group=map.get(key);
    if(!group){group={key,label,amount:0,items:[]};map.set(key,group)}
@@ -201,7 +201,7 @@ function render(){
  const settingOnly=v.incomeActual===0&&benchmark>0;
  const difference=benchmark-total,ratio=benchmark>0?total*100/benchmark:null;
  const p=ratioParts(all,benchmark);
- let html='<div class="hub-card"><div class="hub-period"><div class="hub-title">月次支出サマリー <small style="color:#72dbc6;font-size:11px">v151</small></div>'+
+ let html='<div class="hub-card"><div class="hub-period"><div class="hub-title">月次支出サマリー <small style="color:#72dbc6;font-size:11px">v152</small></div>'+
    '<div class="hub-toolbar"><button type="button" class="hub-arrow" id="hubPrevV148" aria-label="前月">‹</button>'+
    '<input id="hubMonthV148" aria-label="対象月" class="hub-month" type="month" value="'+esc(month)+'">'+
    '<button type="button" class="hub-arrow" id="hubNextV148" aria-label="翌月">›</button></div></div>'+

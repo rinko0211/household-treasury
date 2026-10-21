@@ -73,7 +73,7 @@ function calculations(state){
  const ordinaryCash=cash.filter(x=>!x.r.cash_balance_residual_id);
  const dCards=cards.filter(x=>/^(Dカード|dカード)$/i.test(String(x.r.card||'')));
  const normalCards=cards.filter(x=>!dCards.includes(x));
- const disputed=bankDirect.filter(x=>Number.isInteger(r=Number(x.r.reconciliation_disputed_difference))&&r>0&&r<=x.amount)
+ const disputed=bankDirect.filter(x=>{const fee=Number(x.r.reconciliation_disputed_difference);return Number.isSafeInteger(fee)&&fee>0&&fee<=x.amount})
    .reduce((a,x)=>a+Number(x.r.reconciliation_disputed_difference),0);
  const cashTotal=sum(ordinaryCash),unknownTotal=sum(unknown),cardTotal=sum(normalCards),dcardTotal=sum(dCards),
        bankTotal=sum(bankDirect),loanTotal=sum(debt),investmentTotal=sum(investment),incomeTotal=sum(income);

@@ -122,4 +122,21 @@ const eq=(actual,expected,description)=>{assert.equal(actual,expected,descriptio
   eq(calc(s).outActual,0,'ATM cash withdrawal is not a new economic outflow');
   eq(calc(s).spentActual,0,'ATM cash withdrawal is not household consumption');
 }
+{
+  const s=seed();s.settings.salary=0;
+  s.cashExpenses=[
+    {id:'cash-hospital1',date:'2026-10-17',amount:1710,description:'Hospital',economic_type:'EXPENSE',count_in_spending:false,
+      reconciliation_status:'ABSORBED_DUPLICATE',absorbed_into_purchase_id:'hospital-1'},
+    {id:'cash-hospital2',date:'2026-10-17',amount:1500,description:'Hospital',economic_type:'EXPENSE',count_in_spending:false,
+      reconciliation_status:'ABSORBED_DUPLICATE',absorbed_into_purchase_id:'hospital-1'},
+    {id:'cash-hospital3',date:'2026-10-17',amount:5830,description:'Hospital',economic_type:'EXPENSE',count_in_spending:false,
+      reconciliation_status:'ABSORBED_DUPLICATE',absorbed_into_purchase_id:'hospital-1'}];
+  s.purchaseEvents=[{purchase_id:'hospital-1',card:'JAL',purchase_date:'2026-10-17',
+    merchant_raw:'Hospital',original_amount:9040,economic_type:'EXPENSE',billing_month:'2026-11'}];
+  eq(calc(s).spentActual,9040,'Hospital card absorbs three cash receipts without double count');
+  s.cashExpenses=[{id:'demzu',date:'2026-10-17',amount:980,purchase_total:1980,
+    description:'DEMZU mixed purchase',economic_type:'EXPENSE',payment_breakdown:[{method:'CASH',amount:980},{method:'VOUCHER',amount:1000}]}];
+  s.purchaseEvents=[];
+  eq(calc(s).spentActual,1980,'Full mixed voucher purchase amount counted exactly once');
+}
 console.log('PASS '+assertions+' treasury ledger v145 assertions');

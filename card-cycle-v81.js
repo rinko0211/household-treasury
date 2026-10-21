@@ -55,7 +55,13 @@
     const exact=activeCards(st).filter(x=>canonicalCard(x.name)===c);return exact.length===1?exact[0].name:String(raw||'');
   }
   function cardMatches(st,raw,target){const r=resolveCardName(st,raw);return sameCard(r,target)||String(r)===String(target)}
-  function manualOverride(st,card,ym){return (st.cardCashflowOverrides||[]).find(o=>String(o.key||'')===estimateKey(card,ym))||null}
+  function overrideRecord(st,card,ym){return (st.cardCashflowOverrides||[]).find(o=>
+    String(o.key||'')===estimateKey(card,ym)||(
+      String(o.kind||'').toUpperCase()==='ESTIMATE'&&String(o.billing_month||'')===ym&&cardMatches(st,o.card,card)))||null}
+  const inactiveOverride=o=>!!o&&(
+    o.include_in_forecast===false||o.exclude_from_current_cashflow===true||
+    ['SUPERSEDED','EXPIRED_UNVERIFIED','SUSPENDED_UNVERIFIED'].includes(String(o.reconciliation_status||'').toUpperCase()));
+  function manualOverride(st,card,ym){const o=overrideRecord(st,card,ym);return inactiveOverride(o)?null:o}
   function meaningfulActual(st,card,ym){return (st.cardSettlements||[]).find(s=>cardMatches(st,s.card,card)&&String(s.due_date||'').slice(0,7)===ym&&Number.isFinite(Number(s.amount))&&Math.abs(Number(s.amount))>0)||null}
   function purchaseAmount(p){const v=p?.payment_amount;return v!==null&&v!==''&&Number.isFinite(Number(v))?Math.abs(Number(v)):Math.abs(Number(p?.original_amount)||0)}
   function masterDay(m){for(const v of [m?.dueDay,m?.paymentDay,m?.day]){const n=Number(v);if(Number.isInteger(n)&&n>=1&&n<=31)return n}return 1}
@@ -91,7 +97,7 @@
       const base=baselineOf(card),useBaseline=forecastMode(card)==='BASELINE'&&base>0;
       if(useBaseline)for(let ym=range.from.slice(0,7);ym<=range.to.slice(0,7);ym=addMonths(ym,1))months.add(ym);
       for(const ym of [...months].sort()){
-        const defaultDate=dateFor(ym,settleDay);if(defaultDate<range.from||defaultDate>range.to)continue;if(meaningfulActual(st,card.name,ym))continue;
+        const defaultDate=dateFor(ym,settleDay);if(defaultDate<range.from||defaultDate>range.to)continue;if(meaningfulActual(st,card.name,ym))continue;if(inactiveOverride(overrideRecord(st,card.name,ym)))continue;
         const purchases=knownForCard(st,card,ym),known=purchases.reduce((a,p)=>a+purchaseAmount(p),0),sched=(scheduled.get(ym)||[]).filter(s=>!purchases.some(p=>linkedToMaster(p,s.master))),scheduledTotal=sched.reduce((a,s)=>a+s.amount,0),components=known+scheduledTotal,o=manualOverride(st,card.name,ym),exactD=useBaseline&&canonicalCard(card.name)==='D_CARD';
         let amount=o?Math.max(0,Number(o.amount)||0):useBaseline?forecastAmountForCard(card,components):components;if(amount<=0)continue;
         rows.push({id:`card-estimate:v81:${norm(card.name)}:${ym}`,date:o?.date||defaultDate,name:`${card.name} 見込請求`,amount:-amount,type:'CARD_ESTIMATE',source:'card_estimate_v81',generated:true,record_kind:'FORECAST_EVENT',economic_type:'TRANSFER',estimated:true,card:card.name,billing_month:ym,known_purchase_total:known,scheduled_fixed_total:scheduledTotal,component_count:purchases.length+sched.length,components:{purchases:purchases.map(p=>({name:p.merchant_raw||'カード利用',amount:purchaseAmount(p)})),scheduled:sched.map(s=>({name:s.master.name||'予定',amount:s.amount,spend_date:s.spendDate,payment_date:s.payDate,master_id:s.master.id}))},baseline_amount:useBaseline?base:0,forecast_method:o?'MANUAL_OVERRIDE':exactD?'D_CARD_STANDARD_EXACT_V91':useBaseline?'BASELINE_CYCLE_V81':'COMPONENTS_CYCLE_V81',baseline_floor_applied:useBaseline&&!o&&!exactD&&amount===base,baseline_exact_applied_v91:exactD&&!o,card_cashflow_override:!!o,card_cashflow_override_id:o?.id||null,closing_day:closingDayValue(card),settlement_day:settleDay});
@@ -103,7 +109,7 @@
   function baselinePreview(count=6){
     const st=stateNow(),start=isoDate(new Date()).slice(0,7),months=Array.from({length:Math.max(1,count)},(_,i)=>addMonths(start,i)),out=[];
     for(const c of activeCards(st).filter(c=>paymentMode(c)==='FULL'&&forecastMode(c)==='BASELINE'&&baselineOf(c)>0)){
-      const series=months.map(ym=>{const actual=meaningfulActual(st,c.name,ym),o=manualOverride(st,c.name,ym),base=baselineOf(c);return{ym,date:dateFor(ym,settlementDayValue(c)||1),amount:actual?Math.abs(Number(actual.amount)||0):o?Math.max(0,Number(o.amount)||0):base,source:actual?'ACTUAL':o?'OVERRIDE':'BASELINE'}});
+      const series=months.map(ym=>{const actual=meaningfulActual(st,c.name,ym),raw=overrideRecord(st,c.name,ym),o=manualOverride(st,c.name,ym),base=baselineOf(c);return{ym,date:dateFor(ym,settlementDayValue(c)||1),amount:actual?Math.abs(Number(actual.amount)||0):inactiveOverride(raw)?0:o?Math.max(0,Number(o.amount)||0):base,source:actual?'ACTUAL':inactiveOverride(raw)?'SUPPRESSED':o?'OVERRIDE':'BASELINE'}});
       out.push({card:c.name,baseline:baselineOf(c),settlementDay:settlementDayValue(c),closingDay:closingDayValue(c),months:series});
     }return out;
   }

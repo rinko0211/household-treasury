@@ -134,7 +134,7 @@
   injectClassic('./planning-model-v80.js?v=91', 'data-household-planning-model-v80');
   injectClassic('./planning-ui-v80.js?v=80', 'data-household-planning-ui-v80');
   // v81 is the card-cycle authority and restores bank balances to the planning dashboard.
-  injectClassic('./card-cycle-v81.js?v=91', 'data-household-card-cycle-v81');
+  injectClassic('./card-cycle-v81.js?v=153', 'data-household-card-cycle-v81');
   // v97 preserves unsaved draft card selections in annual/fixed editors.
   injectClassic('./card-cycle-ui-v81.js?v=97', 'data-household-card-cycle-ui-v81');
   injectClassic('./dashboard-bank-v81.js?v=81', 'data-household-dashboard-bank-v81');

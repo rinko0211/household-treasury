@@ -34,6 +34,12 @@ function referenceFor(st,viewMonth,seasonal){
    if(isSeasonal!==seasonal)continue;
    if(/洗濯機|電動自転車|タイヤ購入|引越|冷蔵庫/.test(name))continue;
    if(mode==='SEMI_FIXED'&&!(x.activeMonths||x.months||[]).map(v=>String(v).padStart(2,'0')).includes(mm))continue;
+   // A bonus repayment with a legacy MONTHLY cadence must not repeat monthly.
+   // Show it only if the master explicitly identifies the payment month.
+   if(isSeasonal&&mode==='MONTHLY'){
+     const due=n(x.dueMonth||x.paymentMonth||x.annualMonth);
+     if(!due||String(due).padStart(2,'0')!==mm)continue;
+   }
    if(mode==='ANNUAL'){
      const due=n(x.dueMonth||x.paymentMonth||x.annualMonth||x.month);
      if(!due||String(due).padStart(2,'0')!==mm)continue;

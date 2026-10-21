@@ -142,7 +142,7 @@
     const seenPurchase=new Set();
     for(const [i,b] of (st.purchaseEvents||[]).entries()){
       const date=iso(b.purchase_date),amount=Math.abs(n(b.original_amount));
-      if(!inside(date)||!amount||econ(b)!=='EXPENSE'||b.count_in_spending===false||b.is_refinance_adjustment||b.is_refinanced)continue;
+      if(!inside(date)||!amount||(econ(b)&&econ(b)!=='EXPENSE')||b.count_in_spending===false||b.is_refinance_adjustment||b.is_refinanced)continue;
       const sig=[b.card,b.pdf_card_identity,b.billing_month,date,norm(b.merchant_raw||b.merchant_normalized),
         amount,b.occurrence_index||1,b.installment_number||0].join('|');
       if(seenPurchase.has(sig)){quality.add('PDF等からの同一カード利用明細が複数登録されています。元データの重複点検が必要です');continue}

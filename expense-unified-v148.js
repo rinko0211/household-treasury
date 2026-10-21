@@ -33,6 +33,23 @@ function fixedReference(st,viewMonth){
  return {items:result,total:result.reduce((a,b)=>a+b.amount,0)};
 }
 let cycle='payday',lens='cash',month='',openBucket='',openCategory='',groups=[],annualOpen=false;
+function budgetReference(st,viewMonth){
+ const fixed=fixedReference(st,viewMonth);
+ let living=0,ideco=0,investment=0;
+ const ids=new Set();
+ for(const x of st?.masters?.fixedExpenses||[]){
+   if(x.active===false||x.forecastEnabled===false)continue;
+   const name=String(x.name||''),monthNo=String(viewMonth||'').slice(5,7);
+   const amount=Math.abs(n(x.amount)),mode=String(x.cadence||'MONTHLY').toUpperCase();
+   if(!amount||!name||!['MONTHLY','SEMI_FIXED'].includes(mode))continue;
+   if(mode==='SEMI_FIXED'&&!(x.activeMonths||x.months||[]).map(v=>String(v).padStart(2,'0')).includes(monthNo))continue;
+   const key=String(x.id||name);if(ids.has(key))continue;ids.add(key);
+   if(isFamilyAllocation(name))living+=amount;
+   else if(isIdecoText(name))ideco+=amount;
+   else if(/NISA|証券|投資|積立/.test(name))investment+=amount;
+ }
+ return {living,fixed:fixed.total,ideco,investment,total:living+fixed.total+ideco+investment};
+}
 function initialMonth(){
  const now=localDate(),m=now.slice(0,7);
  return cycle==='calendar'||!engine()?m:(now<engine().payday(stateNow(),m)?engine().addMonth(m,-1):m);
@@ -215,6 +232,18 @@ function render(){
     'カード利用を購入日に計上。カード引落やローン元金、投資積立を消費に重ねません。')+'</p></div>';
  const selected=all.find(b=>b.id===openBucket);
  if(selected)html+=detailPanel(selected);
+ const budget=budgetReference(st,month);
+ if(lens==='cash'){
+   html+='<details class="hub-card" id="hubBudgetV151"><summary style="cursor:pointer;font-size:16px;font-weight:750">'+
+     '毎月の基本予算（マスターから・参考）'+yen(budget.total)+'</summary>'+
+     '<p class="hub-muted" style="margin:10px 0">登録済みの毎月予算です。家族カード・現金配分は通常生活費としてまとめます。実際に使用した金額ではなく、上の把握済み支出には加算しません。</p>'+
+     [['通常生活費（家族カード・現金等）',budget.living],['固定費・通常ローン',budget.fixed],
+      ['iDeCo',budget.ideco],['その他の積立',budget.investment]]
+       .map(x=>'<div class="hub-totals" style="font-size:13px"><span>'+x[0]+'</span><b>'+yen(x[1])+'</b></div>').join('')+
+     (budget.total===0?'<p class="hub-muted">月額マスターの登録額がないため、実績から予算を推測していません。</p>':'')+
+     '<p class="hub-muted">固定費の各項目は上の「固定費・通常ローン」をタップして表示される参考欄で確認できます。</p></details>';
+ }
+
  const special=(v.economicRows||[]).filter(x=>rowDetails(x,st).scope==='SPECIAL').reduce((s,x)=>s+n(x.amount),0);
  html+='<div class="hub-note"><b>ⓘ 今月の支出について</b><div>'+
    (special?'特別費 '+yen(special)+' を含みます。一時的な出費を通常の毎月の生活費と混同しないでください。':'生活費と特別費は利用明細の内訳から確認できます。')+
@@ -282,6 +311,6 @@ function boot(){
  window.addEventListener('focus',()=>{if($('expenses')?.classList.contains('active'))render()});
  if($('expenses')?.classList.contains('active'))render();
 }
-window.householdExpenseUnifiedV148={mount,render,calculate,buckets,subgroups,rowDetails,fixedReference,getSelection:()=>({cycle,lens,month,openBucket,openCategory})};
+window.householdExpenseUnifiedV148={mount,render,calculate,buckets,subgroups,rowDetails,fixedReference,budgetReference,getSelection:()=>({cycle,lens,month,openBucket,openCategory})};
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});else setTimeout(boot,0);
 })();

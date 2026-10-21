@@ -13,7 +13,7 @@ const localDate=()=>{const d=new Date();return d.getFullYear()+'-'+String(d.getM
 const labelByKind={living:'生活費',fixed:'固定費',cash:'現金支出',special:'特別費',debt:'ローン・リボ返済',card:'カード引落',investment:'NISA・iDeCoなど',cardPurchase:'カード利用'};
 const tones={living:'#13c7b5',fixed:'#ff9f35',ideco:'#987efd',investment:'#67b9f4',special:'#eab86d',consumption:'#13c7b5'};
 const isIdecoText=s=>/IDECO|ＩＤＥＣＯ|イデコ|国民年金基金連合会|コクミンネンキンキキン/.test(String(s||'').normalize('NFKC').toUpperCase());
-const isFamilyAllocation=s=>/家族カード|家計カード|妻.*カード|生活費|現金配分|現金手渡|妻.*送金|家族.*送金|仕送り|小遣い/.test(String(s||''));
+const isFamilyAllocation=s=>/家族カード|家計カード|妻.*カード|生活費|家計費|現金配分|現金手渡|妻.*現金|妻.*送金|家族.*送金|仕送り|小遣い/.test(String(s||''));
 const isSpecialAllocation=r=>r.kind==='special'||String(r.scope||'').toUpperCase()==='SPECIAL';
 function fixedReference(st,viewMonth){
  const masters=st?.masters?.fixedExpenses||[],yy=String(viewMonth||'').slice(5,7);
@@ -107,7 +107,9 @@ function subgroups(bucket,mode=lens){
  const map=new Map();
  for(const x of bucket.items){
    let key,label;
-   if(bucket.id==='living'||bucket.id==='special'){
+   if(bucket.id==='living'&&x.kind==='card'){
+     key='living|card';label='家族カード・その他カード引落';
+   }else if(bucket.id==='living'||bucket.id==='special'){
      key=x.scope+'|'+x.category;
      label=(x.scope==='SPECIAL'?'特別費 / ':'')+
        (semantics()?.CATEGORY_DEFS?.[x.category]?.label||

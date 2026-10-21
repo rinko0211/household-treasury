@@ -111,42 +111,44 @@
     const summer=/夏|SUMMER/.test(name+id),winter=/冬|WINTER/.test(name+id);
     if(p)return summer?'PRADO_SUMMER':winter?'PRADO_WINTER':'LOAN_PRADO';
     if(l)return summer?'LAPIN_SUMMER':winter?'LAPIN_WINTER':'LOAN_LAPIN';
-    if(/CARLOAN|車ローン|自動車ローン|CAR_LOAN/.test(name+id))return 'LOAN_PRADO'; // generic loan is fixed; alias is not an asset identification
+    if(/CARLOAN|車ローン|自動車ローン|CAR_LOAN/.test(name+id))return 'GENERIC_CAR_LOAN';
     return '';
   }
   function masterNature(master){
     const key=masterKey(master);
-    if(key)return {nature:masters[key],key:'MASTER.'+key,reason:'approved-master'};
+    if(key&&masters[key])return {nature:masters[key],key:'MASTER.'+key,reason:'approved-master'};
+    if(key==='GENERIC_CAR_LOAN')return {nature:'FIXED',key:'',reason:'debt-master'};
     return {nature:'REVIEW',key:'',reason:'unmapped-master'};
   }
   // Individual record choice wins for REVIEW only; no bulk auto-category edit.
   function classify({category,subcategory,source,kind,label,semantic}={}){
     const eco=String(source?.economic_type||'').toUpperCase();
     const cashflow=String(source?.cashflow_type||'').toUpperCase();
-    if(kind==='debt'||eco==='DEBT_PRINCIPAL'||cashflow==='DEBT_PAYMENT'||cashflow==='DEBT_PRINCIPAL'){
-      return {nature:'FIXED',key:'MASTER.DEBT_REPAYMENT',reason:'debt',economicType:'DEBT_PRINCIPAL'};
-    }
-    if(kind==='investment'||eco==='INVESTMENT'||cashflow==='INVESTMENT_CONTRIBUTION'){
-      const ideco=/IDECO|イデコ|国民年金基金/.test(norm(label||source?.name||source?.description_raw));
-      return {nature:ideco?'FIXED':'REVIEW',key:ideco?'MASTER.IDECO':'',reason:'investment',economicType:'INVESTMENT'};
-    }
-    if(kind==='card'){
-      // A single bank settlement contains MANY purchase categories. Never
-      // assign fixed/variable by merchant-pattern to an aggregated card debit.
-      return {nature:'REVIEW',key:'',reason:'card-settlement-unallocated',economicType:'TRANSFER'};
-    }
     const cat=semantic?.normalizeCategoryValue?.(category)||
       semantic?.inferCategory?.(label,category)||null;
     const sub=cat?semantic?.inferSubcategory?.(cat,label,subcategory)||'OTHER':null;
     const key=cat&&sub?cat+'.'+sub:'';
     const configured=key?ruleMap.get(key):null;
     const explicit=norm(source?.cost_nature||source?.cost_behavior||source?.fixed_variable_class);
+    // Interest payments can have DEBT_INTEREST economics but are VARIABLE by
+    // the user's FINANCIAL_FEES.INTEREST rule, unlike loan principal.
+    if(key==='FINANCIAL_FEES.INTEREST')
+      return {nature:'VARIABLE',key,reason:'approved-rule',economicType:eco||'DEBT_INTEREST'};
+    if(kind==='debt'||eco==='DEBT_PRINCIPAL'||cashflow==='DEBT_PAYMENT'||cashflow==='DEBT_PRINCIPAL'){
+      return {nature:'FIXED',key:key||'MASTER.DEBT_REPAYMENT',reason:'debt',economicType:'DEBT_PRINCIPAL'};
+    }
+    if(kind==='investment'||eco==='INVESTMENT'||cashflow==='INVESTMENT_CONTRIBUTION'){
+      const ideco=/IDECO|イデコ|国民年金基金/.test(norm(label||source?.name||source?.description_raw));
+      return {nature:ideco?'FIXED':'REVIEW',key:ideco?'MASTER.IDECO':'',reason:'investment',economicType:'INVESTMENT'};
+    }
+    if(kind==='card'){
+      // A bank card settlement combines many purchases, so no merchant guess.
+      return {nature:'REVIEW',key:'',reason:'card-settlement-unallocated',economicType:'TRANSFER'};
+    }
     if((!configured||configured==='REVIEW')&&['FIXED','VARIABLE','SPECIAL'].includes(explicit))
       return {nature:explicit,key,reason:'record-override',economicType:eco||'EXPENSE'};
     if(configured&&configured!=='REVIEW')
       return {nature:configured,key,reason:'approved-rule',economicType:eco||'EXPENSE'};
-    // A manual existing SPECIAL classification stays special when the selected
-    // subcategory said review. NORMAL does not imply variable; request review.
     const prev=String(source?.spending_class||source?.expense_scope||source?.ordinary_or_special||'').toUpperCase();
     return {nature:prev==='SPECIAL'?'SPECIAL':'REVIEW',key,reason:'manual-review',economicType:eco||'EXPENSE'};
   }

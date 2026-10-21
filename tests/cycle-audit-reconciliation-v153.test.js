@@ -123,4 +123,24 @@ eq(p2.changed.length,0,'Second application idempotent');
 eq(JSON.stringify(p1.next),JSON.stringify(p2.next),'Full state byte-identical on rerun');
 assert.throws(()=>m.planPatch(state,{...patch,updates:[{...patch.updates[0],guard:{amount:999}}]}));tests++;
 eq(state.cashExpenses.find(x=>x.id==='cash-3').payment_method,'MIXED','Input remains unchanged by plan');
+// Future stale manual override must not produce or revive an estimated bill.
+{
+ const st={masters:{cards:[{name:'Dカード',active:true,paymentMode:'FULL',settlementDay:10,closingDay:15}],fixedExpenses:[]},
+   purchaseEvents:[],cardSettlements:[],cardCashflowOverrides:[]};
+ const root={getTreasuryStateRaw:()=>st,
+   householdPlanningV79:{baselineOf:()=>185000,forecastMode:()=> 'BASELINE',forecastAmountForCard:()=>185000}};
+ const cc={window:root,Date,Number,String,Math,JSON,Map,Set,setTimeout:()=>{}};
+ vm.createContext(cc);
+ vm.runInContext(fs.readFileSync('card-cycle-v81.js','utf8'),cc);
+ const today=new Date(),cur=String(today.getFullYear())+'-'+String(today.getMonth()+1).padStart(2,'0');
+ const next=root.householdCardCycleV81.addMonths(cur,1);
+ st.cardCashflowOverrides.push({id:'stale',key:'ESTIMATE|Dカード|'+next,card:'Dカード',billing_month:next,kind:'ESTIMATE',
+   amount:185000,reconciliation_status:'SUSPENDED_UNVERIFIED',include_in_forecast:false,exclude_from_current_cashflow:true});
+ const plan=root.householdCardCycleV81.buildPlan(120);
+ ok(!plan.rows.some(x=>x.billing_month===next),'Suspended card override is never forecasted as actual or baseline');
+ const baseline=root.householdCardCycleV81.baselinePreview(4);
+ const item=baseline.find(x=>x.card==='Dカード').months.find(x=>x.ym===next);
+ eq(item.source,'SUPPRESSED','Baseline preview explicitly marks stale D-card estimate');
+ eq(item.amount,0,'Stale 185,000 yen not added to plan');
+}
 console.log('PASS '+tests+' cycle reconciliation and patch assertions');

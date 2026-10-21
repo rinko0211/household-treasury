@@ -235,7 +235,7 @@ function render(){
  html+='<div class="hub-card"><div class="hub-muted">'+
     (settingOnly?'設定手取りを比較基準として表示（入金未照合）':'銀行等で確認できた入金との比較')+'</div>'+
    '<div class="hub-totals"><span>比較基準'+(settingOnly?'（設定値）':'（確認済み入金）')+'</span><b>'+yen(benchmark)+'</b></div>'+
-   '<p class="hub-muted" style="margin:14px 0 3px">'+(lens==='cash'?'通常生活費・固定費・積立に分けた実際の資金流出':'通常生活費と特別費の利用日基準の消費')+'。各行をタップして内訳を確認できます。</p>'+
+   '<p class="hub-muted" style="margin:14px 0 3px">'+(lens==='cash'?'固定費・変動費・特別費と返済・積立を分けた資金流出':'固定費・変動費・特別費を利用日基準で分類した消費')+'。各行をタップして内訳を確認できます。</p>'+
    '<div class="hub-tablehead"><span>区分</span><span>金額</span></div>';
  for(const b of all)html+='<button type="button" class="hub-line" data-hub-bucket="'+b.id+'" aria-expanded="'+(openBucket===b.id)+'">'+
    '<span class="hub-rowtitle"><i class="hub-dot" style="background:'+b.color+'"></i>'+esc(b.label)+'</span>'+
@@ -251,7 +251,8 @@ function render(){
    (Math.abs(target-total)>1?'<p class="hub-muted" style="color:#ffa9a0">明細照合に差があります：'+yen(target-total)+'</p>':'')+
    (v.outPending?'<p class="hub-muted">未照合・今後の支払予定 '+yen(v.outPending)+' は実績合計に含めていません。</p>':'')+
    '<p class="hub-muted" style="margin-top:10px">'+(lens==='cash'?'カード購入は引落日に資金流出として計上。利用日基準の内訳は「消費・購入額」で確認できます。':
-    'カード利用を購入日に計上。カード引落やローン元金、投資積立を消費に重ねません。')+'</p></div>';
+    'カード利用を購入日に計上。カード引落やローン元金、投資積立を消費に重ねません。')+'</p>'+ 
+   (lens==='cash'?'<p class="hub-muted">カード引落は食費・光熱費など複数の用途を含むため、一律に固定費・変動費へ配分せず用途未配分に残します。利用店ごとの区分は「消費・購入額」で確認してください。</p>':'')+'</div>';
  const selected=all.find(b=>b.id===openBucket);
  if(selected)html+=detailPanel(selected);
  const budget=budgetReference(st,month);
@@ -266,7 +267,7 @@ function render(){
      '<p class="hub-muted">固定費の各項目は上の「固定費・通常ローン」をタップして表示される参考欄で確認できます。</p></details>';
  }
 
- const special=(v.economicRows||[]).filter(x=>rowDetails(x,st).scope==='SPECIAL').reduce((s,x)=>s+n(x.amount),0);
+ const special=(v.economicRows||[]).filter(x=>rowDetails(x,st).costNature==='SPECIAL').reduce((s,x)=>s+n(x.amount),0);
  html+='<div class="hub-note"><b>ⓘ 今月の支出について</b><div>'+
    (special?'特別費 '+yen(special)+' を含みます。一時的な出費を通常の毎月の生活費と混同しないでください。':'生活費と特別費は利用明細の内訳から確認できます。')+
    '</div><div style="margin-top:8px">'+

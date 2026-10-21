@@ -154,5 +154,5 @@ ok(root.innerHTML.includes('毎月の基本予算（マスターから・参考�
 ok(root.innerHTML.includes('電気'),'Fixed reference contains electricity');
 ok(root.innerHTML.includes('カード払い'),'Card-route reference labeled');
 ok(!fs.readFileSync('index.html','utf8').includes('id="monthlyTreasuryTabV142"'),'Redundant monthly tab removed');
-ok(fs.readFileSync('index.html','utf8').includes('expense-unified-v148.js?v=148'),'Unified hub loaded');
+ok(fs.readFileSync('index.html','utf8').includes('expense-unified-v148.js?v=151'),'Unified hub loaded');
 console.log('PASS '+asserts+' expense unified v148 assertions');

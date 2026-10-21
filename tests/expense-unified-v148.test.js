@@ -65,8 +65,21 @@ const events=[];
 const window={
  householdSemanticV47:{
    normalizeCategoryValue:x=>x||null,
-   inferCategory:()=> 'OTHER',
-   CATEGORY_DEFS:{FOOD:{label:'食費'},GIFTS_EVENTS:{label:'イベント・贈答'},OTHER:{label:'その他'}}
+   inferCategory:(name,category)=>category||(/電気/.test(name)?'UTILITIES':/通信/.test(name)?'COMMUNICATION':/車ローン/.test(name)?'CAR':'OTHER'),
+   inferSubcategory:(category,name,existing)=>existing||(
+     category==='FOOD'?(/カフェ/.test(name)?'CAFE':'GROCERIES'):
+     category==='GIFTS_EVENTS'?'GIFT':
+     category==='UTILITIES'?'ELECTRICITY':
+     category==='COMMUNICATION'?'INTERNET':'OTHER'
+   ),
+   CATEGORY_DEFS:{
+     FOOD:{label:'食費',subs:['GROCERIES','CAFE','OTHER']},
+     GIFTS_EVENTS:{label:'イベント・贈答',subs:['GIFT','OTHER']},
+     UTILITIES:{label:'公共料金',subs:['ELECTRICITY','OTHER']},
+     COMMUNICATION:{label:'通信',subs:['INTERNET','OTHER']},
+     CAR:{label:'車',subs:['OTHER']},
+     OTHER:{label:'その他',subs:['OTHER']}
+   }
  },
  getTreasuryStateRaw:()=>state,
  addEventListener:(kind,fn)=>(listeners[kind]??=[]).push(fn),
@@ -81,6 +94,7 @@ const document={
 const context={window,document,setTimeout:()=>{},Intl,Date,Number,Math,String,Set,Map,JSON,Error,structuredClone,console};
 vm.createContext(context);
 vm.runInContext(fs.readFileSync('treasury-ledger-v145.js','utf8'),context);
+vm.runInContext(fs.readFileSync('expense-nature-rules-v152.js','utf8'),context);
 vm.runInContext(fs.readFileSync('expense-unified-v148.js','utf8'),context);
 const app=window.householdExpenseUnifiedV148;
 ok(!!app,'Unified expense API mounted');
@@ -91,11 +105,13 @@ eq(ledger.outActual,88300,'Cash outflow includes direct + card debit + loan + iD
 eq(ledger.spentActual,16300,'Economic expenses excludes loan, settlement and investment; duplicate card row excluded');
 let cash=app.buckets(state,ledger,'cash');
 eq(cash.reduce((s,b)=>s+b.amount,0),ledger.outActual,'Buckets reconcile to actual outflow');
-eq(cash.find(x=>x.id==='living').amount,13800,'Family/other card debit and direct grocery grouped as regular living');
-eq(cash.find(x=>x.id==='fixed').amount,60000,'Loan repayment grouped with fixed');
-eq(cash.find(x=>x.id==='ideco').amount,12000,'iDeCo remains a distinct top-level allocation');
-eq(cash.find(x=>x.id==='investment').amount,0,'No other investments are invented');
-eq(cash.find(x=>x.id==='special').amount,2500,'Special cash purchase stays separately visible');
+eq(cash.find(x=>x.id==='variable').amount,1800,'Grocery expenses classified variable');
+eq(cash.find(x=>x.id==='fixed').amount,60000,'Debt repayment remains fixed, not consumption');
+eq(cash.find(x=>x.id==='cardUnallocated').amount,12000,'Card settlement not guessed into fixed or variable');
+eq(cash.find(x=>x.id==='ideco').amount,12000,'iDeCo fixed investment allocation');
+eq(cash.find(x=>x.id==='investment').amount,0,'No new investment rows invented');
+eq(cash.find(x=>x.id==='special').amount,2500,'Special gift recognized');
+eq(cash.find(x=>x.id==='review').amount,0,'No uncategorized direct purchases in fixture');
 const fixedReference=app.fixedReference(state,'2026-10');
 eq(fixedReference.total,85000,'Only real recurring fixed masters counted as reference');
 const budget=app.budgetReference(state,'2026-10');
@@ -110,13 +126,14 @@ ok(fixedReference.items.some(x=>x.name==='電気'&&x.route==='CARD'),
   'Card-routed fixed expense is reference only, not extra cash outflow');
 let economic=app.buckets(state,ledger,'economic');
 eq(economic.reduce((sum,x)=>sum+x.amount,0),16300,'Economic spending reconciles across ordinary and special');
-eq(economic.find(x=>x.id==='living').amount,13800,'Ordinary card and grocery purchases');
+eq(economic.find(x=>x.id==='variable').amount,13800,'Grocery and cafe are variable consumption');
 eq(economic.find(x=>x.id==='special').amount,2500,'Special cash gift');
-const categories=app.subgroups(economic[0],'economic');
-eq(categories.find(x=>x.key==='NORMAL|FOOD').amount,13800,'Food includes grocery and card purchase');
+const categories=app.subgroups(economic.find(x=>x.id==='variable'),'economic');
+eq(categories.find(x=>x.key==='FOOD.GROCERIES').amount,1800,'Grocery is distinct subcategory');
+eq(categories.find(x=>x.key==='FOOD.CAFE').amount,12000,'Cafe is distinct subcategory');
 const specialCategories=app.subgroups(economic.find(x=>x.id==='special'),'economic');
-eq(specialCategories.find(x=>x.key==='SPECIAL|GIFTS_EVENTS').amount,2500,'One-off gift separated');
-ok(categories.find(x=>x.key==='NORMAL|FOOD').items.some(x=>x.editKind==='purchase'&&x.editId==='buy1'),
+eq(specialCategories.find(x=>x.key==='GIFTS_EVENTS.GIFT').amount,2500,'One-off gift separated');
+ok(categories.find(x=>x.key==='FOOD.CAFE').items.some(x=>x.editKind==='purchase'&&x.editId==='buy1'),
   'Card transaction keeps legacy editor ID');
 ok(!categories.some(x=>x.items.some(y=>y.editId==='buy1duplicate')),'Duplicate import is not shown again');
 if(listeners['document:DOMContentLoaded'])listeners['document:DOMContentLoaded'].forEach(fn=>fn());
@@ -126,7 +143,7 @@ expense.classList.add('active');
 listeners['treasury:pagechange'][0]({detail:{page:'expenses'}});
 let root=dom.get('expenseHubV148');
 ok(root.innerHTML.includes('月次支出サマリー'),'Summary rendered');
-ok(root.innerHTML.includes('通常の生活費（家族カード・現金など）'),'Living envelope groups card and cash');
+ok(root.innerHTML.includes('通常費（固定費・ローン）'),'Fixed/variable living expenses split');
 function btn(type,value){
  const key='hub'+type[0].toUpperCase()+type.slice(1);
  const found=root.querySelectorAll('[data-hub-'+type+']').find(x=>x.dataset[key]===value);
@@ -138,9 +155,9 @@ btn('cycle','payday');
 ok(root.innerHTML.includes('2026-10-16 〜 2026-11-17'),'Payday switch changes period');
 btn('lens','economic');
 ok(root.innerHTML.includes('消費・購入額'),'Consumption lens shown');
-btn('bucket','living');
+btn('bucket','variable');
 ok(root.innerHTML.includes('食費'),'Tapping consumption expands categories');
-btn('group','NORMAL|FOOD');
+btn('group','FOOD.CAFE');
 ok(root.innerHTML.includes('カフェ'),'Tapping food shows individual card purchase');
 ok(root.innerHTML.includes('明細を編集'),'Editor action rendered');
 const edit=root.querySelectorAll('[data-hub-edit]').find(x=>x.dataset.hubEdit==='purchase');
@@ -154,5 +171,5 @@ ok(root.innerHTML.includes('毎月の基本予算（マスターから・参考�
 ok(root.innerHTML.includes('電気'),'Fixed reference contains electricity');
 ok(root.innerHTML.includes('カード払い'),'Card-route reference labeled');
 ok(!fs.readFileSync('index.html','utf8').includes('id="monthlyTreasuryTabV142"'),'Redundant monthly tab removed');
-ok(fs.readFileSync('index.html','utf8').includes('expense-unified-v148.js?v=151'),'Unified hub loaded');
+ok(fs.readFileSync('index.html','utf8').includes('expense-unified-v148.js?v=152'),'Unified hub loaded');
 console.log('PASS '+asserts+' expense unified v148 assertions');

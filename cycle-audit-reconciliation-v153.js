@@ -55,7 +55,12 @@ function calculations(state){
   const cf=String(r.cashflow_type||'').toUpperCase(),eco=String(r.economic_type||'').toUpperCase();
   const desc=norm(r.description_raw);
   const atm=cf.includes('CASH_WITHDRAWAL')||/カード出金|カ－ド出金|ATM出金|ＡＴＭ出金/.test(String(r.description_raw||''));
-  const isCard=cf==='CARD_SETTLEMENT'||/ラクテンカ－ドサ－ヒ゛ス|ミツヒ゛シUFJニコス|三菱UFJニコス/.test(desc);
+  const linkedCard=(st.cardSettlements||[]).some(z=>
+    (String(z.bank_transaction_id||'')===String(r.id||'')||
+     (String(z.settlement_id||'')===String(r.linked_event_id||'')&&!!r.linked_event_id))&&
+    n(z.amount)===Math.abs(n(r.amount))&&z.due_date===r.date&&z.confirmed_bank_debit===true);
+  const isCard=cf==='CARD_SETTLEMENT'||linkedCard;
+  if(/ニコス/.test(desc)&&isDebt&&!linkedCard)review.push('JAL/DCの引落かリボ返済か要照合：'+String(r.id||''));
   const isInvestment=cf.includes('INVESTMENT')||eco==='INVESTMENT';
   const isDebt=cf==='DEBT_PRINCIPAL'||cf==='DEBT_PAYMENT'||eco==='DEBT_PRINCIPAL';
   const isTransfer=atm||r.is_transfer===true||eco==='TRANSFER'||cf.includes('TRANSFER')||isCard;

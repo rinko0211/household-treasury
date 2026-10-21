@@ -69,7 +69,7 @@ const state={
   bank(14,'2026-10-13',-10846,'ミツビシUFJニコス','DEBT_PRINCIPAL','DEBT_PRINCIPAL'),
   bank(15,'2026-10-13',-11475,'JCB settlement','CARD_SETTLEMENT','TRANSFER')
  ],
- cardSettlements:[],cardCashflowOverrides:[],auditMigrations:[{migration:'v153-sep-oct-audit'}]
+ cardSettlements:[{settlement_id:'confirmed-JALDC',bank_transaction_id:'bank-14',amount:10846,due_date:'2026-10-13',confirmed_bank_debit:true}],cardCashflowOverrides:[],auditMigrations:[{migration:'v153-sep-oct-audit'}]
 };
 // Card settlement could have old wrong principal classification. The underlying banking issuer
 // is evidence of CARD SETTLEMENT, never a second loan.

@@ -18,7 +18,15 @@ const state={
  {purchase_id:'buy1duplicate',card:'Rakuten',purchase_date:'2026-10-18',merchant_raw:'カフェ',economic_type:'EXPENSE',category:'FOOD',original_amount:12000,billing_month:'2026-10',occurrence_index:1}
  ],
  cashExpenses:[{id:'gift',date:'2026-10-19',description:'航空祭のお土産',category:'GIFTS_EVENTS',spending_class:'SPECIAL',amount:2500,economic_type:'EXPENSE'}],
- masters:{cards:[],fixedExpenses:[]},rules:[],events:[]
+ masters:{cards:[],fixedExpenses:[
+   {id:'car-loan',name:'車ローン',amount:60000,day:20,paymentRoute:'DIRECT',cadence:'MONTHLY'},
+   {id:'elec',name:'電気',amount:15000,day:10,paymentRoute:'CARD',cadence:'MONTHLY'},
+   {id:'internet',name:'通信費',amount:10000,day:27,paymentRoute:'DIRECT',cadence:'MONTHLY'},
+   {id:'family',name:'家族カード',amount:275000,day:20,paymentRoute:'CARD',cadence:'MONTHLY'},
+   {id:'cash-allocation',name:'現金配分',amount:70000,day:20,paymentRoute:'DIRECT',cadence:'MONTHLY'},
+   {id:'ideco-master',name:'iDeCo',amount:12000,day:20,paymentRoute:'DIRECT',cadence:'MONTHLY'},
+   {id:'washer',name:'洗濯機',amount:120000,day:25,paymentRoute:'DIRECT',cadence:'ANNUAL',dueMonth:12}
+ ]},rules:[],events:[]
 };
 class ClassList{constructor(){this.s=new Set()}add(x){this.s.add(x)}remove(x){this.s.delete(x)}contains(x){return this.s.has(x)}}
 const dom=new Map();
@@ -83,14 +91,31 @@ eq(ledger.outActual,88300,'Cash outflow includes direct + card debit + loan + iD
 eq(ledger.spentActual,16300,'Economic expenses excludes loan, settlement and investment; duplicate card row excluded');
 let cash=app.buckets(state,ledger,'cash');
 eq(cash.reduce((s,b)=>s+b.amount,0),ledger.outActual,'Buckets reconcile to actual outflow');
-eq(cash.find(x=>x.id==='card').amount,12000,'Card debit once');
-eq(cash.find(x=>x.id==='debt').amount,60000,'Loan repayment');
-eq(cash.find(x=>x.id==='investment').amount,12000,'iDeCo allocation');
+eq(cash.find(x=>x.id==='living').amount,13800,'Family/other card debit and direct grocery grouped as regular living');
+eq(cash.find(x=>x.id==='fixed').amount,60000,'Loan repayment grouped with fixed');
+eq(cash.find(x=>x.id==='ideco').amount,12000,'iDeCo remains a distinct top-level allocation');
+eq(cash.find(x=>x.id==='investment').amount,0,'No other investments are invented');
+eq(cash.find(x=>x.id==='special').amount,2500,'Special cash purchase stays separately visible');
+const fixedReference=app.fixedReference(state,'2026-10');
+eq(fixedReference.total,85000,'Only real recurring fixed masters counted as reference');
+const budget=app.budgetReference(state,'2026-10');
+eq(budget.fixed,85000,'Fixed reference consistent with budget');
+eq(budget.living,345000,'Family card + cash allocation grouped into living budget');
+eq(budget.ideco,12000,'iDeCo in own budget category');
+eq(budget.total,442000,'No double counting of fixed, iDeCo, household envelopes');
+
+ok(!fixedReference.items.some(x=>x.name==='家族カード'||x.name==='現金配分'||x.name==='iDeCo'),
+  'Household living allocations and iDeCo not counted as fixed reference');
+ok(fixedReference.items.some(x=>x.name==='電気'&&x.route==='CARD'),
+  'Card-routed fixed expense is reference only, not extra cash outflow');
 let economic=app.buckets(state,ledger,'economic');
-eq(economic[0].amount,16300,'Consumption bucket reconciles');
+eq(economic.reduce((sum,x)=>sum+x.amount,0),16300,'Economic spending reconciles across ordinary and special');
+eq(economic.find(x=>x.id==='living').amount,13800,'Ordinary card and grocery purchases');
+eq(economic.find(x=>x.id==='special').amount,2500,'Special cash gift');
 const categories=app.subgroups(economic[0],'economic');
 eq(categories.find(x=>x.key==='NORMAL|FOOD').amount,13800,'Food includes grocery and card purchase');
-eq(categories.find(x=>x.key==='SPECIAL|GIFTS_EVENTS').amount,2500,'One-off gift separated');
+const specialCategories=app.subgroups(economic.find(x=>x.id==='special'),'economic');
+eq(specialCategories.find(x=>x.key==='SPECIAL|GIFTS_EVENTS').amount,2500,'One-off gift separated');
 ok(categories.find(x=>x.key==='NORMAL|FOOD').items.some(x=>x.editKind==='purchase'&&x.editId==='buy1'),
   'Card transaction keeps legacy editor ID');
 ok(!categories.some(x=>x.items.some(y=>y.editId==='buy1duplicate')),'Duplicate import is not shown again');
@@ -101,7 +126,7 @@ expense.classList.add('active');
 listeners['treasury:pagechange'][0]({detail:{page:'expenses'}});
 let root=dom.get('expenseHubV148');
 ok(root.innerHTML.includes('月次支出サマリー'),'Summary rendered');
-ok(root.innerHTML.includes('銀行・現金の直接支出'),'Cashflow summary rows rendered');
+ok(root.innerHTML.includes('通常の生活費（家族カード・現金など）'),'Living envelope groups card and cash');
 function btn(type,value){
  const key='hub'+type[0].toUpperCase()+type.slice(1);
  const found=root.querySelectorAll('[data-hub-'+type+']').find(x=>x.dataset[key]===value);
@@ -113,7 +138,7 @@ btn('cycle','payday');
 ok(root.innerHTML.includes('2026-10-16 〜 2026-11-17'),'Payday switch changes period');
 btn('lens','economic');
 ok(root.innerHTML.includes('消費・購入額'),'Consumption lens shown');
-btn('bucket','consumption');
+btn('bucket','living');
 ok(root.innerHTML.includes('食費'),'Tapping consumption expands categories');
 btn('group','NORMAL|FOOD');
 ok(root.innerHTML.includes('カフェ'),'Tapping food shows individual card purchase');
@@ -122,6 +147,12 @@ const edit=root.querySelectorAll('[data-hub-edit]').find(x=>x.dataset.hubEdit===
 ok(!!edit,'Card edit button exists');edit.click();
 eq(events[0][0],'purchase','Editor kind correct');
 eq(events[0][1],'buy1','Editor opens exact selected row');
+btn('lens','cash');
+btn('bucket','fixed');
+ok(root.innerHTML.includes('固定費マスターの月額内訳（参考）'),'Fixed detail shows read-only master reference');
+ok(root.innerHTML.includes('毎月の基本予算（マスターから・参考）'),'Plan shown separately from actual');
+ok(root.innerHTML.includes('電気'),'Fixed reference contains electricity');
+ok(root.innerHTML.includes('カード払い'),'Card-route reference labeled');
 ok(!fs.readFileSync('index.html','utf8').includes('id="monthlyTreasuryTabV142"'),'Redundant monthly tab removed');
-ok(fs.readFileSync('index.html','utf8').includes('expense-unified-v148.js?v=148'),'Unified hub loaded');
+ok(fs.readFileSync('index.html','utf8').includes('expense-unified-v148.js?v=151'),'Unified hub loaded');
 console.log('PASS '+asserts+' expense unified v148 assertions');

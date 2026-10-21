@@ -66,16 +66,16 @@ jobs:
           assert.ok(!html.includes('id="monthlyTreasuryTabV142"'),'redundant monthly tab survives');
           assert.ok(html.includes('data-page="expenses"'));
           assert.ok(!html.includes('monthly-treasury-v142.js?v=146'));
-          assert.ok(html.includes('expense-unified-v148.js?v=148'));
+          assert.ok(html.includes('expense-unified-v148.js?v=151'));
           assert.ok(html.includes('expense-unified-v148.css?v=148'));
           assert.ok(html.includes('sync-state-sanitizer-v22.js?v=150'));
           assert.ok(html.includes('treasury-ledger-v145.js?v=145'));
-          assert.ok(sw.includes('household-treasury-v150-retire-legacy-pdf-ui'));
+          assert.ok(sw.includes('household-treasury-v151-expense-grouping'));
           assert.ok(html.includes('verified-correction-patch-v149.js?v=149'));
           assert.ok(correction.includes('treasuryRecoverySnapshot')&&correction.includes('replaceTreasuryState'));
           for(const path of [
             'sync-state-sanitizer-v22.js?v=150',
-            'expense-unified-v148.js?v=148',
+            'expense-unified-v148.js?v=151',
             'expense-unified-v148.css?v=148',
             'verified-correction-patch-v149.js?v=149',
             'treasury-ledger-v145.js?v=145',
@@ -86,7 +86,10 @@ jobs:
           assert.ok(hub.includes('data-hub-cycle')&&hub.includes('data-hub-lens')&&hub.includes('data-hub-bucket'));
           assert.ok(hub.includes('data-hub-group')&&hub.includes('openSemanticTransactionEditorV108'));
           assert.ok(hub.includes('年間の収支を見る'));
-          console.log('RELEASE_V150_PDF_UI_CLEANUP_PASS');
+          assert.ok(hub.includes('固定費マスターの月額内訳（参考）'));
+          assert.ok(hub.includes('通常の生活費（家族カード・現金など）'));
+          assert.ok(hub.includes('毎月の基本予算（マスターから・参考）'));
+          console.log('RELEASE_V151_EXPENSE_GROUPING_PASS');
           NODE
       - name: Bundle PDF.js parser for same-origin iPhone import
         shell: bash

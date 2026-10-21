@@ -60,9 +60,9 @@ function calculations(state){
      (String(z.settlement_id||'')===String(r.linked_event_id||'')&&!!r.linked_event_id))&&
     n(z.amount)===Math.abs(n(r.amount))&&z.due_date===r.date&&z.confirmed_bank_debit===true);
   const isCard=cf==='CARD_SETTLEMENT'||linkedCard;
-  if(/ニコス/.test(desc)&&isDebt&&!linkedCard)review.push('JAL/DCの引落かリボ返済か要照合：'+String(r.id||''));
   const isInvestment=cf.includes('INVESTMENT')||eco==='INVESTMENT';
   const isDebt=cf==='DEBT_PRINCIPAL'||cf==='DEBT_PAYMENT'||eco==='DEBT_PRINCIPAL';
+  if(/ニコス/.test(desc)&&isDebt&&!linkedCard)review.push('JAL/DCの引落かリボ返済か要照合：'+String(r.id||''));
   const isTransfer=atm||r.is_transfer===true||eco==='TRANSFER'||cf.includes('TRANSFER')||isCard;
   if(n(r.amount)>0){
    if(eco==='INCOME'&&!isTransfer&&!(r.date===END&&cf==='INCOME_SALARY'))income.push({r,amount:n(r.amount)});

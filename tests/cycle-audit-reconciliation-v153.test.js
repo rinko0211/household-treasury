@@ -96,7 +96,7 @@ ok(result.reconciliationBalanced,'Date-period cross-check reconciles');
 // Removing absorption metadata causes a duplicative 9,040 in cash; flagged calculation must not double count.
 const clone=o=>JSON.parse(JSON.stringify(o));
 let broken=clone(state);broken.cashExpenses.filter(x=>x.absorbed_into_purchase_id).forEach(x=>{x.count_in_spending=true;x.reconciliation_status='NORMAL'});
-eq(m.calculate(broken).consumption,469444,'Wrong absorption would overcount by 9,040, not silently masked');
+assert.throws(()=>m.calculate(broken),/absorbed|吸収済み現金/);tests++;
 // Prepaid charges and withdrawals must not inflate consumption.
 let charge=clone(state);
 charge.purchaseEvents.push(card('charge','2026-10-12',10000,'PASMO チャージ','Dカード',{economic_type:'TRANSFER'}));

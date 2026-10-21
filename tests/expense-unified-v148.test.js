@@ -98,6 +98,12 @@ eq(cash.find(x=>x.id==='investment').amount,0,'No other investments are invented
 eq(cash.find(x=>x.id==='special').amount,2500,'Special cash purchase stays separately visible');
 const fixedReference=app.fixedReference(state,'2026-10');
 eq(fixedReference.total,85000,'Only real recurring fixed masters counted as reference');
+const budget=app.budgetReference(state,'2026-10');
+eq(budget.fixed,85000,'Fixed reference consistent with budget');
+eq(budget.living,345000,'Family card + cash allocation grouped into living budget');
+eq(budget.ideco,12000,'iDeCo in own budget category');
+eq(budget.total,442000,'No double counting of fixed, iDeCo, household envelopes');
+
 ok(!fixedReference.items.some(x=>x.name==='家族カード'||x.name==='現金配分'||x.name==='iDeCo'),
   'Household living allocations and iDeCo not counted as fixed reference');
 ok(fixedReference.items.some(x=>x.name==='電気'&&x.route==='CARD'),
@@ -144,6 +150,7 @@ eq(events[0][1],'buy1','Editor opens exact selected row');
 btn('lens','cash');
 btn('bucket','fixed');
 ok(root.innerHTML.includes('固定費マスターの月額内訳（参考）'),'Fixed detail shows read-only master reference');
+ok(root.innerHTML.includes('毎月の基本予算（マスターから・参考）'),'Plan shown separately from actual');
 ok(root.innerHTML.includes('電気'),'Fixed reference contains electricity');
 ok(root.innerHTML.includes('カード払い'),'Card-route reference labeled');
 ok(!fs.readFileSync('index.html','utf8').includes('id="monthlyTreasuryTabV142"'),'Redundant monthly tab removed');

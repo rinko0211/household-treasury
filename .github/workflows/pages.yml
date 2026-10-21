@@ -43,6 +43,7 @@ jobs:
           set -euo pipefail
           node tests/treasury-ledger-v145.test.js
           node tests/expense-unified-v148.test.js
+          node tests/expense-nature-rules-v152.test.js
           node tests/verified-correction-v149.test.js
       - name: Check release links against actual app version
         shell: bash
@@ -54,11 +55,13 @@ jobs:
           const sw=fs.readFileSync('sw.js','utf8');
           const loader=fs.readFileSync('sync-state-sanitizer-v22.js','utf8');
           const hub=fs.readFileSync('expense-unified-v148.js','utf8');
+          const expenseNature=fs.readFileSync('expense-nature-rules-v152.js','utf8');
           const correction=fs.readFileSync('verified-correction-patch-v149.js','utf8');
           for(const [file,label] of [
             ['index.html','HTML'],['sw.js','service worker'],
             ['treasury-ledger-v145.js','treasury engine'],
             ['expense-unified-v148.js','unified expense UI'],
+            ['expense-nature-rules-v152.js','exact user-approved subcategory rules'],
             ['expense-unified-v148.css','unified mobile styling'],
             ['verified-correction-patch-v149.js','verified correction importer'],
             ['mdc-pdf-delta-v144.js','PDF import dedup']
@@ -66,16 +69,19 @@ jobs:
           assert.ok(!html.includes('id="monthlyTreasuryTabV142"'),'redundant monthly tab survives');
           assert.ok(html.includes('data-page="expenses"'));
           assert.ok(!html.includes('monthly-treasury-v142.js?v=146'));
-          assert.ok(html.includes('expense-unified-v148.js?v=151'));
+          assert.ok(html.includes('expense-nature-rules-v152.js?v=152'));
+          assert.ok(html.includes('expense-unified-v148.js?v=152'));
+          assert.ok(html.indexOf('expense-nature-rules-v152.js?v=152') < html.indexOf('expense-unified-v148.js?v=152'));
           assert.ok(html.includes('expense-unified-v148.css?v=148'));
           assert.ok(html.includes('sync-state-sanitizer-v22.js?v=150'));
           assert.ok(html.includes('treasury-ledger-v145.js?v=145'));
-          assert.ok(sw.includes('household-treasury-v151-expense-grouping'));
+          assert.ok(sw.includes('household-treasury-v152-user-expense-nature'));
           assert.ok(html.includes('verified-correction-patch-v149.js?v=149'));
           assert.ok(correction.includes('treasuryRecoverySnapshot')&&correction.includes('replaceTreasuryState'));
           for(const path of [
             'sync-state-sanitizer-v22.js?v=150',
-            'expense-unified-v148.js?v=151',
+            'expense-nature-rules-v152.js?v=152',
+            'expense-unified-v148.js?v=152',
             'expense-unified-v148.css?v=148',
             'verified-correction-patch-v149.js?v=149',
             'treasury-ledger-v145.js?v=145',
@@ -87,9 +93,15 @@ jobs:
           assert.ok(hub.includes('data-hub-group')&&hub.includes('openSemanticTransactionEditorV108'));
           assert.ok(hub.includes('年間の収支を見る'));
           assert.ok(hub.includes('固定費マスターの月額内訳（参考）'));
-          assert.ok(hub.includes('通常の生活費（家族カード・現金など）'));
+          assert.ok(expenseNature.includes('HOME_MAINTENANCE=SPECIAL'));
+          assert.ok(expenseNature.includes('INTEREST=VARIABLE'));
+          assert.ok(expenseNature.includes('PRADO_SUMMER'));
+          assert.ok(hub.includes('cardUnallocated'));
+          assert.ok(hub.includes('通常費（固定費・ローン）'));
+          assert.ok(hub.includes('通常費（変動費）'));
+          assert.ok(hub.includes('カード引落（用途未配分）'));
           assert.ok(hub.includes('毎月の基本予算（マスターから・参考）'));
-          console.log('RELEASE_V151_EXPENSE_GROUPING_PASS');
+          console.log('RELEASE_V152_USER_CLASSIFICATION_PASS');
           NODE
       - name: Bundle PDF.js parser for same-origin iPhone import
         shell: bash

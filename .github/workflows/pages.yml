@@ -37,14 +37,13 @@ jobs:
               *) node --check "$f";;
             esac
           done
-      - name: Run unified v148 expense and v146 PDF regression tests
+      - name: Run current unified expense, verified correction, and treasury regressions
         shell: bash
         run: |
           set -euo pipefail
           node tests/treasury-ledger-v145.test.js
           node tests/expense-unified-v148.test.js
           node tests/verified-correction-v149.test.js
-          node tests/pdf-correction-v146.test.js
       - name: Check release links against actual app version
         shell: bash
         run: |
@@ -55,7 +54,6 @@ jobs:
           const sw=fs.readFileSync('sw.js','utf8');
           const loader=fs.readFileSync('sync-state-sanitizer-v22.js','utf8');
           const hub=fs.readFileSync('expense-unified-v148.js','utf8');
-          const manager=fs.readFileSync('mdc-pdf-record-manager-v146.js','utf8');
           const correction=fs.readFileSync('verified-correction-patch-v149.js','utf8');
           for(const [file,label] of [
             ['index.html','HTML'],['sw.js','service worker'],
@@ -63,35 +61,32 @@ jobs:
             ['expense-unified-v148.js','unified expense UI'],
             ['expense-unified-v148.css','unified mobile styling'],
             ['verified-correction-patch-v149.js','verified correction importer'],
-            ['mdc-pdf-delta-v144.js','PDF import dedup'],
-            ['mdc-pdf-record-manager-v146.js','PDF correction UI']
+            ['mdc-pdf-delta-v144.js','PDF import dedup']
           ])assert.ok(fs.existsSync(file),label+' missing');
           assert.ok(!html.includes('id="monthlyTreasuryTabV142"'),'redundant monthly tab survives');
           assert.ok(html.includes('data-page="expenses"'));
           assert.ok(!html.includes('monthly-treasury-v142.js?v=146'));
           assert.ok(html.includes('expense-unified-v148.js?v=148'));
           assert.ok(html.includes('expense-unified-v148.css?v=148'));
-          assert.ok(html.includes('sync-state-sanitizer-v22.js?v=146'));
+          assert.ok(html.includes('sync-state-sanitizer-v22.js?v=150'));
           assert.ok(html.includes('treasury-ledger-v145.js?v=145'));
-          assert.ok(sw.includes('household-treasury-v149-verified-local-correction'));
+          assert.ok(sw.includes('household-treasury-v150-retire-legacy-pdf-ui'));
           assert.ok(html.includes('verified-correction-patch-v149.js?v=149'));
           assert.ok(correction.includes('treasuryRecoverySnapshot')&&correction.includes('replaceTreasuryState'));
           for(const path of [
-            'sync-state-sanitizer-v22.js?v=146',
+            'sync-state-sanitizer-v22.js?v=150',
             'expense-unified-v148.js?v=148',
             'expense-unified-v148.css?v=148',
             'verified-correction-patch-v149.js?v=149',
             'treasury-ledger-v145.js?v=145',
-            'mdc-pdf-record-manager-v146.js?v=148',
             'mdc-pdf-delta-v144.js?v=144'
           ])assert.ok(sw.includes('./'+path),'PWA cache missing '+path);
-          assert.ok(loader.includes('mdc-pdf-record-manager-v146.js?v=148'));
+          assert.ok(!loader.includes('mdc-pdf-record-manager-v146.js'),'retired old PDF UI is still injected');
+          assert.ok(!sw.includes('mdc-pdf-record-manager-v146.js'),'retired old PDF UI is still precached');
           assert.ok(hub.includes('data-hub-cycle')&&hub.includes('data-hub-lens')&&hub.includes('data-hub-bucket'));
           assert.ok(hub.includes('data-hub-group')&&hub.includes('openSemanticTransactionEditorV108'));
           assert.ok(hub.includes('年間の収支を見る'));
-          assert.ok(manager.includes('applyDeletion')&&manager.includes('treasuryRecoverySnapshot'));
-          // Old pinned v141 greps must not gate a v146 deploy.
-          console.log('RELEASE_V149_VERIFIED_PATCH_PASS');
+          console.log('RELEASE_V150_PDF_UI_CLEANUP_PASS');
           NODE
       - name: Bundle PDF.js parser for same-origin iPhone import
         shell: bash

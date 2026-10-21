@@ -43,6 +43,7 @@ jobs:
           set -euo pipefail
           node tests/treasury-ledger-v145.test.js
           node tests/expense-unified-v148.test.js
+          node tests/expense-nature-rules-v152.test.js
           node tests/verified-correction-v149.test.js
       - name: Check release links against actual app version
         shell: bash
@@ -93,6 +94,9 @@ jobs:
           assert.ok(hub.includes('年間の収支を見る'));
           assert.ok(hub.includes('固定費マスターの月額内訳（参考）'));
           assert.ok(expenseNature.includes('HOME_MAINTENANCE=SPECIAL'));
+          assert.ok(expenseNature.includes('INTEREST=VARIABLE'));
+          assert.ok(expenseNature.includes('PRADO_SUMMER'));
+          assert.ok(hub.includes('cardUnallocated'));
           assert.ok(hub.includes('通常費（固定費・ローン）'));
           assert.ok(hub.includes('通常費（変動費）'));
           assert.ok(hub.includes('カード引落（用途未配分）'));

@@ -247,12 +247,10 @@ function applyPatch(patch){
  return {...result,saved:true};
 }
 function mount(){
- const expenses=$('expenses'),imports=document.querySelector('#imports .grid');
- if(expenses&&!$('cycleAuditSummaryV153')){
-  const box=document.createElement('div');box.id='cycleAuditSummaryV153';box.className='hub-card';
-  const after=$('expenseHubV148'),old=$('expenseLegacyDetailsV148');
-  if(old)expenses.insertBefore(box,old);else expenses.appendChild(box);
- }
+ // The historic one-off audit summary is no longer displayed below Expenses.
+ // Its audit and strict patch APIs remain available to the unified import desk.
+ const imports=document.querySelector('#imports .grid');
+ const retired=$('cycleAuditSummaryV153');if(retired)retired.remove();
  if(imports&&!$('cycleAuditImportV153')){
   const box=document.createElement('div');box.id='cycleAuditImportV153';box.className='card full';
   box.innerHTML='<div class="title">原本照合済み9〜10月差分修正（v155）</div>'+
@@ -275,7 +273,7 @@ function mount(){
    }catch(e){status.textContent='未適用：'+String(e.message||e)}finally{$('cycleAuditInputV153').value=''}
   };
  }
- return !!(expenses||imports);
+ return !!imports;
 }
 function show(){
  mount();const el=$('cycleAuditSummaryV153');if(!el)return;

@@ -110,9 +110,11 @@ function rowDetails(row,st){
 }
 function usageBuckets(usage,st){
  const enriched=usage.usageRows.map(row=>rowDetails(row,st));
+ const normal=enriched.filter(x=>['cash','purchase','bank'].includes(x.kind)&&x.spendingClass!=='SPECIAL');
  const groups=[
-  {id:'ordinary',label:'通常の消費・生活費',color:'#13c7b5',
-    items:enriched.filter(x=>['cash','purchase','bank'].includes(x.kind)&&x.spendingClass!=='SPECIAL')},
+  {id:'fixed',label:'通常費（固定費）',color:'#42c5d0',items:normal.filter(x=>x.costBucket==='FIXED')},
+  {id:'variable',label:'通常費（変動費）',color:'#13c7b5',items:normal.filter(x=>x.costBucket==='VARIABLE')},
+  {id:'undetermined',label:'通常費（固定・変動未確定）',color:'#a2acb9',items:normal.filter(x=>x.costBucket!=='FIXED'&&x.costBucket!=='VARIABLE')},
   {id:'special',label:'特別費',color:'#eab86d',
     items:enriched.filter(x=>['cash','purchase','bank'].includes(x.kind)&&x.spendingClass==='SPECIAL')},
   {id:'debt',label:'車ローン・元金返済',color:'#ff9f35',items:usage.byKind.debt},
@@ -183,11 +185,11 @@ function detailPanel(bucket){
  let markup='<div class="hub-card" id="expenseHubDrilldownV148">'+
    '<div class="hub-title" style="font-size:17px">'+esc(bucket.label)+' の内訳</div>'+
    '<div class="hub-muted">'+bucket.items.length+'件 / '+yen(bucket.amount)+'。カテゴリを選ぶと個別明細が開きます。</div>';
- if(bucket.id==='fixed'&&lens==='cash'){
+ if(bucket.id==='fixed'&&lens==='economic'){
    const reference=fixedReference(stateNow(),month),seasonal=seasonalReference(stateNow(),month);
    markup+='<details class="hub-fixed-ref" style="margin:12px 0;padding:12px;border:1px solid #536070;border-radius:12px">'+
      '<summary style="cursor:pointer;font-weight:700">固定費マスターの月額内訳（参考）'+yen(reference.total)+'</summary>'+
-     '<p class="hub-muted">設定済みの固定費・通常ローンの月額予算です。上の実際の資金流出には加算していません。カード払い分も予算の参考表示のみです。</p>'+
+     '<p class="hub-muted">設定済みの固定費マスターの参考予算です。上の実績は購入明細から計上し、マスター予算や車ローン元金・iDeCoを二重加算しません。</p>'+
      (reference.items.length?reference.items.map(x=>'<div class="hub-detailrow"><span>'+esc(x.name)+
        (x.route==='CARD'?' <span class="hub-muted">（カード払い）</span>':'')+'</span><b>'+yen(x.amount)+'</b></div>').join(''):
        '<p class="hub-muted">毎月固定のマスター登録はありません。</p>')+
@@ -225,7 +227,7 @@ function render(){
  const difference=income-total,ratio=income>0?total*100/income:null;
  const bars=ratioParts(all,income);
  const root=$('expenseHubV148');
- let html='<div class="hub-card"><div class="hub-period"><div class="hub-title">月次支出サマリー <small style="color:#72dbc6;font-size:11px">v157</small></div>'+
+ let html='<div class="hub-card"><div class="hub-period"><div class="hub-title">月次支出サマリー <small style="color:#72dbc6;font-size:11px">v158</small></div>'+
  '<div class="hub-toolbar"><button type="button" class="hub-arrow" id="hubPrevV148" aria-label="前月">‹</button>'+
  '<input id="hubMonthV148" aria-label="対象月" class="hub-month" type="month" value="'+esc(month)+'">'+
  '<button type="button" class="hub-arrow" id="hubNextV148" aria-label="翌月">›</button></div></div>'+
@@ -242,6 +244,7 @@ function render(){
  '<div class="hub-muted">'+(economic?'実際に購入・使用した金額と、消費ではないローン・投資拠出を分離':'銀行口座から実際に出金された金額。消費・生活費の統計ではありません')+'</div>'+
  '<div class="hub-totals"><span>確認済み収入</span><b>'+yen(income)+'</b></div>'+
  '<div class="hub-tablehead"><span>'+ (economic?'消費・資金用途':'銀行引落・資金移動') +'</span><span>金額</span></div>';
+ if(economic)html+='<div class="hub-totals"><span>通常の消費・生活費（固定費＋変動費＋未確定）</span><b>'+yen(usage.ordinary)+'</b></div>';
  for(const b of all)html+='<button type="button" class="hub-line" data-hub-bucket="'+esc(b.id)+'" aria-expanded="'+(openBucket===b.id)+'">'+
  '<span class="hub-rowtitle"><i class="hub-dot" style="background:'+b.color+'"></i>'+esc(b.label)+'</span>'+
  '<span class="hub-amt">'+yen(b.amount)+' <span style="color:#a3bed0">›</span></span></button>';

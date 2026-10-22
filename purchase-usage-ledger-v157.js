@@ -163,5 +163,36 @@ function calculate(st,month,basis='payday'){
    usageRows:rows.filter(r=>!['income'].includes(r.kind))
  };
 }
-window.householdUsageLedgerV157={period,belongs,bankKind,calculate};
+function bankFlow(st,month,basis='payday'){
+ const p=period(st,month,basis),seen=new Set(),buckets=new Map();
+ const labels={
+  cardSettlement:'カード精算（銀行残高管理のみ）',
+  transfer:'ATM出金・口座間振替',
+  debt:'ローン返済',
+  investment:'投資・iDeCo等',
+  expense:'口座直接支出',
+  unclassified:'銀行引落（要点検）'
+ };
+ for(const [i,r] of (st.cashTransactions||[]).entries()){
+  // Bank-account flow always uses the POSTED BANK DATE, never provisional
+  // spending dates or purchase events. The audited previous-cycle closing
+  // payroll is an income of the following period only.
+  const date=iso(r.date),amount=n(r.amount);
+  if(!date||date<p.start||date>p.end||!amount)continue;
+  if(amount>=0)continue;
+  const sig=[r.source,r.account,date,amount,
+    normalized(r.description_raw),r.balance_after??''].join('|');
+  if(seen.has(sig))continue;seen.add(sig);
+  const kind=bankKind(r);
+  if(!buckets.has(kind))buckets.set(kind,{id:kind,label:labels[kind],items:[],amount:0});
+  const x=buckets.get(kind);
+  x.items.push({identity:'bank:'+i,kind,date,label:r.description_raw||'銀行引落',
+     amount:Math.abs(amount),source:'銀行口座',status:'confirmed'});
+  x.amount+=Math.abs(amount);
+ }
+ const list=Object.values(labels).length;
+ const groups=Object.keys(labels).map(k=>buckets.get(k)).filter(Boolean);
+ return {...p,buckets:groups,total:groups.reduce((a,x)=>a+x.amount,0)};
+}
+window.householdUsageLedgerV157={period,belongs,bankKind,calculate,bankFlow};
 })();

@@ -78,12 +78,14 @@ jobs:
           assert.ok(html.includes('expense-unified-v148.css?v=148'));
           assert.ok(html.includes('sync-state-sanitizer-v22.js?v=153'));
           assert.ok(html.includes('treasury-ledger-v145.js?v=153'));
-          assert.ok(sw.includes('household-treasury-v155-partial-mixed-payment-safe'));
-          assert.ok(html.includes('cycle-audit-reconciliation-v153.js?v=155'));
+          assert.ok(sw.includes('household-treasury-v156-card-review-metadata-safe'));
+          assert.ok(html.includes('cycle-audit-reconciliation-v153.js?v=156'));
           assert.ok(audit.includes('planPatch')&&audit.includes('reallocateResidual'));
           assert.ok(audit.includes('元明細の項目が第三の値に変更されています'));
           assert.ok(audit.includes('guardIsOld'));
           assert.ok(audit.includes('verifySameBankSettlement'));
+          assert.ok(audit.includes('verifyExistingCardPurchase'));
+          assert.ok(audit.includes('既存カード明細の原本情報が一致しません'));
           assert.ok(loader.includes('card-cycle-v81.js?v=153'));
           assert.ok(html.includes('verified-correction-patch-v149.js?v=149'));
           assert.ok(correction.includes('treasuryRecoverySnapshot')&&correction.includes('replaceTreasuryState'));
@@ -93,7 +95,7 @@ jobs:
             'expense-unified-v148.js?v=152',
             'expense-unified-v148.css?v=148',
             'verified-correction-patch-v149.js?v=149',
-            'cycle-audit-reconciliation-v153.js?v=155',
+            'cycle-audit-reconciliation-v153.js?v=156',
             'card-cycle-v81.js?v=153',
             'treasury-ledger-v145.js?v=153',
             'mdc-pdf-delta-v144.js?v=144'
@@ -112,7 +114,7 @@ jobs:
           assert.ok(hub.includes('通常費（変動費）'));
           assert.ok(hub.includes('カード引落（用途未配分）'));
           assert.ok(hub.includes('毎月の基本予算（マスターから・参考）'));
-          console.log('RELEASE_V155_PARTIAL_MIXED_TENDER_SAFE_PASS');
+          console.log('RELEASE_V156_EXISTING_CARD_REVIEW_METADATA_PASS');
           NODE
       - name: Bundle PDF.js parser for same-origin iPhone import
         shell: bash

@@ -265,4 +265,14 @@ ok(fs.readFileSync('index.html','utf8').includes('expense-unified-v148.js?v=162'
  eq(daily.subcategories.reduce((total,x)=>total+x.amount,0),daily.amount,'Minor categories reconcile to middle category');
  eq(daily.subcategories.flatMap(x=>x.items).length,2,'Exactly two source transactions remain');
 }
+// The new drilldown must use the same restrained dark surfaces as the main ledger.
+{
+ const css=fs.readFileSync('expense-unified-v148.css','utf8');
+ ok(css.includes('.hub-category')&&css.includes('.hub-subcategory'),
+   'Middle and small category rows have dedicated, consistent styling');
+ ok(css.includes('.hub-drilldown{')&&css.includes('background:transparent;border-left:1px'),
+   'Large teal legacy drilldown card replaced with subtle inline nested layout');
+ ok(!css.includes('#expenseHubV148 .hub-group{'),
+   'Legacy oversized category card styling retired');
+}
 console.log('PASS '+asserts+' expense unified v148 assertions');

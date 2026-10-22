@@ -100,6 +100,23 @@
           if(!cardId(match.x)){updates.push({index:match.i,identity});upgraded++}
           continue;
         }
+        // A receipt-first purchase is authoritative for the economic expense.
+        // Absorb the later statement onto its original ID; no duplicate spend.
+        const statement={
+          card:'MUFG/DC/JAL',pdf_card_identity:identity,source_file:fileName,
+          purchase_date:r.date,merchant_raw:r.merchant,original_amount:r.amount,
+          billing_month:r.billing,source_original_id:r.key+'|'+occurrenceRow.occurrence
+        };
+        const priorReceipt=window.householdReceiptCycleV158?.matchExistingReceipt?.(st,statement);
+        if(priorReceipt){
+          const receiptIndex=existing.indexOf(priorReceipt);
+          if(receiptIndex<0||used.has(receiptIndex)){
+            issues.push('レシート明細の重複候補が複数あります：'+r.date+' '+r.merchant);continue;
+          }
+          used.add(receiptIndex);duplicate++;upgraded++;
+          updates.push({index:receiptIndex,receiptStatement:statement});
+          continue;
+        }
         // A prior duplicated import may already contain this ordinal twice.
         // Never append more data into a suspect group before user review.
         if(scoped.length>=group.length){
@@ -136,7 +153,10 @@
     // Transactional: validation and dedup decisions precede all mutations.
     for(const u of result.updates){
       const x=st.purchaseEvents[u.index];
-      if(x&&!cardId(x)){x.pdf_card_identity=u.identity;x.pdf_statement_migrated_v144=true}
+      if(u.receiptStatement){
+        const merged=window.householdReceiptCycleV158?.mergeStatement?.(st,u.receiptStatement);
+        if(!merged||merged!==x)throw Error('レシート先行明細との吸収照合に失敗しました。再読み込みしてください。');
+      }else if(x&&!cardId(x)){x.pdf_card_identity=u.identity;x.pdf_statement_migrated_v144=true}
     }
     for(const row of result.additions){
       st.purchaseEvents.push(row);

@@ -48,6 +48,7 @@ jobs:
           node tests/cycle-audit-reconciliation-v153.test.js
           node tests/purchase-usage-v157.test.js
           node tests/payment-reclass-v159.test.js
+          node tests/family-share-v160.test.js
       - name: Check release links against actual app version
         shell: bash
         run: |
@@ -87,6 +88,16 @@ jobs:
           assert.ok(sw.includes('household-treasury-v159-receipt-payment-and-cost-editor'));
           assert.ok(html.includes('cycle-audit-reconciliation-v153.js?v=155'));
           assert.ok(html.includes('payment-reclass-patch-v159.js?v=159'));
+          assert.ok(html.includes('family-share-owner-v160.js?v=160'));
+          assert.ok(sw.includes('./family-share-owner-v160.js?v=160'));
+          assert.ok(sw.includes('./family/index.html'));
+          assert.ok(html.includes('sync-v26.js?v=160'));
+          assert.ok(sw.includes('./sync-v26.js?v=160'));
+          assert.ok(fs.existsSync('family/index.html'));
+          assert.ok(fs.existsSync('family/family.js'));
+          assert.ok(fs.existsSync('family/family.css'));
+          assert.ok(fs.existsSync('supabase/functions/family-variable-share/index.ts'));
+
           assert.ok(sw.includes('./payment-reclass-patch-v159.js?v=159'));
           assert.ok(loader.includes('cash-expense-analytics-v106.js?v=159'));
           assert.ok(loader.includes('semantic-ui-v48.js?v=159'));

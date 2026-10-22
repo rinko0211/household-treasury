@@ -129,7 +129,7 @@ jobs:
           assert.ok(!loader.includes('mdc-pdf-record-manager-v146.js'),'retired old PDF UI is still injected');
           assert.ok(!sw.includes('mdc-pdf-record-manager-v146.js'),'retired old PDF UI is still precached');
           assert.ok(hub.includes('data-hub-cycle')&&hub.includes('data-hub-lens')&&hub.includes('data-hub-bucket'));
-          assert.ok(hub.includes('data-hub-group')&&hub.includes('openSemanticTransactionEditorV108'));
+          assert.ok(hub.includes('data-hub-category')&&hub.includes('data-hub-subcategory')&&hub.includes('openSemanticTransactionEditorV108'));
           assert.ok(hub.includes('年間の収支を見る'));
           assert.ok(hub.includes('固定費マスターの月額内訳（参考）'));
           assert.ok(expenseNature.includes('HOME_MAINTENANCE=SPECIAL'));

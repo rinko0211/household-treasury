@@ -140,6 +140,11 @@ eq(economic.find(x=>x.id==='special').amount,2500,'Consumption special');
 const categories=app.subgroups(economic.find(x=>x.id==='variable'),'economic');
 eq(categories.find(x=>x.key==='FOOD.GROCERIES').amount,1800,'Groceries subcategory');
 eq(categories.find(x=>x.key==='FOOD.CAFE').amount,12000,'Cafe subcategory');
+const middleCategories=app.categoryGroups(economic.find(x=>x.id==='variable'),'economic');
+eq(middleCategories.find(x=>x.key==='FOOD').label,'食費','Middle tier is major category');
+eq(middleCategories.find(x=>x.key==='FOOD').amount,13800,'Food middle category sums groceries + cafe');
+eq(middleCategories.find(x=>x.key==='FOOD').subcategories.length,2,'Small subcategories grouped under Food');
+eq(middleCategories.reduce((total,c)=>total+c.amount,0),13800,'Middle tier keeps purchase sum invariant');
 const specialCategories=app.subgroups(economic.find(x=>x.id==='special'),'economic');
 eq(specialCategories.find(x=>x.key==='GIFTS_EVENTS.GIFT').amount,2500,'Gift is special');
 ok(categories.find(x=>x.key==='FOOD.CAFE').items.some(x=>x.editKind==='purchase'&&x.editId==='buy1'),'Card editor link');
@@ -170,10 +175,20 @@ ok(root.innerHTML.includes('食費'),'Tapping consumption expands categories');
 ok(root.innerHTML.indexOf('data-hub-bucket="variable"')<root.innerHTML.indexOf('id="expenseHubDrilldownV148"')&&
    root.innerHTML.indexOf('id="expenseHubDrilldownV148"')<root.innerHTML.indexOf('data-hub-bucket="undetermined"'),
    'Variable category panel appears inline directly below variable, before the next bucket');
-btn('group','FOOD.CAFE');
-ok(root.innerHTML.includes('カフェ'),'Tapping food shows individual card purchase');
-ok(root.innerHTML.indexOf('data-hub-group="FOOD.CAFE"')<root.innerHTML.indexOf('data-hub-details="FOOD.CAFE"'),
-  'Selected category immediately precedes its nested purchase rows');
+ok(!root.innerHTML.includes('data-hub-subcategory="FOOD.CAFE"'),
+ 'Subcategory and receipts remain closed until the major category is chosen');
+btn('category','FOOD');
+ok(root.innerHTML.includes('data-hub-subcategory="FOOD.CAFE"'),
+ 'Food category expands to its subcategories');
+ok(!root.innerHTML.includes('data-hub-details="FOOD.CAFE"'),
+ 'Receipts stay collapsed until the subcategory is selected');
+btn('subcategory','FOOD.CAFE');
+ok(root.innerHTML.includes('カフェ'),'Tapping small category shows card purchase');
+ok(root.innerHTML.indexOf('data-hub-category="FOOD"')<
+   root.innerHTML.indexOf('data-hub-subcategory="FOOD.CAFE"')&&
+   root.innerHTML.indexOf('data-hub-subcategory="FOOD.CAFE"')<
+   root.innerHTML.indexOf('data-hub-details="FOOD.CAFE"'),
+  'Three-level category, subcategory and purchase hierarchy is nested in order');
 ok(root.innerHTML.includes('明細を編集'),'Editor action rendered');
 const edit=root.querySelectorAll('[data-hub-edit]').find(x=>x.dataset.hubEdit==='purchase');
 ok(!!edit,'Card edit button exists');edit.click();
@@ -185,7 +200,7 @@ ok(root.innerHTML.includes('毎月の基本予算（参考）'),'Plan shown sepa
 ok(root.innerHTML.includes('電気'),'Fixed reference contains electricity');
 ok(root.innerHTML.includes('カード払い'),'Card-route reference labeled');
 ok(!fs.readFileSync('index.html','utf8').includes('id="monthlyTreasuryTabV142"'),'Redundant monthly tab removed');
-ok(fs.readFileSync('index.html','utf8').includes('expense-unified-v148.js?v=161'),'Unified hub loaded');
+ok(fs.readFileSync('index.html','utf8').includes('expense-unified-v148.js?v=162'),'Unified hub loaded');
 // v158: fixed and variable are PRESENTATION cost-behavior within economic NORMAL;
 // source category overrides and review badges do not change booked consumption.
 {
@@ -213,6 +228,9 @@ ok(fs.readFileSync('index.html','utf8').includes('expense-unified-v148.js?v=161'
  eq(b.find(x=>x.id==='fixed').amount,3210,'Fixed line equals only actual electricity');
  eq(b.find(x=>x.id==='variable').amount,13800,'Variable line equals confirmed purchases');
  eq(b.find(x=>x.id==='undetermined').amount,555,'Unclassified is visible without pretending variable');
+ const fixedCategory=app.categoryGroups(b.find(x=>x.id==='fixed'));
+ eq(fixedCategory[0].label,'公共料金','Fixed tier uses a major category');
+ eq(fixedCategory[0].subcategories[0].amount,3210,'Fixed small category matches actual expense');
  eq(b.filter(x=>['fixed','variable','undetermined','special'].includes(x.id))
       .reduce((a,x)=>a+x.amount,0),updated.consumption,'Expense bar sums exactly to consumption');
  eq(app.subgroups(b.find(x=>x.id==='fixed'))[0].key,'UTILITIES.ELECTRICITY',

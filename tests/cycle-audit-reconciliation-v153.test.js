@@ -143,4 +143,55 @@ eq(state.cashExpenses.find(x=>x.id==='cash-3').payment_method,'MIXED','Input rem
  eq(item.source,'SUPPRESSED','Baseline preview explicitly marks stale D-card estimate');
  eq(item.amount,0,'Stale 185,000 yen not added to plan');
 }
+
+// v154 regression: same bank settlement, same deterministic ID, but real
+// statement includes extra evidence and a different source filename.
+{
+ const bankId='synthetic-bank-1200',sid='audit:synthetic:jaldc',
+  date='2026-10-13',amount=1200;
+ const bankDebit={id:bankId,date,amount:-amount,description_raw:'Mitsubishi UFJ NICOS',
+   cashflow_type:'CARD_SETTLEMENT',economic_type:'TRANSFER',
+   account:'main',source:'test',balance_after:3000};
+ const originalSettlement={settlement_id:sid,card:'JAL/DC系',due_date:date,amount,
+   bank_transaction_id:bankId,source_file:'original-statement.csv',
+   record_kind:'CARD_SETTLEMENT',economic_type:'TRANSFER',
+   original_statement_hash:'source-signature-keep',purchase_ids:['actual-evidence-id']};
+ const expectedSettlement={settlement_id:sid,card:'MUFG/DC/JAL',due_date:date,amount,
+   bank_transaction_id:bankId,source_file:'bank-statement-reconciliation',
+   record_kind:'CARD_SETTLEMENT',economic_type:'TRANSFER',confirmed_bank_debit:true};
+ const base={cashTransactions:[bankDebit],cashExpenses:[],purchaseEvents:[],
+   cardSettlements:[originalSettlement],cardCashflowOverrides:[]};
+ const spec={format:m.FORMAT,updates:[],inserts:[
+   {array:'cardSettlements',id_key:'settlement_id',id:sid,record:expectedSettlement}],meta_additions:[]};
+ const result=m.planPatch(base,spec);
+ eq(result.changed.length,0,'Equivalent existing JAL/DC settlement: no insert');
+ eq(result.already.length,1,'Existing settlement is recognized without full JSON equality');
+ eq(JSON.stringify(result.next),JSON.stringify(base),'Source file and additional provenance remain untouched');
+ eq(m.planPatch(result.next,spec).changed.length,0,'Equivalent settlement rerun is idempotent');
+ const reject=(changes,reason)=>{
+   const v=clone(base);Object.assign(v.cardSettlements[0],changes);
+   assert.throws(()=>m.planPatch(v,spec),/照合不一致|同一銀行引落/,'Must refuse '+reason);tests++;
+ };
+ reject({amount:1400},'different amount');
+ reject({due_date:'2026-10-12'},'different date');
+ reject({card:'KABU&'},'different card');
+ reject({bank_transaction_id:'different-bank'},'different linked bank debit');
+ reject({economic_type:'DEBT_PRINCIPAL'},'conflicting economic type');
+ reject({confirmed_bank_debit:false},'explicit unconfirmed bank debit');
+ reject({record_kind:'CASH_EXPENSE'},'not a card settlement');
+ const another=clone(base);another.cardSettlements=[];
+ another.cashTransactions[0].amount=-1300;
+ assert.throws(()=>m.planPatch(another,spec),/同一銀行引落に別ID|照合不一致/);tests++;
+ const duplicate=clone(base);duplicate.cardSettlements.push(
+   {...clone(originalSettlement),settlement_id:'another',bank_transaction_id:bankId});
+ assert.throws(()=>m.planPatch(duplicate,spec),/照合不一致/);tests++;
+ // An already-applied field set must still have immutable source guards verified.
+ const guarded={...spec,inserts:[],updates:[{
+   array:'cashTransactions',id_key:'id',id:bankId,
+   guard:{date:'2020-01-01'},before:{economic_type:{present:true,value:'TRANSFER'}},
+   set:{economic_type:'TRANSFER'}
+ }]};
+ assert.throws(()=>m.planPatch(base,guarded),/元明細照合不一致/);tests++;
+}
+
 console.log('PASS '+tests+' cycle reconciliation and patch assertions');

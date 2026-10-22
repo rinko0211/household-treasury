@@ -75,6 +75,7 @@ const window={
    ),
    CATEGORY_DEFS:{
      FOOD:{label:'食費',subs:['GROCERIES','CAFE','OTHER']},
+     DAILY_GOODS:{label:'日用品',subs:['CLOTHING','HOUSEHOLD','OTHER']},
      GIFTS_EVENTS:{label:'イベント・贈答',subs:['GIFT','OTHER']},
      UTILITIES:{label:'公共料金',subs:['ELECTRICITY','OTHER']},
      COMMUNICATION:{label:'通信',subs:['INTERNET','OTHER']},
@@ -140,6 +141,11 @@ eq(economic.find(x=>x.id==='special').amount,2500,'Consumption special');
 const categories=app.subgroups(economic.find(x=>x.id==='variable'),'economic');
 eq(categories.find(x=>x.key==='FOOD.GROCERIES').amount,1800,'Groceries subcategory');
 eq(categories.find(x=>x.key==='FOOD.CAFE').amount,12000,'Cafe subcategory');
+const middleCategories=app.categoryGroups(economic.find(x=>x.id==='variable'),'economic');
+eq(middleCategories.find(x=>x.key==='FOOD').label,'食費','Middle tier is major category');
+eq(middleCategories.find(x=>x.key==='FOOD').amount,13800,'Food middle category sums groceries + cafe');
+eq(middleCategories.find(x=>x.key==='FOOD').subcategories.length,2,'Small subcategories grouped under Food');
+eq(middleCategories.reduce((total,c)=>total+c.amount,0),13800,'Middle tier keeps purchase sum invariant');
 const specialCategories=app.subgroups(economic.find(x=>x.id==='special'),'economic');
 eq(specialCategories.find(x=>x.key==='GIFTS_EVENTS.GIFT').amount,2500,'Gift is special');
 ok(categories.find(x=>x.key==='FOOD.CAFE').items.some(x=>x.editKind==='purchase'&&x.editId==='buy1'),'Card editor link');
@@ -170,10 +176,20 @@ ok(root.innerHTML.includes('食費'),'Tapping consumption expands categories');
 ok(root.innerHTML.indexOf('data-hub-bucket="variable"')<root.innerHTML.indexOf('id="expenseHubDrilldownV148"')&&
    root.innerHTML.indexOf('id="expenseHubDrilldownV148"')<root.innerHTML.indexOf('data-hub-bucket="undetermined"'),
    'Variable category panel appears inline directly below variable, before the next bucket');
-btn('group','FOOD.CAFE');
-ok(root.innerHTML.includes('カフェ'),'Tapping food shows individual card purchase');
-ok(root.innerHTML.indexOf('data-hub-group="FOOD.CAFE"')<root.innerHTML.indexOf('data-hub-details="FOOD.CAFE"'),
-  'Selected category immediately precedes its nested purchase rows');
+ok(!root.innerHTML.includes('data-hub-subcategory="FOOD.CAFE"'),
+ 'Subcategory and receipts remain closed until the major category is chosen');
+btn('category','FOOD');
+ok(root.innerHTML.includes('data-hub-subcategory="FOOD.CAFE"'),
+ 'Food category expands to its subcategories');
+ok(!root.innerHTML.includes('data-hub-details="FOOD.CAFE"'),
+ 'Receipts stay collapsed until the subcategory is selected');
+btn('subcategory','FOOD.CAFE');
+ok(root.innerHTML.includes('カフェ'),'Tapping small category shows card purchase');
+ok(root.innerHTML.indexOf('data-hub-category="FOOD"')<
+   root.innerHTML.indexOf('data-hub-subcategory="FOOD.CAFE"')&&
+   root.innerHTML.indexOf('data-hub-subcategory="FOOD.CAFE"')<
+   root.innerHTML.indexOf('data-hub-details="FOOD.CAFE"'),
+  'Three-level category, subcategory and purchase hierarchy is nested in order');
 ok(root.innerHTML.includes('明細を編集'),'Editor action rendered');
 const edit=root.querySelectorAll('[data-hub-edit]').find(x=>x.dataset.hubEdit==='purchase');
 ok(!!edit,'Card edit button exists');edit.click();
@@ -185,7 +201,7 @@ ok(root.innerHTML.includes('毎月の基本予算（参考）'),'Plan shown sepa
 ok(root.innerHTML.includes('電気'),'Fixed reference contains electricity');
 ok(root.innerHTML.includes('カード払い'),'Card-route reference labeled');
 ok(!fs.readFileSync('index.html','utf8').includes('id="monthlyTreasuryTabV142"'),'Redundant monthly tab removed');
-ok(fs.readFileSync('index.html','utf8').includes('expense-unified-v148.js?v=161'),'Unified hub loaded');
+ok(fs.readFileSync('index.html','utf8').includes('expense-unified-v148.js?v=162'),'Unified hub loaded');
 // v158: fixed and variable are PRESENTATION cost-behavior within economic NORMAL;
 // source category overrides and review badges do not change booked consumption.
 {
@@ -213,6 +229,9 @@ ok(fs.readFileSync('index.html','utf8').includes('expense-unified-v148.js?v=161'
  eq(b.find(x=>x.id==='fixed').amount,3210,'Fixed line equals only actual electricity');
  eq(b.find(x=>x.id==='variable').amount,13800,'Variable line equals confirmed purchases');
  eq(b.find(x=>x.id==='undetermined').amount,555,'Unclassified is visible without pretending variable');
+ const fixedCategory=app.categoryGroups(b.find(x=>x.id==='fixed'));
+ eq(fixedCategory[0].label,'公共料金','Fixed tier uses a major category');
+ eq(fixedCategory[0].subcategories[0].amount,3210,'Fixed small category matches actual expense');
  eq(b.filter(x=>['fixed','variable','undetermined','special'].includes(x.id))
       .reduce((a,x)=>a+x.amount,0),updated.consumption,'Expense bar sums exactly to consumption');
  eq(app.subgroups(b.find(x=>x.id==='fixed'))[0].key,'UTILITIES.ELECTRICITY',
@@ -222,5 +241,38 @@ ok(fs.readFileSync('index.html','utf8').includes('expense-unified-v148.js?v=161'
  reviewOnly.purchaseEvents.find(x=>x.purchase_id==='unknown-cost-actual').review_status='RESOLVED';
  eq(window.householdUsageLedgerV157.calculate(reviewOnly,'2026-10','payday').consumption,
     updated.consumption,'Review status alone never changes money');
+}
+// v162: multiple ordinary categories aggregate before subcategory / receipts.
+{
+ const sample=structuredClone(state);
+ sample.purchaseEvents.push(
+  {purchase_id:'daily-clothes',card:'Rakuten',purchase_date:'2026-10-22',
+   merchant_raw:'洋服店',original_amount:11460,economic_type:'EXPENSE',
+   category:'DAILY_GOODS',subcategory:'CLOTHING',billing_month:'2026-12'},
+  {purchase_id:'daily-supplies',card:'Rakuten',purchase_date:'2026-10-22',
+   merchant_raw:'生活用品店',original_amount:4262,economic_type:'EXPENSE',
+   category:'DAILY_GOODS',subcategory:'HOUSEHOLD',billing_month:'2026-12'}
+ );
+ const usage=window.householdUsageLedgerV157.calculate(sample,'2026-10','payday');
+ const variable=app.usageBuckets(usage,sample).find(x=>x.id==='variable');
+ const major=app.categoryGroups(variable);
+ const daily=major.find(x=>x.key==='DAILY_GOODS');
+ eq(daily.label,'日用品','Normal expense uses middle category 日用品');
+ eq(daily.amount,15722,'日用品 contains both 衣類 and 生活用品');
+ eq(daily.subcategories.find(x=>x.label==='衣類').amount,11460,'衣類 minor category remains intact');
+ eq(daily.subcategories.find(x=>x.label==='生活用品').amount,4262,'生活用品 minor category remains intact');
+ eq(major.reduce((total,x)=>total+x.amount,0),variable.amount,'Middle category total exactly matches variable total');
+ eq(daily.subcategories.reduce((total,x)=>total+x.amount,0),daily.amount,'Minor categories reconcile to middle category');
+ eq(daily.subcategories.flatMap(x=>x.items).length,2,'Exactly two source transactions remain');
+}
+// The new drilldown must use the same restrained dark surfaces as the main ledger.
+{
+ const css=fs.readFileSync('expense-unified-v148.css','utf8');
+ ok(css.includes('.hub-category')&&css.includes('.hub-subcategory'),
+   'Middle and small category rows have dedicated, consistent styling');
+ ok(css.includes('.hub-drilldown{')&&css.includes('background:transparent;border-left:1px'),
+   'Large teal legacy drilldown card replaced with subtle inline nested layout');
+ ok(!css.includes('#expenseHubV148 .hub-group{'),
+   'Legacy oversized category card styling retired');
 }
 console.log('PASS '+asserts+' expense unified v148 assertions');

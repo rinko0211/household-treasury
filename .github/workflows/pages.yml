@@ -80,13 +80,13 @@ jobs:
           assert.ok(!html.includes('monthly-treasury-v142.js?v=146'));
           assert.ok(html.includes('expense-nature-rules-v152.js?v=159'));
           assert.ok(html.includes('purchase-usage-ledger-v157.js?v=158'));
-          assert.ok(html.includes('expense-unified-v148.js?v=161'));
+          assert.ok(html.includes('expense-unified-v148.js?v=162'));
           assert.ok(html.indexOf('expense-nature-rules-v152.js?v=159') < html.indexOf('purchase-usage-ledger-v157.js?v=158'));
-          assert.ok(html.indexOf('purchase-usage-ledger-v157.js?v=158') < html.indexOf('expense-unified-v148.js?v=161'));
-          assert.ok(html.includes('expense-unified-v148.css?v=161'));
+          assert.ok(html.indexOf('purchase-usage-ledger-v157.js?v=158') < html.indexOf('expense-unified-v148.js?v=162'));
+          assert.ok(html.includes('expense-unified-v148.css?v=162'));
           assert.ok(html.includes('sync-state-sanitizer-v22.js?v=161'));
           assert.ok(html.includes('treasury-ledger-v145.js?v=153'));
-          assert.ok(sw.includes('household-treasury-v161-inline-expenses-and-unified-repair'));
+          assert.ok(sw.includes('household-treasury-v162-major-minor-expense'));
           assert.ok(html.includes('cycle-audit-reconciliation-v153.js?v=161'));
           assert.ok(html.includes('payment-reclass-patch-v159.js?v=161'));
           assert.ok(html.includes('family-share-owner-v160.js?v=160'));
@@ -118,8 +118,8 @@ jobs:
             'sync-state-sanitizer-v22.js?v=161',
             'expense-nature-rules-v152.js?v=159',
             'purchase-usage-ledger-v157.js?v=158',
-            'expense-unified-v148.js?v=161',
-            'expense-unified-v148.css?v=161',
+            'expense-unified-v148.js?v=162',
+            'expense-unified-v148.css?v=162',
             'verified-correction-patch-v149.js?v=161',
             'cycle-audit-reconciliation-v153.js?v=161',
             'card-cycle-v81.js?v=153',
@@ -129,7 +129,7 @@ jobs:
           assert.ok(!loader.includes('mdc-pdf-record-manager-v146.js'),'retired old PDF UI is still injected');
           assert.ok(!sw.includes('mdc-pdf-record-manager-v146.js'),'retired old PDF UI is still precached');
           assert.ok(hub.includes('data-hub-cycle')&&hub.includes('data-hub-lens')&&hub.includes('data-hub-bucket'));
-          assert.ok(hub.includes('data-hub-group')&&hub.includes('openSemanticTransactionEditorV108'));
+          assert.ok(hub.includes('data-hub-category')&&hub.includes('data-hub-subcategory')&&hub.includes('openSemanticTransactionEditorV108'));
           assert.ok(hub.includes('年間の収支を見る'));
           assert.ok(hub.includes('固定費マスターの月額内訳（参考）'));
           assert.ok(expenseNature.includes('HOME_MAINTENANCE=SPECIAL'));
@@ -147,7 +147,7 @@ jobs:
           assert.ok(!hub.includes('カード引落（用途未配分）'));
           assert.ok(hub.includes('要確認：'));
           assert.ok(hub.includes('毎月の基本予算（参考）'));
-          console.log('RELEASE_V161_INLINE_EXPENSE_AND_REPAIR_DESK_PASS');
+          console.log('RELEASE_V162_EXPENSE_CATEGORY_HIERARCHY_PASS');
           NODE
       - name: Bundle PDF.js parser for same-origin iPhone import
         shell: bash

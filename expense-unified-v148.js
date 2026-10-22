@@ -51,7 +51,7 @@ function referenceFor(st,viewMonth,seasonal){
 }
 function fixedReference(st,viewMonth){return referenceFor(st,viewMonth,false)}
 function seasonalReference(st,viewMonth){return referenceFor(st,viewMonth,true)}
-let cycle='payday',lens='economic',month='',openBucket='',openCategory='',groups=[],annualOpen=false;
+let cycle='payday',lens='economic',month='',openBucket='',openCategory='',openSubcategory='',groups=[],annualOpen=false;
 function budgetReference(st,viewMonth){
  const fixed=fixedReference(st,viewMonth);
  let living=0,ideco=0,investment=0;
@@ -155,6 +155,32 @@ function subgroups(bucket,mode=lens){
  }
  return [...map.values()].sort((a,b)=>b.amount-a.amount||a.label.localeCompare(b.label,'ja'));
 }
+function categoryGroups(bucket,mode=lens){
+ const map=new Map(),defs=semantics()?.CATEGORY_DEFS||{};
+ for(const x of bucket.items){
+   // Economic expenses are grouped by CATEGORY first, not by subcategory.
+   // Loans/investments/bank-flow use an "内訳" category without changing
+   // any of their accounting classifications or recorded amounts.
+   const economicExpense=mode==='economic'&&['cash','purchase','bank'].includes(x.kind);
+   const key=economicExpense?String(x.category||'OTHER'):'TRANSACTION_DETAILS';
+   const label=economicExpense?
+     (defs[key]?.label||window.householdExpenseAnalyticsV106?.categoryLabel?.(key)||'その他'):'取引明細';
+   let group=map.get(key);
+   if(!group){group={key,label,amount:0,items:[],subcategories:[]};map.set(key,group)}
+   group.items.push(x);
+   group.amount+=Math.abs(n(x.amount));
+ }
+ for(const category of map.values()){
+   const subs=subgroups({...bucket,items:category.items},mode);
+   category.subcategories=subs.map(g=>({
+     ...g,
+     // The category label already appears in the middle tier.
+     label:g.label.startsWith(category.label+' / ')?
+       g.label.slice(category.label.length+3):g.label
+   }));
+ }
+ return [...map.values()].sort((a,b)=>b.amount-a.amount||a.label.localeCompare(b.label,'ja'));
+}
 function mount(){
  const page=$('expenses');if(!page||!engine())return false;
  let root=$('expenseHubV148');
@@ -184,40 +210,49 @@ function ratioParts(list,baseline){
  return {html,legend};
 }
 function detailPanel(bucket){
- groups=subgroups(bucket);
- if(openCategory&&!groups.some(g=>g.key===openCategory))openCategory='';
+ groups=categoryGroups(bucket);
+ if(openCategory&&!groups.some(g=>g.key===openCategory)){openCategory='';openSubcategory=''}
+ const chosen=groups.find(g=>g.key===openCategory);
+ if(chosen&&openSubcategory&&!chosen.subcategories.some(g=>g.key===openSubcategory))openSubcategory='';
  let markup='<div class="hub-drilldown" id="expenseHubDrilldownV148">'+
-   '<div class="hub-title" style="font-size:16px">'+esc(bucket.label)+' の内訳</div>'+
-   '<div class="hub-muted">'+bucket.items.length+'件 / '+yen(bucket.amount)+'。項目を選ぶと、その直下に明細を表示します。</div>';
- if(bucket.id==='fixed'&&lens==='economic'){
-   const reference=fixedReference(stateNow(),month),seasonal=seasonalReference(stateNow(),month);
-   markup+='<details class="hub-fixed-ref" style="margin:12px 0;padding:12px;border:1px solid #536070;border-radius:12px">'+
-     '<summary style="cursor:pointer;font-weight:700">固定費マスターの月額内訳（参考）'+yen(reference.total)+'</summary>'+
-     '<p class="hub-muted">設定済みの固定費マスターの参考予算です。上の実績は購入明細から計上し、マスター予算や車ローン元金・iDeCoを二重加算しません。</p>'+
-     (reference.items.length?reference.items.map(x=>'<div class="hub-detailrow"><span>'+esc(x.name)+
-       (x.route==='CARD'?' <span class="hub-muted">（カード払い）</span>':'')+'</span><b>'+yen(x.amount)+'</b></div>').join(''):
-       '<p class="hub-muted">毎月固定のマスター登録はありません。</p>')+
-     (seasonal.items.length?'<p class="hub-muted">この月のボーナス・年次固定返済（通常月の基準予算から除外）</p>'+
-       seasonal.items.map(x=>'<div class="hub-detailrow"><span>'+esc(x.name)+'</span><b>'+yen(x.amount)+'</b></div>').join(''):'')+'</details>';
- }
+   '<div class="hub-drilldown-hint">'+bucket.items.length+'件の明細 · 中カテゴリ → 小カテゴリ → 個別明細</div>';
  if(!groups.length)markup+='<div class="hub-muted" style="padding:12px 0">この期間の明細はありません。</div>';
- for(const g of groups){
-   const expanded=openCategory===g.key;
-   markup+='<button type="button" class="hub-group" data-hub-group="'+esc(g.key)+'" aria-expanded="'+expanded+'">'+
-     '<span>'+esc(g.label)+' <span class="hub-muted">('+g.items.length+'件)</span></span>'+
-     '<b>'+yen(g.amount)+' <span aria-hidden="true">'+(expanded?'⌄':'›')+'</span></b></button>';
-   // Nested purchase lines are rendered IMMEDIATELY after their category row.
-   if(expanded){
+ for(const c of groups){
+   const expanded=openCategory===c.key;
+   markup+='<button type="button" class="hub-category" data-hub-category="'+esc(c.key)+'" aria-expanded="'+expanded+'">'+
+     '<span class="hub-category-title">'+esc(c.label)+' <span class="hub-count">('+c.items.length+'件)</span></span>'+
+     '<span class="hub-amt">'+yen(c.amount)+' <span class="hub-chevron" aria-hidden="true">'+(expanded?'⌄':'›')+'</span></span></button>';
+   if(!expanded)continue;
+   markup+='<div class="hub-category-body" data-hub-category-details="'+esc(c.key)+'">';
+   for(const g of c.subcategories){
+     const subExpanded=openSubcategory===g.key;
+     markup+='<button type="button" class="hub-subcategory" data-hub-subcategory="'+esc(g.key)+'" aria-expanded="'+subExpanded+'">'+
+       '<span>'+esc(g.label)+' <span class="hub-count">('+g.items.length+'件)</span></span>'+
+       '<span class="hub-amt">'+yen(g.amount)+' <span class="hub-chevron" aria-hidden="true">'+(subExpanded?'⌄':'›')+'</span></span></button>';
+     if(!subExpanded)continue;
      markup+='<div class="hub-group-details" data-hub-details="'+esc(g.key)+'">';
      for(const x of g.items.slice(0,150)){
-       markup+='<div class="hub-detailrow"><div style="min-width:0;overflow-wrap:anywhere"><b>'+esc(x.label)+'</b>'+
-         '<div class="hub-muted">'+esc(x.date||'日付未確定')+' ・ '+esc(x.source||'')+(x.provisional?' ・ 仮記帳':'')+(x.needsReview?' ・ 要確認':'')+'</div>'+
+       markup+='<div class="hub-detailrow"><div class="hub-merchant"><b>'+esc(x.label)+'</b>'+
+         '<div class="hub-muted">'+esc(x.date||'日付未確定')+' ・ '+esc(x.source||'')+
+           (x.provisional?' ・ 仮記帳':'')+(x.needsReview?' ・ 要確認':'')+'</div>'+
          (x.editKind&&x.editId?'<button type="button" class="hub-edit" data-hub-edit="'+esc(x.editKind)+'" data-hub-editid="'+esc(x.editId)+'">明細を編集</button>':'')+
          '</div><b class="hub-amt">'+yen(Math.abs(n(x.amount)))+'</b></div>';
      }
      if(g.items.length>150)markup+='<p class="hub-muted">先頭150件を表示。残りは対象期間を絞るか明細タブで確認してください。</p>';
      markup+='</div>';
    }
+   markup+='</div>';
+ }
+ if(bucket.id==='fixed'&&lens==='economic'){
+   const reference=fixedReference(stateNow(),month),seasonal=seasonalReference(stateNow(),month);
+   markup+='<details class="hub-fixed-ref">'+
+     '<summary>固定費マスターの月額内訳（参考） '+yen(reference.total)+'</summary>'+
+     '<p class="hub-muted">参考予算です。実際の支出や車ローン元金・iDeCoには二重加算しません。</p>'+
+     (reference.items.length?reference.items.map(x=>'<div class="hub-detailrow"><span>'+esc(x.name)+
+       (x.route==='CARD'?' <span class="hub-muted">（カード払い）</span>':'')+'</span><b>'+yen(x.amount)+'</b></div>').join(''):
+       '<p class="hub-muted">登録された毎月固定の項目はありません。</p>')+
+     (seasonal.items.length?'<p class="hub-muted">この月の年次・特別固定支出（通常予算から除外）</p>'+
+       seasonal.items.map(x=>'<div class="hub-detailrow"><span>'+esc(x.name)+'</span><b>'+yen(x.amount)+'</b></div>').join(''):'')+'</details>';
  }
  return markup+'</div>';
 }
@@ -318,23 +353,26 @@ function bind(root){
  const annually=$('hubAnnualV148');if(annually)annually.addEventListener('toggle',()=>{annualOpen=annually.open});
  root.querySelectorAll('[data-hub-cycle]').forEach(btn=>btn.addEventListener('click',()=>{
    if(cycle===btn.dataset.hubCycle)return;
-   cycle=btn.dataset.hubCycle;openBucket='';openCategory='';render();
+   cycle=btn.dataset.hubCycle;openBucket='';openCategory='';openSubcategory='';render();
  }));
  root.querySelectorAll('[data-hub-lens]').forEach(btn=>btn.addEventListener('click',()=>{
    if(lens===btn.dataset.hubLens)return;
-   lens=btn.dataset.hubLens;openBucket='';openCategory='';render();
+   lens=btn.dataset.hubLens;openBucket='';openCategory='';openSubcategory='';render();
  }));
  const date=$('hubMonthV148');
  date?.addEventListener('change',()=>{if(/^\d{4}-(0[1-9]|1[0-2])$/.test(date.value)){
-   month=date.value;openBucket='';openCategory='';render();
+   month=date.value;openBucket='';openCategory='';openSubcategory='';render();
  }});
- $('hubPrevV148')?.addEventListener('click',()=>{month=engine().addMonth(month,-1);openBucket='';openCategory='';render()});
- $('hubNextV148')?.addEventListener('click',()=>{month=engine().addMonth(month,1);openBucket='';openCategory='';render()});
+ $('hubPrevV148')?.addEventListener('click',()=>{month=engine().addMonth(month,-1);openBucket='';openCategory='';openSubcategory='';render()});
+ $('hubNextV148')?.addEventListener('click',()=>{month=engine().addMonth(month,1);openBucket='';openCategory='';openSubcategory='';render()});
  root.querySelectorAll('[data-hub-bucket]').forEach(btn=>btn.addEventListener('click',()=>{
-   const k=btn.dataset.hubBucket;openBucket=openBucket===k?'':k;openCategory='';render();
+   const k=btn.dataset.hubBucket;openBucket=openBucket===k?'':k;openCategory='';openSubcategory='';render();
  }));
- root.querySelectorAll('[data-hub-group]').forEach(btn=>btn.addEventListener('click',()=>{
-   const k=btn.dataset.hubGroup;openCategory=openCategory===k?'':k;render();
+ root.querySelectorAll('[data-hub-category]').forEach(btn=>btn.addEventListener('click',()=>{
+   const k=btn.dataset.hubCategory;openCategory=openCategory===k?'':k;openSubcategory='';render();
+ }));
+ root.querySelectorAll('[data-hub-subcategory]').forEach(btn=>btn.addEventListener('click',()=>{
+   const k=btn.dataset.hubSubcategory;openSubcategory=openSubcategory===k?'':k;render();
  }));
  root.querySelectorAll('[data-hub-edit]').forEach(btn=>btn.addEventListener('click',()=>{
    if(typeof window.openSemanticTransactionEditorV108==='function')
@@ -352,6 +390,6 @@ function boot(){
  window.addEventListener('focus',()=>{if($('expenses')?.classList.contains('active'))render()});
  if($('expenses')?.classList.contains('active'))render();
 }
-window.householdExpenseUnifiedV148={mount,render,calculate,usageBuckets,subgroups,rowDetails,fixedReference,seasonalReference,budgetReference,masterNature,getSelection:()=>({cycle,lens,month,openBucket,openCategory})};
+window.householdExpenseUnifiedV148={mount,render,calculate,usageBuckets,subgroups,categoryGroups,rowDetails,fixedReference,seasonalReference,budgetReference,masterNature,getSelection:()=>({cycle,lens,month,openBucket,openCategory,openSubcategory})};
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});else setTimeout(boot,0);
 })();

@@ -114,7 +114,5 @@ function mount(){
  return true;
 }
 window.householdVerifiedCorrectionPatchV149={plan,apply,mount};
-if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',mount,{once:true});
-else setTimeout(mount,0);
-window.addEventListener('pageshow',()=>{if(!$('verifiedCorrectionV149'))mount()});
+// v161: no version-specific Import panel; registered through the unified repair desk.
 })();

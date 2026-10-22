@@ -247,35 +247,9 @@ function applyPatch(patch){
  return {...result,saved:true};
 }
 function mount(){
- const expenses=$('expenses'),imports=document.querySelector('#imports .grid');
- if(expenses&&!$('cycleAuditSummaryV153')){
-  const box=document.createElement('div');box.id='cycleAuditSummaryV153';box.className='hub-card';
-  const after=$('expenseHubV148'),old=$('expenseLegacyDetailsV148');
-  if(old)expenses.insertBefore(box,old);else expenses.appendChild(box);
- }
- if(imports&&!$('cycleAuditImportV153')){
-  const box=document.createElement('div');box.id='cycleAuditImportV153';box.className='card full';
-  box.innerHTML='<div class="title">原本照合済み9〜10月差分修正（v155）</div>'+
-    '<div class="tiny">この機能は専用差分JSONのみを受け付け、端末の取引IDと元項目を照合してから一括修正します。既存の家計バックアップを上書きしません。</div>'+
-    '<button type="button" class="btn secondary" id="cycleAuditChooseV153">専用差分JSONを選ぶ</button>'+
-    '<input type="file" id="cycleAuditInputV153" accept=".json,application/json" style="display:none">'+
-    '<div id="cycleAuditStatusV153" class="tiny" role="status" style="margin-top:8px"></div>';
-  imports.prepend(box);
-  $('cycleAuditChooseV153').onclick=()=>$('cycleAuditInputV153').click();
-  $('cycleAuditInputV153').onchange=async()=>{
-   const status=$('cycleAuditStatusV153');
-   try{
-    const f=$('cycleAuditInputV153').files?.[0];if(!f)return;
-    if(f.size>400000)throw Error('差分ファイルが大きすぎます。');
-    const patch=JSON.parse(await f.text()),preview=planPatch(currentState(),patch);
-    if(!preview.changed.length){status.textContent='この差分は適用済みです。追加変更はありません。';return}
-    if(!window.confirm(preview.changed.length+'項目の差分を厳密照合済みです。銀行残高・原本IDを保ち、復旧履歴を保存して反映します。続けますか？'))return;
-    const result=applyPatch(patch);status.textContent=result.changed.length+'項目の修正を保存しました。Settingsでクラウド同期状況を確認してください。';
-    show();
-   }catch(e){status.textContent='未適用：'+String(e.message||e)}finally{$('cycleAuditInputV153').value=''}
-  };
- }
- return !!(expenses||imports);
+ // Retained for backward-compatible API access. v161 uses a single JSON
+ // repair desk and no longer shows historic audit widgets on Expenses.
+ return false;
 }
 function show(){
  mount();const el=$('cycleAuditSummaryV153');if(!el)return;

@@ -156,14 +156,19 @@ function subgroups(bucket,mode=lens){
  return [...map.values()].sort((a,b)=>b.amount-a.amount||a.label.localeCompare(b.label,'ja'));
 }
 function mount(){
- const page=$('expenses'),legacy=$('expenseTabRootV129');if(!page||!legacy||!engine())return false;
- if(!$('expenseHubV148')){const root=document.createElement('div');root.id='expenseHubV148';page.insertBefore(root,legacy)}
- if(!$('expenseLegacyDetailsV148')){
-   const box=document.createElement('details');box.id='expenseLegacyDetailsV148';
-   const head=document.createElement('summary');head.textContent='支出明細の一覧・編集を開く（従来の支出機能）';
-   box.appendChild(head);
-   page.replaceChild(box,legacy);box.appendChild(legacy);
+ const page=$('expenses');if(!page||!engine())return false;
+ let root=$('expenseHubV148');
+ if(!root){
+   root=document.createElement('div');root.id='expenseHubV148';
+   const legacy=$('expenseTabRootV129');
+   if(legacy)page.insertBefore(root,legacy);else page.prepend(root);
  }
+ // Legacy v130 display is retired. The same canonical transactions remain
+ // editable using the v108 semantic editor in the inline details below.
+ const legacy=$('expenseTabRootV129');
+ if(legacy)legacy.remove();
+ const oldWrapper=$('expenseLegacyDetailsV148');
+ if(oldWrapper)oldWrapper.remove();
  return true;
 }
 function ratioParts(list,baseline){
@@ -181,10 +186,9 @@ function ratioParts(list,baseline){
 function detailPanel(bucket){
  groups=subgroups(bucket);
  if(openCategory&&!groups.some(g=>g.key===openCategory))openCategory='';
- const chosen=groups.find(g=>g.key===openCategory);
- let markup='<div class="hub-card" id="expenseHubDrilldownV148">'+
-   '<div class="hub-title" style="font-size:17px">'+esc(bucket.label)+' の内訳</div>'+
-   '<div class="hub-muted">'+bucket.items.length+'件 / '+yen(bucket.amount)+'。カテゴリを選ぶと個別明細が開きます。</div>';
+ let markup='<div class="hub-drilldown" id="expenseHubDrilldownV148">'+
+   '<div class="hub-title" style="font-size:16px">'+esc(bucket.label)+' の内訳</div>'+
+   '<div class="hub-muted">'+bucket.items.length+'件 / '+yen(bucket.amount)+'。項目を選ぶと、その直下に明細を表示します。</div>';
  if(bucket.id==='fixed'&&lens==='economic'){
    const reference=fixedReference(stateNow(),month),seasonal=seasonalReference(stateNow(),month);
    markup+='<details class="hub-fixed-ref" style="margin:12px 0;padding:12px;border:1px solid #536070;border-radius:12px">'+
@@ -197,19 +201,23 @@ function detailPanel(bucket){
        seasonal.items.map(x=>'<div class="hub-detailrow"><span>'+esc(x.name)+'</span><b>'+yen(x.amount)+'</b></div>').join(''):'')+'</details>';
  }
  if(!groups.length)markup+='<div class="hub-muted" style="padding:12px 0">この期間の明細はありません。</div>';
- for(const g of groups)markup+='<button type="button" class="hub-group" data-hub-group="'+esc(g.key)+'" aria-expanded="'+(openCategory===g.key)+'">'+
-   '<span>'+esc(g.label)+' <span class="hub-muted">('+g.items.length+'件)</span></span>'+
-   '<b>'+yen(g.amount)+' ›</b></button>';
- if(chosen){
-   markup+='<div style="border-top:1px solid #3c4b5a;margin-top:12px;padding-top:10px"><b>'+esc(chosen.label)+'</b>';
-   for(const x of chosen.items.slice(0,150)){
-     markup+='<div class="hub-detailrow"><div style="min-width:0;overflow-wrap:anywhere"><b>'+esc(x.label)+'</b>'+
-       '<div class="hub-muted">'+esc(x.date||'日付未確定')+' ・ '+esc(x.source||'')+(x.provisional?' ・ 仮記帳':'')+(x.needsReview?' ・ 要確認':'')+'</div>'+
-       (x.editKind&&x.editId?'<button type="button" class="hub-edit" data-hub-edit="'+esc(x.editKind)+'" data-hub-editid="'+esc(x.editId)+'">明細を編集</button>':'')+
-       '</div><b class="hub-amt">'+yen(Math.abs(n(x.amount)))+'</b></div>';
+ for(const g of groups){
+   const expanded=openCategory===g.key;
+   markup+='<button type="button" class="hub-group" data-hub-group="'+esc(g.key)+'" aria-expanded="'+expanded+'">'+
+     '<span>'+esc(g.label)+' <span class="hub-muted">('+g.items.length+'件)</span></span>'+
+     '<b>'+yen(g.amount)+' <span aria-hidden="true">'+(expanded?'⌄':'›')+'</span></b></button>';
+   // Nested purchase lines are rendered IMMEDIATELY after their category row.
+   if(expanded){
+     markup+='<div class="hub-group-details" data-hub-details="'+esc(g.key)+'">';
+     for(const x of g.items.slice(0,150)){
+       markup+='<div class="hub-detailrow"><div style="min-width:0;overflow-wrap:anywhere"><b>'+esc(x.label)+'</b>'+
+         '<div class="hub-muted">'+esc(x.date||'日付未確定')+' ・ '+esc(x.source||'')+(x.provisional?' ・ 仮記帳':'')+(x.needsReview?' ・ 要確認':'')+'</div>'+
+         (x.editKind&&x.editId?'<button type="button" class="hub-edit" data-hub-edit="'+esc(x.editKind)+'" data-hub-editid="'+esc(x.editId)+'">明細を編集</button>':'')+
+         '</div><b class="hub-amt">'+yen(Math.abs(n(x.amount)))+'</b></div>';
+     }
+     if(g.items.length>150)markup+='<p class="hub-muted">先頭150件を表示。残りは対象期間を絞るか明細タブで確認してください。</p>';
+     markup+='</div>';
    }
-   if(chosen.items.length>150)markup+='<p class="hub-muted">先頭150件を表示。残りは下の一覧から確認してください。</p>';
-   markup+='</div>';
  }
  return markup+'</div>';
 }
@@ -227,7 +235,7 @@ function render(){
  const difference=income-total,ratio=income>0?total*100/income:null;
  const bars=ratioParts(all,income);
  const root=$('expenseHubV148');
- let html='<div class="hub-card"><div class="hub-period"><div class="hub-title">月次支出サマリー <small style="color:#72dbc6;font-size:11px">v158</small></div>'+
+ let html='<div class="hub-card"><div class="hub-period"><div class="hub-title">月次支出サマリー</div>'+
  '<div class="hub-toolbar"><button type="button" class="hub-arrow" id="hubPrevV148" aria-label="前月">‹</button>'+
  '<input id="hubMonthV148" aria-label="対象月" class="hub-month" type="month" value="'+esc(month)+'">'+
  '<button type="button" class="hub-arrow" id="hubNextV148" aria-label="翌月">›</button></div></div>'+
@@ -245,9 +253,13 @@ function render(){
  '<div class="hub-totals"><span>確認済み収入</span><b>'+yen(income)+'</b></div>'+
  '<div class="hub-tablehead"><span>'+ (economic?'消費・資金用途':'銀行引落・資金移動') +'</span><span>金額</span></div>';
  if(economic)html+='<div class="hub-totals"><span>通常の消費・生活費（固定費＋変動費＋未確定）</span><b>'+yen(usage.ordinary)+'</b></div>';
- for(const b of all)html+='<button type="button" class="hub-line" data-hub-bucket="'+esc(b.id)+'" aria-expanded="'+(openBucket===b.id)+'">'+
- '<span class="hub-rowtitle"><i class="hub-dot" style="background:'+b.color+'"></i>'+esc(b.label)+'</span>'+
- '<span class="hub-amt">'+yen(b.amount)+' <span style="color:#a3bed0">›</span></span></button>';
+ for(const b of all){
+   const expanded=openBucket===b.id;
+   html+='<button type="button" class="hub-line" data-hub-bucket="'+esc(b.id)+'" aria-expanded="'+expanded+'">'+
+     '<span class="hub-rowtitle"><i class="hub-dot" style="background:'+b.color+'"></i>'+esc(b.label)+'</span>'+
+     '<span class="hub-amt">'+yen(b.amount)+' <span aria-hidden="true" style="color:#a3bed0">'+(expanded?'⌄':'›')+'</span></span></button>';
+   if(expanded)html+=detailPanel(b);
+ }
  if(economic)html+='<div class="hub-totals"><span>消費・購入額</span><b>'+yen(usage.consumption)+'</b></div>';
  html+='<div class="hub-totals"><span>'+(economic?'支出・資金用途合計':'口座資金流出合計（消費とは別）')+'</span><b>'+yen(total)+'</b></div>'+
  '<div class="hub-totals"><span>'+(economic?'収支':'確認済み入金との差（口座移動を含む）')+'</span>'+
@@ -273,8 +285,6 @@ function render(){
    html+='<p class="hub-muted" style="margin-top:12px">ATM出金・口座間送金・カード引落は、銀行残高管理用に表示しています。上の金額は消費・生活費に加算しません。</p>';
  }
  html+='</div>';
- const selected=all.find(b=>b.id===openBucket);
- if(selected)html+=detailPanel(selected);
  if(economic){
    html+='<details class="hub-note" id="hubReviewV157"><summary style="cursor:pointer;font-weight:700">要確認：'+usage.reviewCount+
      '件（費目に重複加算なし）</summary><p class="hub-muted">要確認は警告属性であり、独立した支出カテゴリーではありません。通常費・特別費に計上済みです。</p>'+
@@ -322,16 +332,14 @@ function bind(root){
  $('hubNextV148')?.addEventListener('click',()=>{month=engine().addMonth(month,1);openBucket='';openCategory='';render()});
  root.querySelectorAll('[data-hub-bucket]').forEach(btn=>btn.addEventListener('click',()=>{
    const k=btn.dataset.hubBucket;openBucket=openBucket===k?'':k;openCategory='';render();
-   if(openBucket)$('expenseHubDrilldownV148')?.scrollIntoView?.({block:'nearest'});
  }));
  root.querySelectorAll('[data-hub-group]').forEach(btn=>btn.addEventListener('click',()=>{
    const k=btn.dataset.hubGroup;openCategory=openCategory===k?'':k;render();
-   if(openCategory)$('expenseHubDrilldownV148')?.scrollIntoView?.({block:'nearest'});
  }));
  root.querySelectorAll('[data-hub-edit]').forEach(btn=>btn.addEventListener('click',()=>{
    if(typeof window.openSemanticTransactionEditorV108==='function')
      window.openSemanticTransactionEditorV108(btn.dataset.hubEdit,btn.dataset.hubEditid);
-   else $('expenseLegacyDetailsV148').open=true;
+   else window.alert?.('明細編集機能の読み込みが完了していません。再読み込みしてください。');
  }));
 }
 function boot(){

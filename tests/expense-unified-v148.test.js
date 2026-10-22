@@ -54,6 +54,7 @@ class El{
    const key='hub'+m[1][0].toUpperCase()+m[1].slice(1);
    return this.generated.filter(x=>x.dataset[key]!==undefined);
  }
+ remove(){dom.delete(this.id)}
  appendChild(x){this.children.push(x);dom.set(x.id,x)}
  insertBefore(x){dom.set(x.id,x)}
  replaceChild(x,y){dom.set(x.id,x)}
@@ -144,7 +145,7 @@ eq(specialCategories.find(x=>x.key==='GIFTS_EVENTS.GIFT').amount,2500,'Gift is s
 ok(categories.find(x=>x.key==='FOOD.CAFE').items.some(x=>x.editKind==='purchase'&&x.editId==='buy1'),'Card editor link');
 ok(!categories.some(x=>x.items.some(y=>y.editId==='buy1duplicate')),'Duplicate card excluded');
 if(listeners['document:DOMContentLoaded'])listeners['document:DOMContentLoaded'].forEach(fn=>fn());
-ok(!!dom.get('expenseLegacyDetailsV148'),'Legacy editing view preserved in one tab');
+ok(!dom.get('expenseLegacyDetailsV148')&&!dom.get('expenseTabRootV129'),'Duplicate legacy expense renderer removed');
 ok(!!dom.get('expenseHubV148'),'New summary placed inside expenses');
 expense.classList.add('active');
 listeners['treasury:pagechange'][0]({detail:{page:'expenses'}});
@@ -166,8 +167,13 @@ btn('lens','economic');
 ok(root.innerHTML.includes('消費・購入額'),'Consumption lens shown');
 btn('bucket','variable');
 ok(root.innerHTML.includes('食費'),'Tapping consumption expands categories');
+ok(root.innerHTML.indexOf('data-hub-bucket="variable"')<root.innerHTML.indexOf('id="expenseHubDrilldownV148"')&&
+   root.innerHTML.indexOf('id="expenseHubDrilldownV148"')<root.innerHTML.indexOf('data-hub-bucket="undetermined"'),
+   'Variable category panel appears inline directly below variable, before the next bucket');
 btn('group','FOOD.CAFE');
 ok(root.innerHTML.includes('カフェ'),'Tapping food shows individual card purchase');
+ok(root.innerHTML.indexOf('data-hub-group="FOOD.CAFE"')<root.innerHTML.indexOf('data-hub-details="FOOD.CAFE"'),
+  'Selected category immediately precedes its nested purchase rows');
 ok(root.innerHTML.includes('明細を編集'),'Editor action rendered');
 const edit=root.querySelectorAll('[data-hub-edit]').find(x=>x.dataset.hubEdit==='purchase');
 ok(!!edit,'Card edit button exists');edit.click();
@@ -179,7 +185,7 @@ ok(root.innerHTML.includes('毎月の基本予算（参考）'),'Plan shown sepa
 ok(root.innerHTML.includes('電気'),'Fixed reference contains electricity');
 ok(root.innerHTML.includes('カード払い'),'Card-route reference labeled');
 ok(!fs.readFileSync('index.html','utf8').includes('id="monthlyTreasuryTabV142"'),'Redundant monthly tab removed');
-ok(fs.readFileSync('index.html','utf8').includes('expense-unified-v148.js?v=158'),'Unified hub loaded');
+ok(fs.readFileSync('index.html','utf8').includes('expense-unified-v148.js?v=161'),'Unified hub loaded');
 // v158: fixed and variable are PRESENTATION cost-behavior within economic NORMAL;
 // source category overrides and review badges do not change booked consumption.
 {

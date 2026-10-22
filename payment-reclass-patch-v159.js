@@ -77,6 +77,5 @@ function mount(){
  };
 }
 window.householdPaymentReclassV159={FORMAT,plan,apply,mount};
-if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',mount,{once:true});
-else mount();
+// v161: one unified Import repair desk owns the file picker; strict patch engine remains.
 })();

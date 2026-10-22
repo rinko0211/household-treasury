@@ -44,6 +44,14 @@
     }
 
     for (const x of parsed) {
+      // Receipt-first card purchase is the source of economic spending.
+      // A later bank/card statement enriches it; never append a second row.
+      const receipt=window.householdReceiptCycleV158?.matchExistingReceipt?.(state,x);
+      if(receipt){
+        window.householdReceiptCycleV158.mergeStatement(state,x);
+        duplicates++;
+        continue;
+      }
       const b = baseKey(x);
       const same = (state.purchaseEvents || []).filter(p => baseKey(p) === b);
       const existingInstance = same.find(p => Number(p.occurrence_index || 1) === Number(x.occurrence_index || 1));

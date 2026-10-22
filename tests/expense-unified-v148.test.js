@@ -241,4 +241,27 @@ ok(fs.readFileSync('index.html','utf8').includes('expense-unified-v148.js?v=162'
  eq(window.householdUsageLedgerV157.calculate(reviewOnly,'2026-10','payday').consumption,
     updated.consumption,'Review status alone never changes money');
 }
+// v162: multiple ordinary categories aggregate before subcategory / receipts.
+{
+ const sample=structuredClone(state);
+ sample.purchaseEvents.push(
+  {purchase_id:'daily-clothes',card:'Rakuten',purchase_date:'2026-10-22',
+   merchant_raw:'洋服店',original_amount:11460,economic_type:'EXPENSE',
+   category:'DAILY_GOODS',subcategory:'CLOTHING',billing_month:'2026-12'},
+  {purchase_id:'daily-supplies',card:'Rakuten',purchase_date:'2026-10-22',
+   merchant_raw:'生活用品店',original_amount:4262,economic_type:'EXPENSE',
+   category:'DAILY_GOODS',subcategory:'HOUSEHOLD',billing_month:'2026-12'}
+ );
+ const usage=window.householdUsageLedgerV157.calculate(sample,'2026-10','payday');
+ const variable=app.usageBuckets(usage,sample).find(x=>x.id==='variable');
+ const major=app.categoryGroups(variable);
+ const daily=major.find(x=>x.key==='DAILY_GOODS');
+ eq(daily.label,'日用品','Normal expense uses middle category 日用品');
+ eq(daily.amount,15722,'日用品 contains both 衣類 and 生活用品');
+ eq(daily.subcategories.find(x=>x.label==='衣類').amount,11460,'衣類 minor category remains intact');
+ eq(daily.subcategories.find(x=>x.label==='生活用品').amount,4262,'生活用品 minor category remains intact');
+ eq(major.reduce((total,x)=>total+x.amount,0),variable.amount,'Middle category total exactly matches variable total');
+ eq(daily.subcategories.reduce((total,x)=>total+x.amount,0),daily.amount,'Minor categories reconcile to middle category');
+ eq(daily.subcategories.flatMap(x=>x.items).length,2,'Exactly two source transactions remain');
+}
 console.log('PASS '+asserts+' expense unified v148 assertions');

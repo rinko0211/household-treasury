@@ -129,7 +129,7 @@ function subgroups(bucket,mode=lens){
      const name=String(x.label||'');
      key='DEBT|'+(/プラド|PRADO/i.test(name)?'PRADO':/ラパン|LAPIN/i.test(name)?'LAPIN':/リボ/.test(name)?'REVOLVING':'OTHER');
      label=key.endsWith('PRADO')?'プラドローン返済':key.endsWith('LAPIN')?'ラパンローン返済':key.endsWith('REVOLVING')?'リボ返済':'ローン返済（元金等）';
-   }else if(bucket.id==='cardUnallocated'){
+   }else if(bucket.id==='cardSettlement'){
      key='CARD|'+x.source;label=x.source||'カード引落';
    }else if(bucket.id==='ideco'){
      key='INVESTMENT|IDECO';label='iDeCo';

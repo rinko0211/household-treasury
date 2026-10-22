@@ -130,7 +130,9 @@ function subgroups(bucket,mode=lens){
      key='DEBT|'+(/プラド|PRADO/i.test(name)?'PRADO':/ラパン|LAPIN/i.test(name)?'LAPIN':/リボ/.test(name)?'REVOLVING':'OTHER');
      label=key.endsWith('PRADO')?'プラドローン返済':key.endsWith('LAPIN')?'ラパンローン返済':key.endsWith('REVOLVING')?'リボ返済':'ローン返済（元金等）';
    }else if(bucket.id==='cardSettlement'){
-     key='CARD|'+x.source;label=x.source||'カード引落';
+     key='CARD|'+x.label;label=x.label||'カード精算';
+   }else if(['transfer','expense','unclassified'].includes(bucket.id)){
+     key='BANK|'+x.label;label=x.label||'銀行取引';
    }else if(bucket.id==='ideco'){
      key='INVESTMENT|IDECO';label='iDeCo';
    }else if(bucket.id==='investment'){

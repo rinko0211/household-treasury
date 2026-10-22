@@ -4,7 +4,7 @@
 
   // v70 phase 2: data/model compatibility remains, but legacy hidden UI boots are disabled.
   window.__householdConsolidatedUiV70 = true;
-  window.__householdRuntimeRelease = 'v159';
+  window.__householdRuntimeRelease = 'v126';
 
   const DERIVED_KEYS = new Set([
     'updatedAt',

@@ -62,6 +62,7 @@ function calculate(st,month,basis='payday'){
  const p=period(st,month,basis);
  const rows=[],seenBank=new Set(),seenCash=new Set(),seenPurchase=new Set(),flags=[],bankExpenses=[];
  const subtotals={cashExpenses:0,purchaseEvents:0,directBank:0,ordinary:0,special:0,
+   normalFixed:0,normalVariable:0,normalUndetermined:0,
    debt:0,ideco:0,investment:0,income:0,unresolvedBankFee:0};
  const byKind={cash:[],purchase:[],bank:[],debt:[],ideco:[],investment:[],income:[]};
  const add=(kind,row)=>{
@@ -79,12 +80,21 @@ function calculate(st,month,basis='payday'){
    const nature=classify(source,kind);
    const special=String(source.spending_class||source.expense_scope||source.ordinary_or_special||'').toUpperCase()==='SPECIAL'||
       (!source.spending_class&&!source.expense_scope&&nature==='SPECIAL');
+   // Spending purpose (NORMAL / SPECIAL) and cost behavior (FIXED /
+   // VARIABLE / REVIEW) are independent. Preserve approved past totals:
+   // a NORMAL source transaction with a conflicting SPECIAL subcategory
+   // remains NORMAL, but its fixed-variable nature is left undetermined.
+   const costBucket=special?'SPECIAL':nature==='FIXED'?'FIXED':
+      nature==='VARIABLE'?'VARIABLE':'UNDETERMINED';
+   const conflictingRule=!special&&nature==='SPECIAL';
    const row={kind,identity:kind+':'+i,date:date||'',label,amount,source:payment,
-      costNature:nature,spendingClass:special?'SPECIAL':'NORMAL',
-      needsReview:isReview(source,nature),status:'confirmed',
+      costNature:nature,costBucket,spendingClass:special?'SPECIAL':'NORMAL',
+      needsReview:isReview(source,nature)||conflictingRule,status:'confirmed',
       provisional:!date||source.provisional_attribution===true||source.no_source_date===true};
    add(kind,row);
    subtotals[special?'special':'ordinary']+=amount;
+   if(!special)subtotals[costBucket==='FIXED'?'normalFixed':
+      costBucket==='VARIABLE'?'normalVariable':'normalUndetermined']+=amount;
    if(row.needsReview)flags.push(row);
  };
  for(const [i,r] of (st.cashExpenses||[]).entries()){
@@ -155,7 +165,9 @@ function calculate(st,month,basis='payday'){
  const funds=consumption+subtotals.debt+subtotals.ideco+subtotals.investment;
  return {
    ...p,month,basis,rows,byKind,flags,bankExpenses,subtotals,
-   ordinary:subtotals.ordinary,special:subtotals.special,consumption,
+   ordinary:subtotals.ordinary,special:subtotals.special,
+   normalFixed:subtotals.normalFixed,normalVariable:subtotals.normalVariable,
+   normalUndetermined:subtotals.normalUndetermined,consumption,
    debt:subtotals.debt,ideco:subtotals.ideco,investment:subtotals.investment,
    income:subtotals.income,funds,net:subtotals.income-funds,
    reviewCount:flags.length,unresolvedBankFee:subtotals.unresolvedBankFee,

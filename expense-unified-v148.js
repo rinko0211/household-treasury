@@ -117,8 +117,8 @@ function usageBuckets(usage,st){
   {id:'undetermined',label:'通常費（固定・変動未確定）',color:'#a2acb9',items:normal.filter(x=>x.costBucket!=='FIXED'&&x.costBucket!=='VARIABLE')},
   {id:'special',label:'特別費',color:'#eab86d',
     items:enriched.filter(x=>['cash','purchase','bank'].includes(x.kind)&&x.spendingClass==='SPECIAL')},
-  {id:'debt',label:'車ローン・元金返済',color:'#ff9f35',items:usage.byKind.debt},
-  {id:'ideco',label:'iDeCo',color:'#987efd',items:usage.byKind.ideco},
+  {id:'debt',label:'車ローン（固定返済・消費外）',color:'#ff9f35',items:usage.byKind.debt},
+  {id:'ideco',label:'iDeCo（固定拠出・投資）',color:'#987efd',items:usage.byKind.ideco},
   {id:'investment',label:'その他投資',color:'#67b9f4',items:usage.byKind.investment}
  ];
  return groups.map(g=>({...g,amount:g.items.reduce((a,x)=>a+n(x.amount),0)}));

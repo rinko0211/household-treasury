@@ -52,6 +52,19 @@ equal(row('EDUCATION.TUITION','授業料').nature,'FIXED','Tuition fixed');
 equal(row('FOOD.GROCERIES','スーパー',{spending_class:'SPECIAL'}).nature,'VARIABLE','Explicit user choice wins over old generic special flag');
 equal(row('CHILD.CHILDCARE','保育料').nature,'REVIEW','Case-by-case is not automatically fixed');
 equal(row('CHILD.CHILDCARE','保育料',{cost_nature:'FIXED'}).nature,'FIXED','Optional individual row decision');
+equal(row('INSURANCE.OTHER','Medical insurance',{
+ is_fixed_expense:true,fixed_expense_master_id:'verified-master-insurance'
+}).nature,'FIXED','A real fixed-master link resolves a case-by-case subcategory');
+equal(row('MEDICAL.CONTACTS','Monthly contact lens',{
+ is_fixed_expense:true,fixed_expense_master_id:'verified-master-contact'
+}).nature,'VARIABLE','Approved contacts variable rule wins even against master link');
+equal(row('INSURANCE.OTHER','Unknown insurance',{
+ is_fixed_expense:true
+}).nature,'REVIEW','A naked recurring flag without a confirmed master ID is not enough');
+equal(row('INSURANCE.OTHER','Unknown insurance',{
+ fixed_expense_master_id:'verified-master-insurance'
+}).nature,'REVIEW','Fixed-master ID without explicitly linked flag does not classify automatically');
+
 equal(row('CHILD.CHILDCARE','保育料',{spending_class:'SPECIAL'}).nature,'SPECIAL','Case-by-case preserves old special choice');
 equal(row('FINANCIAL_FEES.INTEREST','返済利息',{economic_type:'DEBT_INTEREST'}).nature,'VARIABLE','Interest variable');
 const loan=api.classify({kind:'debt',label:'車ローン 60,000円',source:{economic_type:'DEBT_PRINCIPAL',category:'CAR',subcategory:'OTHER'},category:'CAR',subcategory:'OTHER',semantic});

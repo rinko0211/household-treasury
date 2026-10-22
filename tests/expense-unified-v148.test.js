@@ -112,7 +112,11 @@ eq(usage.ideco,12000,'Investment separately');
 eq(usage.funds,88300,'Consumption + debt + iDeCo');
 let cash=app.usageBuckets(usage,state);
 eq(cash.reduce((sum,b)=>sum+b.amount,0),usage.funds,'All purchase-use buckets reconcile to uses');
-eq(cash.find(x=>x.id==='ordinary').amount,13800,'Grocery and card use as ordinary consumption');
+eq(cash.find(x=>x.id==='variable').amount,13800,'Grocery and card use as ordinary consumption');
+eq(cash.find(x=>x.id==='fixed').amount,0,'No fixed actual in simple fixture');
+eq(cash.find(x=>x.id==='undetermined').amount,0,'No undecided actual in simple fixture');
+eq(usage.normalFixed+usage.normalVariable+usage.normalUndetermined,usage.ordinary,
+ 'Normal fixed/variable/undetermined reconcile without changing total');
 eq(cash.find(x=>x.id==='special').amount,2500,'Cash gift as special expense');
 eq(cash.find(x=>x.id==='debt').amount,60000,'Car principal separate from ordinary');
 eq(cash.find(x=>x.id==='ideco').amount,12000,'iDeCo separate from consumption');
@@ -130,9 +134,9 @@ ok(!fixedReference.items.some(x=>x.name==='家族カード'||x.name==='現金配
 ok(fixedReference.items.some(x=>x.name==='電気'&&x.route==='CARD'),
   'Card-routed fixed expense is reference only, not extra cash outflow');
 let economic=app.usageBuckets(usage,state);
-eq(economic.find(x=>x.id==='ordinary').amount,13800,'Consumption ordinary');
+eq(economic.find(x=>x.id==='variable').amount,13800,'Consumption ordinary');
 eq(economic.find(x=>x.id==='special').amount,2500,'Consumption special');
-const categories=app.subgroups(economic.find(x=>x.id==='ordinary'),'economic');
+const categories=app.subgroups(economic.find(x=>x.id==='variable'),'economic');
 eq(categories.find(x=>x.key==='FOOD.GROCERIES').amount,1800,'Groceries subcategory');
 eq(categories.find(x=>x.key==='FOOD.CAFE').amount,12000,'Cafe subcategory');
 const specialCategories=app.subgroups(economic.find(x=>x.id==='special'),'economic');
@@ -146,7 +150,7 @@ expense.classList.add('active');
 listeners['treasury:pagechange'][0]({detail:{page:'expenses'}});
 let root=dom.get('expenseHubV148');
 ok(root.innerHTML.includes('月次支出サマリー'),'Summary rendered');
-ok(root.innerHTML.includes('通常の消費・生活費'),'Primary economic group shown');
+ok(root.innerHTML.includes('通常の消費・生活費'),'Primary normal subtotal shown');
 ok(root.innerHTML.includes('口座資金流出（引落日ベース）'),'Secondary bank mode explicitly named');
 ok(!root.innerHTML.includes('カード引落（用途未配分）'),'Old card settlement expense category eliminated');
 function btn(type,value){
@@ -160,7 +164,7 @@ btn('cycle','payday');
 ok(root.innerHTML.includes('2026-10-16 〜 2026-11-17'),'Payday switch changes period');
 btn('lens','economic');
 ok(root.innerHTML.includes('消費・購入額'),'Consumption lens shown');
-btn('bucket','ordinary');
+btn('bucket','variable');
 ok(root.innerHTML.includes('食費'),'Tapping consumption expands categories');
 btn('group','FOOD.CAFE');
 ok(root.innerHTML.includes('カフェ'),'Tapping food shows individual card purchase');
@@ -169,12 +173,48 @@ const edit=root.querySelectorAll('[data-hub-edit]').find(x=>x.dataset.hubEdit===
 ok(!!edit,'Card edit button exists');edit.click();
 eq(events[0][0],'purchase','Editor kind correct');
 eq(events[0][1],'buy1','Editor opens exact selected row');
-btn('lens','cash');
-btn('bucket','debt');
+btn('bucket','fixed');
 ok(root.innerHTML.includes('固定費マスターの月額内訳（参考）'),'Fixed detail shows read-only master reference');
 ok(root.innerHTML.includes('毎月の基本予算（参考）'),'Plan shown separately from actual');
 ok(root.innerHTML.includes('電気'),'Fixed reference contains electricity');
 ok(root.innerHTML.includes('カード払い'),'Card-route reference labeled');
 ok(!fs.readFileSync('index.html','utf8').includes('id="monthlyTreasuryTabV142"'),'Redundant monthly tab removed');
-ok(fs.readFileSync('index.html','utf8').includes('expense-unified-v148.js?v=157'),'Unified hub loaded');
+ok(fs.readFileSync('index.html','utf8').includes('expense-unified-v148.js?v=158'),'Unified hub loaded');
+// v158: fixed and variable are PRESENTATION cost-behavior within economic NORMAL;
+// source category overrides and review badges do not change booked consumption.
+{
+ const next={
+   purchase_id:'electric-fixed-actual',card:'KABU&',
+   purchase_date:'2026-10-19',merchant_raw:'Electric power bill',
+   original_amount:3210,category:'UTILITIES',subcategory:'ELECTRICITY',
+   economic_type:'EXPENSE',spending_class:'NORMAL',billing_month:'2026-12'
+ };
+ const incomplete={
+   purchase_id:'unknown-cost-actual',card:'CARD_UNIDENTIFIED',
+   purchase_date:'2026-10-19',merchant_raw:'Unknown consumption',
+   original_amount:555,category:'OTHER',subcategory:'OTHER',
+   economic_type:'EXPENSE',spending_class:'NORMAL',billing_month:'2026-12',
+   review_status:'NEEDS_REVIEW'
+ };
+ state.purchaseEvents.push(next,incomplete);
+ const updated=window.householdUsageLedgerV157.calculate(state,'2026-10','payday');
+ eq(updated.normalFixed,3210,'ELECTRICITY is actual FIXED even when paid by card');
+ eq(updated.normalVariable,13800,'Other variable groceries and cafe retain amount');
+ eq(updated.normalUndetermined,555,'Unknown cost behavior is separate from variable/fixed');
+ eq(updated.ordinary,17565,'Normal consumption subtotal unchanged by grouping');
+ eq(updated.consumption,20065,'No extra costs created by fixed split');
+ let b=app.usageBuckets(updated,state);
+ eq(b.find(x=>x.id==='fixed').amount,3210,'Fixed line equals only actual electricity');
+ eq(b.find(x=>x.id==='variable').amount,13800,'Variable line equals confirmed purchases');
+ eq(b.find(x=>x.id==='undetermined').amount,555,'Unclassified is visible without pretending variable');
+ eq(b.filter(x=>['fixed','variable','undetermined','special'].includes(x.id))
+      .reduce((a,x)=>a+x.amount,0),updated.consumption,'Expense bar sums exactly to consumption');
+ eq(app.subgroups(b.find(x=>x.id==='fixed'))[0].key,'UTILITIES.ELECTRICITY',
+  'Fixed expense expands to user-approved electricity subcategory');
+ ok(updated.flags.some(x=>x.label==='Unknown consumption'),'Unclassified review warning independent');
+ const reviewOnly=structuredClone(state);
+ reviewOnly.purchaseEvents.find(x=>x.purchase_id==='unknown-cost-actual').review_status='RESOLVED';
+ eq(window.householdUsageLedgerV157.calculate(reviewOnly,'2026-10','payday').consumption,
+    updated.consumption,'Review status alone never changes money');
+}
 console.log('PASS '+asserts+' expense unified v148 assertions');

@@ -75,15 +75,15 @@ jobs:
           assert.ok(!html.includes('id="monthlyTreasuryTabV142"'),'redundant monthly tab survives');
           assert.ok(html.includes('data-page="expenses"'));
           assert.ok(!html.includes('monthly-treasury-v142.js?v=146'));
-          assert.ok(html.includes('expense-nature-rules-v152.js?v=152'));
-          assert.ok(html.includes('purchase-usage-ledger-v157.js?v=157'));
-          assert.ok(html.includes('expense-unified-v148.js?v=157'));
-          assert.ok(html.indexOf('expense-nature-rules-v152.js?v=152') < html.indexOf('purchase-usage-ledger-v157.js?v=157'));
-          assert.ok(html.indexOf('purchase-usage-ledger-v157.js?v=157') < html.indexOf('expense-unified-v148.js?v=157'));
+          assert.ok(html.includes('expense-nature-rules-v152.js?v=158'));
+          assert.ok(html.includes('purchase-usage-ledger-v157.js?v=158'));
+          assert.ok(html.includes('expense-unified-v148.js?v=158'));
+          assert.ok(html.indexOf('expense-nature-rules-v152.js?v=158') < html.indexOf('purchase-usage-ledger-v157.js?v=158'));
+          assert.ok(html.indexOf('purchase-usage-ledger-v157.js?v=158') < html.indexOf('expense-unified-v148.js?v=158'));
           assert.ok(html.includes('expense-unified-v148.css?v=148'));
           assert.ok(html.includes('sync-state-sanitizer-v22.js?v=153'));
           assert.ok(html.includes('treasury-ledger-v145.js?v=153'));
-          assert.ok(sw.includes('household-treasury-v157-purchase-usage-primary'));
+          assert.ok(sw.includes('household-treasury-v158-fixed-variable-actual'));
           assert.ok(html.includes('cycle-audit-reconciliation-v153.js?v=155'));
           assert.ok(audit.includes('planPatch')&&audit.includes('reallocateResidual'));
           assert.ok(audit.includes('元明細の項目が第三の値に変更されています'));
@@ -94,9 +94,9 @@ jobs:
           assert.ok(correction.includes('treasuryRecoverySnapshot')&&correction.includes('replaceTreasuryState'));
           for(const path of [
             'sync-state-sanitizer-v22.js?v=153',
-            'expense-nature-rules-v152.js?v=152',
-            'purchase-usage-ledger-v157.js?v=157',
-            'expense-unified-v148.js?v=157',
+            'expense-nature-rules-v152.js?v=158',
+            'purchase-usage-ledger-v157.js?v=158',
+            'expense-unified-v148.js?v=158',
             'expense-unified-v148.css?v=148',
             'verified-correction-patch-v149.js?v=149',
             'cycle-audit-reconciliation-v153.js?v=155',
@@ -116,6 +116,8 @@ jobs:
           assert.ok(!hub.includes('cardUnallocated'),'legacy card settlements cannot appear as expense category');
           assert.ok(purchaseUsage.includes('fullAmount')&&purchaseUsage.includes('auditCycle'));
           assert.ok(purchaseUsage.includes('bankFlow')&&purchaseUsage.includes('reviewCount'));
+          assert.ok(purchaseUsage.includes('normalFixed')&&purchaseUsage.includes('normalVariable')&&purchaseUsage.includes('normalUndetermined'));
+          assert.ok(hub.includes('通常費（固定費）')&&hub.includes('通常費（変動費）')&&hub.includes('通常費（固定・変動未確定）'));
           assert.ok(hub.includes("lens='economic'"));
           assert.ok(hub.includes('通常の消費・生活費'));
           assert.ok(hub.includes('支出・資金用途合計'));
@@ -123,7 +125,7 @@ jobs:
           assert.ok(!hub.includes('カード引落（用途未配分）'));
           assert.ok(hub.includes('要確認：'));
           assert.ok(hub.includes('毎月の基本予算（参考）'));
-          console.log('RELEASE_V157_PURCHASE_USAGE_PRIMARY_PASS');
+          console.log('RELEASE_V158_FIXED_VARIABLE_ACTUAL_PASS');
           NODE
       - name: Bundle PDF.js parser for same-origin iPhone import
         shell: bash

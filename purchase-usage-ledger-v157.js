@@ -53,6 +53,29 @@ function bankKind(r){
  if(n(r.amount)<0&&eco==='EXPENSE')return 'expense';
  return 'unclassified';
 }
+// Latest previously confirmed recipient can safely identify an imported UNKNOWN
+// loan/transfer. Bank records remain unchanged; only the view is reclassified.
+function recipientKey(r){
+ const label=String(r?.description_raw||'');
+ const head=label.split(/（依頼人名|（管理番号|管理番号[:：]/)[0];
+ if(!/銀行|信用金庫|ゆうちょ/.test(head)||!/普通預金|当座預金/.test(head))return '';
+ return normalized(head);
+}
+function bankKindWithHistory(r,st){
+ const given=bankKind(r);
+ if(given!=='expense'||String(r.cashflow_type||'').toUpperCase()!=='UNKNOWN')return given;
+ const fingerprint=recipientKey(r);
+ if(!fingerprint||!st?.cashTransactions)return given;
+ const known=st.cashTransactions.filter(x=>
+  x!==r&&String(x.date||'')<String(r.date||'')&&
+  x.account===r.account&&recipientKey(x)===fingerprint)
+  .sort((a,b)=>String(b.date).localeCompare(String(a.date)));
+ if(!known.length)return given;
+ const previous=known[0],prevKind=bankKind(previous);
+ if(prevKind==='transfer')return 'transfer';
+ if(prevKind==='debt'&&Number(previous.amount)===Number(r.amount))return 'debt';
+ return given;
+}
 function isReview(r,classification){
  const status=String(r.review_status||'').toUpperCase();
  return ['NEEDS_REVIEW','PENDING','OPEN','UNREVIEWED','REVIEW_REQUIRED'].includes(status)||
@@ -62,6 +85,7 @@ function calculate(st,month,basis='payday'){
  const p=period(st,month,basis);
  const rows=[],seenBank=new Set(),seenCash=new Set(),seenPurchase=new Set(),flags=[],bankExpenses=[];
  const subtotals={cashExpenses:0,purchaseEvents:0,directBank:0,ordinary:0,special:0,
+   normalFixed:0,normalVariable:0,normalUndetermined:0,
    debt:0,ideco:0,investment:0,income:0,unresolvedBankFee:0};
  const byKind={cash:[],purchase:[],bank:[],debt:[],ideco:[],investment:[],income:[]};
  const add=(kind,row)=>{
@@ -79,12 +103,21 @@ function calculate(st,month,basis='payday'){
    const nature=classify(source,kind);
    const special=String(source.spending_class||source.expense_scope||source.ordinary_or_special||'').toUpperCase()==='SPECIAL'||
       (!source.spending_class&&!source.expense_scope&&nature==='SPECIAL');
+   // Spending purpose (NORMAL / SPECIAL) and cost behavior (FIXED /
+   // VARIABLE / REVIEW) are independent. Preserve approved past totals:
+   // a NORMAL source transaction with a conflicting SPECIAL subcategory
+   // remains NORMAL, but its fixed-variable nature is left undetermined.
+   const costBucket=special?'SPECIAL':nature==='FIXED'?'FIXED':
+      nature==='VARIABLE'?'VARIABLE':'UNDETERMINED';
+   const conflictingRule=!special&&nature==='SPECIAL';
    const row={kind,identity:kind+':'+i,date:date||'',label,amount,source:payment,
-      costNature:nature,spendingClass:special?'SPECIAL':'NORMAL',
-      needsReview:isReview(source,nature),status:'confirmed',
+      costNature:nature,costBucket,spendingClass:special?'SPECIAL':'NORMAL',
+      needsReview:isReview(source,nature)||conflictingRule,status:'confirmed',
       provisional:!date||source.provisional_attribution===true||source.no_source_date===true};
    add(kind,row);
    subtotals[special?'special':'ordinary']+=amount;
+   if(!special)subtotals[costBucket==='FIXED'?'normalFixed':
+      costBucket==='VARIABLE'?'normalVariable':'normalUndetermined']+=amount;
    if(row.needsReview)flags.push(row);
  };
  for(const [i,r] of (st.cashExpenses||[]).entries()){
@@ -111,7 +144,7 @@ function calculate(st,month,basis='payday'){
    const amount=n(r.amount),date=iso(r.date),label=String(r.description_raw||r.description||'銀行明細');
    const key=[r.source,r.account,date,amount,normalized(label),r.balance_after??''].join('|');
    if(seenBank.has(key))continue;seenBank.add(key);
-   const kind=bankKind(r);
+   const kind=bankKindWithHistory(r,st);
    if(amount>0){
      if(kind==='income'){
        // The payroll deposit on the audited period's closing payday belongs
@@ -155,7 +188,9 @@ function calculate(st,month,basis='payday'){
  const funds=consumption+subtotals.debt+subtotals.ideco+subtotals.investment;
  return {
    ...p,month,basis,rows,byKind,flags,bankExpenses,subtotals,
-   ordinary:subtotals.ordinary,special:subtotals.special,consumption,
+   ordinary:subtotals.ordinary,special:subtotals.special,
+   normalFixed:subtotals.normalFixed,normalVariable:subtotals.normalVariable,
+   normalUndetermined:subtotals.normalUndetermined,consumption,
    debt:subtotals.debt,ideco:subtotals.ideco,investment:subtotals.investment,
    income:subtotals.income,funds,net:subtotals.income-funds,
    reviewCount:flags.length,unresolvedBankFee:subtotals.unresolvedBankFee,
@@ -183,7 +218,7 @@ function bankFlow(st,month,basis='payday'){
   const sig=[r.source,r.account,date,amount,
     normalized(r.description_raw),r.balance_after??''].join('|');
   if(seen.has(sig))continue;seen.add(sig);
-  const kind=bankKind(r);
+  const kind=bankKindWithHistory(r,st);
   if(!buckets.has(kind))buckets.set(kind,{id:kind,label:labels[kind],items:[],amount:0});
   const x=buckets.get(kind);
   x.items.push({identity:'bank:'+i,kind,date,label:r.description_raw||'銀行引落',
@@ -194,5 +229,5 @@ function bankFlow(st,month,basis='payday'){
  const groups=Object.keys(labels).map(k=>buckets.get(k)).filter(Boolean);
  return {...p,buckets:groups,total:groups.reduce((a,x)=>a+x.amount,0)};
 }
-window.householdUsageLedgerV157={period,belongs,bankKind,calculate,bankFlow};
+window.householdUsageLedgerV157={period,belongs,bankKind,bankKindWithHistory,calculate,bankFlow};
 })();

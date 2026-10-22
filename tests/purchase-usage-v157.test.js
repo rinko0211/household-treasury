@@ -126,4 +126,31 @@ edited.cashExpenses[0].amount=123;edited.cashExpenses[0].purchase_total=178640;
 eq(api.calculate(edited,'2026-09','payday').consumption,460404,
  'Mixed tender uses purchase_total once, never only the cash portion');
 
+// Historical statement matching is READ-ONLY: newly imported UNKNOWN rows
+// for a verified loan recipient must not inflate normal household consumption.
+{
+ const sample=structuredClone(st);
+ const bankRecipient='東地方信用金庫　第一支店　普通預金　1234567　テスト名義';
+ const transferRecipient='第一銀行　第二支店　普通預金　9998887　テスト送金先';
+ sample.cashTransactions.push(
+  bank(-12000,'2026-09-13',bankRecipient+'（依頼人名：TEST）','DEBT_PRINCIPAL','DEBT_PRINCIPAL'),
+  bank(-50000,'2026-10-17',transferRecipient+'（依頼人名：TEST）','INTERNAL_TRANSFER','TRANSFER')
+ );
+ const loan=bank(-12000,'2026-10-19',bankRecipient+'（依頼人名：TEST　管理番号：02）','UNKNOWN','EXPENSE');
+ const wife=bank(-30000,'2026-10-19',transferRecipient+'（依頼人名：TEST　管理番号：03）','UNKNOWN','EXPENSE');
+ sample.cashTransactions.push(loan,wife);
+ eq(api.bankKindWithHistory(loan,sample),'debt','Exact previously verified loan recipient is principal, not a living expense');
+ eq(api.bankKindWithHistory(wife,sample),'transfer','Exact earlier transfer recipient remains a transfer');
+ const v=api.calculate(sample,'2026-10','payday');
+ eq(v.debt,r.debt+12000,'Previously verified bank loan increases debt use only once');
+ eq(v.consumption,r.consumption,'Previously verified loan and same-recipient transfer do not increase purchases');
+ eq(loan.economic_type,'EXPENSE','Read-only inference does not change imported raw evidence');
+ const wrong=bank(-12001,'2026-10-19',bankRecipient+'（依頼人名：TEST）','UNKNOWN','EXPENSE');
+ sample.cashTransactions.push(wrong);
+ eq(api.bankKindWithHistory(wrong,sample),'expense','Different loan amount cannot inherit principal status');
+ const third=bank(-12000,'2026-10-19','他行　その他支店　普通預金　8888888　テスト','UNKNOWN','EXPENSE');
+ sample.cashTransactions.push(third);
+ eq(api.bankKindWithHistory(third,sample),'expense','Different recipient cannot inherit principal status');
+}
+
 console.log('PASS '+tests+' purchase-usage v157 assertions');

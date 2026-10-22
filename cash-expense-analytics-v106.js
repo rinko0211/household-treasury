@@ -40,17 +40,68 @@
   async function sha(buf){const d=await crypto.subtle.digest('SHA-256',buf);return[...new Uint8Array(d)].map(b=>b.toString(16).padStart(2,'0')).join('')}
   function key(x){return[x.date,x.description,Number(x.amount)||0,x.category,x.spending_class].join('|')}
 
+  function paymentRoute(raw, name){
+    const text=String(raw||'').normalize('NFKC');
+    if(/PayPay/i.test(text))return {method:'PAYPAY',card:'PayPay'};
+    if(/交通系IC|Suica|PASMO|ICOCA|TOICA|SUGOCA/i.test(text))return {method:'TRANSIT_IC',card:'交通系IC'};
+    if(/クレジット|カード末尾|MUFG|JAL.*カード|楽天カード|Dカード|dカード|JCB|VISA|Mastercard/i.test(text)){
+      let card='カード未特定';
+      if(/MUFG|DC\/JAL|JAL\/DC|JAL.*カード/i.test(text))card='MUFG/DC/JAL';
+      else if(/楽天カード/i.test(text))card='Rakuten';
+      else if(/KABU/i.test(text))card='KABU&';
+      else if(/Dカード|dカード/i.test(text))card='Dカード';
+      return {method:'CREDIT',card,last4:(text.match(/末尾\s*(\d{4})/)||[])[1]||''};
+    }
+    // Existing cash-only CSVs without any payment annotation stay cash.
+    return {method:'CASH',card:null};
+  }
   function parseCash(info,file,st){
     st.cashExpenses=Array.isArray(st.cashExpenses)?st.cashExpenses:[];
-    const h=info.rows[info.hi],di=idx(h,['日付','支出日','date']),ni=idx(h,['内容','用途','明細','摘要','description']),ai=idx(h,['金額','支出額','amount']),ci=idx(h,['カテゴリー','category']),si=idx(h,['区分','通常特別','spending_class','scope']),subi=idx(h,['サブカテゴリー','subcategory']),notei=idx(h,['メモ','備考','note']);
-    const seen=new Set(st.cashExpenses.map(key));let added=0,duplicates=0,invalid=0;
+    st.purchaseEvents=Array.isArray(st.purchaseEvents)?st.purchaseEvents:[];
+    const h=info.rows[info.hi],di=idx(h,['日付','支出日','date']),ni=idx(h,['内容','用途','明細','摘要','description']),ai=idx(h,['金額','支出額','amount']),ci=idx(h,['カテゴリー','category']),si=idx(h,['区分','通常特別','spending_class','scope']),subi=idx(h,['サブカテゴリー','subcategory']),notei=idx(h,['メモ','備考','note']),payi=idx(h,['支払方法','支払い方法','決済方法','payment_method','payment']);
+    const seen=new Set(st.cashExpenses.map(key)),seenReceipt=new Set(st.purchaseEvents.map(x=>String(x.source_cash_expense_id||'')));
+    let added=0,cashAdded=0,purchaseAdded=0,electronicAdded=0,duplicates=0,invalid=0;
     for(const r of info.rows.slice(info.hi+1)){
-      const d=date(r[di]),name=String(r[ni]||'').trim(),n=num(r[ai]);if(!/^\d{4}-\d{2}-\d{2}$/.test(d)||!name||n===null||n===0){invalid++;continue}
-      const c=category(r[ci],name),sc=scope(r[si]),amount=Math.abs(n),explicitSub=subi>=0&&r[subi]?String(r[subi]).trim().toUpperCase():null,sub=explicitSub||semantic()?.inferSubcategory?.(c,name,null)||'OTHER',rec={id:'cash-expense:'+hash([d,name,amount,c,sc].join('|')),record_kind:'CASH_EXPENSE',economic_type:'EXPENSE',spending_class:sc,expense_scope:sc,ordinary_or_special:sc==='SPECIAL'?'SPECIAL':'ORDINARY',category:c,subcategory:sub,date:d,description:name,amount,payment_method:'CASH',source:'Cash CSV',source_file:file.name,note:notei>=0?String(r[notei]||'').trim():'',imported_at:new Date().toISOString()};
-      const k=key(rec);if(seen.has(k)){duplicates++;continue}seen.add(k);st.cashExpenses.push(rec);added++
+      const d=date(r[di]),name=String(r[ni]||'').trim(),n=num(r[ai]);
+      if(!/^\d{4}-\d{2}-\d{2}$/.test(d)||!name||n===null||n===0){invalid++;continue}
+      const c=category(r[ci],name),sc=scope(r[si]),amount=Math.abs(n),explicitSub=subi>=0&&r[subi]?String(r[subi]).trim().toUpperCase():null,sub=explicitSub||semantic()?.inferSubcategory?.(c,name,null)||'OTHER';
+      const sourceId='cash-expense:'+hash([d,name,amount,c,sc].join('|')),stamp=new Date().toISOString();
+      const tail=(name.match(/［([^］]+)］\s*$/)||[])[1]||'';
+      const payRaw=payi>=0?String(r[payi]||'').trim():tail;
+      const route=paymentRoute(payRaw,name),note=notei>=0?String(r[notei]||'').trim():'';
+      if(route.method==='CASH'){
+        const rec={id:sourceId,record_kind:'CASH_EXPENSE',economic_type:'EXPENSE',spending_class:sc,expense_scope:sc,ordinary_or_special:sc==='SPECIAL'?'SPECIAL':'ORDINARY',category:c,subcategory:sub,date:d,description:name,amount,payment_method:'CASH',source:'Cash CSV',source_file:file.name,note,imported_at:stamp};
+        const k=key(rec);if(seen.has(k)){duplicates++;continue}seen.add(k);st.cashExpenses.push(rec);cashAdded++;added++;
+      }else{
+        if(seenReceipt.has(sourceId)){duplicates++;continue}
+        seenReceipt.add(sourceId);
+        const merchant=name.replace(/［[^］]+］\s*$/,'').trim()||name;
+        const credit=route.method==='CREDIT';
+        const rec={
+          purchase_id:'receipt:v159:'+hash([d,name,amount,c,sc].join('|')),
+          source_cash_expense_id:sourceId,source_original_id:sourceId,
+          card:route.card,source_file:file.name,purchase_date:d,merchant_raw:merchant,merchant_normalized:merchant,
+          original_amount:amount,payment_amount:amount,purchase_total:amount,
+          payment_method:route.method,record_kind:credit?'CARD_PURCHASE':'ELECTRONIC_PURCHASE',
+          economic_type:'EXPENSE',spending_class:sc,expense_scope:sc,ordinary_or_special:sc==='SPECIAL'?'SPECIAL':'ORDINARY',
+          category:c,subcategory:sub,occurrence_index:1,source_receipt_description:name,
+          note,imported_at:stamp,confidence:credit?.8:1,review_status:credit?'NEEDS_REVIEW':'RESOLVED',
+          receipt_reconciliation_pending:credit,settlement_pending:credit,no_card_settlement:!credit,
+          payment_route:credit?'CARD':'ELECTRONIC',count_in_spending:true
+        };
+        if(route.last4)rec.card_last4=route.last4;
+        const due=String(payRaw).match(/(\d{1,2})\/(\d{1,2})\s*引落予定/);
+        if(credit&&due){
+          let year=Number(d.slice(0,4)),month=Number(due[1]);if(month<Number(d.slice(5,7)))year++;
+          rec.expected_settlement_date=year+'-'+String(month).padStart(2,'0')+'-'+String(due[2]).padStart(2,'0');
+          rec.expected_settlement_status='UNCONFIRMED';
+        }
+        st.purchaseEvents.push(rec);added++;
+        if(credit)purchaseAdded++;else electronicAdded++;
+      }
     }
     st.cashExpenses.sort((a,b)=>String(a.date).localeCompare(String(b.date)));
-    return{added,duplicates,review:invalid,invalid,read:Math.max(0,info.rows.length-info.hi-1),autoClassified:added,source:'現金支出',latest:st.cashExpenses.map(x=>x.date).sort().at(-1)||'',encoding:info.encoding,detectedType:'cash_expense'}
+    return {added,cashAdded,purchaseAdded,electronicAdded,duplicates,review:invalid+purchaseAdded,invalid,read:Math.max(0,info.rows.length-info.hi-1),autoClassified:added-purchaseAdded,source:'購入・使用明細',latest:info.rows.slice(info.hi+1).map(r=>date(r[di])).filter(Boolean).sort().at(-1)||'',encoding:info.encoding,detectedType:purchaseAdded||electronicAdded?'mixed_expense':'cash_expense'};
   }
 
   const prevImport=typeof importOne==='function'?importOne:null;
@@ -58,8 +109,8 @@
     const buf=await file.arrayBuffer(),info=detect(file,buf);if(!info)return prevImport(file);
     const st=stateNow(),digest=await sha(buf);st.imports=Array.isArray(st.imports)?st.imports:[];
     if(st.imports.some(x=>x.sha256===digest))return{source:'重複ファイル',added:0,duplicates:1,review:0,read:0,skipped:true,detectedType:'cash_expense',encoding:info.encoding};
-    const result=parseCash(info,file,st);st.imports.unshift(Object.assign({at:new Date().toISOString(),file:file.name,sha256:digest,type:'cash_expense'},result));
-    window.treasuryRecoverySnapshot?.('現金支出CSV取込前');window.replaceTreasuryState?.(st);window.setTreasurySaveStatus?.('現金支出 '+result.added+'件取込済み・同期中');window.cloudSyncOnLocalSave?.();setTimeout(()=>window.renderDashboardV39?.(),0);return result
+    const result=parseCash(info,file,st);st.imports.unshift(Object.assign({at:new Date().toISOString(),file:file.name,sha256:digest,type:result.detectedType},result));
+    window.treasuryRecoverySnapshot?.('現金支出CSV取込前');window.replaceTreasuryState?.(st);window.setTreasurySaveStatus?.('購入・使用明細 '+result.added+'件取込済み・同期中');window.cloudSyncOnLocalSave?.();setTimeout(()=>window.renderDashboardV39?.(),0);return result
   };
 
   function scopeOf(o){return String(o?.spending_class||o?.expense_scope||o?.ordinary_or_special||'').toUpperCase()==='SPECIAL'?'SPECIAL':'NORMAL'}

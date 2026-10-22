@@ -122,7 +122,7 @@ jobs:
           assert.ok(hub.includes('口座資金流出（引落日ベース）'));
           assert.ok(!hub.includes('カード引落（用途未配分）'));
           assert.ok(hub.includes('要確認：'));
-          assert.ok(hub.includes('毎月の基本予算（マスターから・参考）'));
+          assert.ok(hub.includes('毎月の基本予算（参考）'));
           console.log('RELEASE_V157_PURCHASE_USAGE_PRIMARY_PASS');
           NODE
       - name: Bundle PDF.js parser for same-origin iPhone import

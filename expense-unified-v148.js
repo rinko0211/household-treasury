@@ -283,7 +283,7 @@ function render(){
     ['iDeCo',budget.ideco],['その他積立',budget.investment]].map(x=>
      '<div class="hub-totals"><span>'+x[0]+'</span><b>'+yen(x[1])+'</b></div>').join('')+
    '<details class="hub-fixed-ref"><summary style="cursor:pointer">固定費マスターの月額内訳（参考）</summary>'+
-     fixedReference(st,month).items.map(x=>'<div class="hub-detailrow"><span>'+esc(x.name)+'</span><b>'+yen(x.amount)+'</b></div>').join('')+
+     fixedReference(st,month).items.map(x=>'<div class="hub-detailrow"><span>'+esc(x.name)+(x.route==='CARD'?'（カード払い）':'')+'</span><b>'+yen(x.amount)+'</b></div>').join('')+
    '</details></details>';
  const annual=engine().annual(st,Number(month.slice(0,4)),cycle,localDate(),{
    cardEstimates:cardEstimates(),revolvingEstimates:revolvingEstimates()

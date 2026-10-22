@@ -163,6 +163,7 @@ function planPatch(state,patch){
     matched.push(id);continue
    }
    if(array==='cardSettlements'){
+    verifySameBankSettlement(o.record,o.record,next);
     const duplicates=next.cardSettlements.filter(x=>String(x.bank_transaction_id||'')===String(o.record.bank_transaction_id||'')&&!!o.record.bank_transaction_id);
     if(duplicates.length)throw Error('同一銀行引落に別IDのカード精算が存在します。端末バックアップを確認してください：'+id);
    }

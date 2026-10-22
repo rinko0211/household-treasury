@@ -51,7 +51,7 @@ function referenceFor(st,viewMonth,seasonal){
 }
 function fixedReference(st,viewMonth){return referenceFor(st,viewMonth,false)}
 function seasonalReference(st,viewMonth){return referenceFor(st,viewMonth,true)}
-let cycle='payday',lens='cash',month='',openBucket='',openCategory='',groups=[],annualOpen=false;
+let cycle='payday',lens='economic',month='',openBucket='',openCategory='',groups=[],annualOpen=false;
 function budgetReference(st,viewMonth){
  const fixed=fixedReference(st,viewMonth);
  let living=0,ideco=0,investment=0;
@@ -71,6 +71,12 @@ function budgetReference(st,viewMonth){
 }
 function initialMonth(){
  const now=localDate(),m=now.slice(0,7);
+ const audits=(stateNow().auditMigrations||[]).filter(a=>a.period_start&&a.period_end)
+   .sort((a,b)=>String(b.period_end).localeCompare(String(a.period_end)));
+ if(cycle==='payday'&&audits.length){
+   const gap=(new Date(now+'T12:00:00')-new Date(audits[0].period_end+'T12:00:00'))/86400000;
+   if(gap>=0&&gap<=31)return audits[0].period_start.slice(0,7);
+ }
  return cycle==='calendar'||!engine()?m:(now<engine().payday(stateNow(),m)?engine().addMonth(m,-1):m);
 }
 function cardEstimates(){
@@ -102,26 +108,18 @@ function rowDetails(row,st){
  return {...row,category,subcategory,costNature:rule.nature,
    costNatureKey:rule.key,costNatureReason:rule.reason,editKind,editId};
 }
-function buckets(st,v,mode=lens){
- const actual=(mode==='cash'?(v.rows||[]).filter(r=>r.status==='confirmed'&&r.amount<0):(v.economicRows||[]))
-   .map(x=>rowDetails(x,st));
- const expense=actual.filter(r=>!['investment','debt','card'].includes(r.kind));
- const specs=[
-  {id:'fixed',label:'通常費（固定費・ローン）',color:'#ff9f35',
-   rows:[...expense.filter(r=>r.costNature==='FIXED'),...(mode==='cash'?actual.filter(r=>r.kind==='debt'):[])]},
-  {id:'variable',label:'通常費（変動費）',color:'#13c7b5',rows:expense.filter(r=>r.costNature==='VARIABLE')},
-  {id:'special',label:'特別費',color:'#eab86d',rows:expense.filter(r=>r.costNature==='SPECIAL')},
-  {id:'review',label:'要確認（明細ごとに判断）',color:'#b4a1a1',rows:expense.filter(r=>r.costNature==='REVIEW')}
+function usageBuckets(usage,st){
+ const enriched=usage.usageRows.map(row=>rowDetails(row,st));
+ const groups=[
+  {id:'ordinary',label:'通常の消費・生活費',color:'#13c7b5',
+    items:enriched.filter(x=>['cash','purchase','bank'].includes(x.kind)&&x.spendingClass!=='SPECIAL')},
+  {id:'special',label:'特別費',color:'#eab86d',
+    items:enriched.filter(x=>['cash','purchase','bank'].includes(x.kind)&&x.spendingClass==='SPECIAL')},
+  {id:'debt',label:'車ローン・元金返済',color:'#ff9f35',items:usage.byKind.debt},
+  {id:'ideco',label:'iDeCo',color:'#987efd',items:usage.byKind.ideco},
+  {id:'investment',label:'その他投資',color:'#67b9f4',items:usage.byKind.investment}
  ];
- if(mode==='cash')specs.splice(3,0,
-   {id:'cardUnallocated',label:'カード引落（用途未配分）',color:'#5899b3',rows:actual.filter(r=>r.kind==='card')},
-   {id:'ideco',label:'iDeCo（固定拠出）',color:'#987efd',
-      rows:actual.filter(r=>r.kind==='investment'&&isIdecoText(r.label))},
-   {id:'investment',label:'その他の投資・積立',color:'#67b9f4',
-      rows:actual.filter(r=>r.kind==='investment'&&!isIdecoText(r.label))}
- );
- return specs.map(b=>({id:b.id,label:b.label,color:b.color,items:b.rows,
-    amount:b.rows.reduce((sum,x)=>sum+Math.abs(n(x.amount)),0)}));
+ return groups.map(g=>({...g,amount:g.items.reduce((a,x)=>a+n(x.amount),0)}));
 }
 function subgroups(bucket,mode=lens){
  const map=new Map();
@@ -131,8 +129,10 @@ function subgroups(bucket,mode=lens){
      const name=String(x.label||'');
      key='DEBT|'+(/プラド|PRADO/i.test(name)?'PRADO':/ラパン|LAPIN/i.test(name)?'LAPIN':/リボ/.test(name)?'REVOLVING':'OTHER');
      label=key.endsWith('PRADO')?'プラドローン返済':key.endsWith('LAPIN')?'ラパンローン返済':key.endsWith('REVOLVING')?'リボ返済':'ローン返済（元金等）';
-   }else if(bucket.id==='cardUnallocated'){
-     key='CARD|'+x.source;label=x.source||'カード引落';
+   }else if(bucket.id==='cardSettlement'){
+     key='CARD|'+x.label;label=x.label||'カード精算';
+   }else if(['transfer','expense','unclassified'].includes(bucket.id)){
+     key='BANK|'+x.label;label=x.label||'銀行取引';
    }else if(bucket.id==='ideco'){
      key='INVESTMENT|IDECO';label='iDeCo';
    }else if(bucket.id==='investment'){
@@ -202,7 +202,7 @@ function detailPanel(bucket){
    markup+='<div style="border-top:1px solid #3c4b5a;margin-top:12px;padding-top:10px"><b>'+esc(chosen.label)+'</b>';
    for(const x of chosen.items.slice(0,150)){
      markup+='<div class="hub-detailrow"><div style="min-width:0;overflow-wrap:anywhere"><b>'+esc(x.label)+'</b>'+
-       '<div class="hub-muted">'+esc(x.date)+' ・ '+esc(x.source||'')+'</div>'+
+       '<div class="hub-muted">'+esc(x.date||'日付未確定')+' ・ '+esc(x.source||'')+(x.provisional?' ・ 仮記帳':'')+(x.needsReview?' ・ 要確認':'')+'</div>'+
        (x.editKind&&x.editId?'<button type="button" class="hub-edit" data-hub-edit="'+esc(x.editKind)+'" data-hub-editid="'+esc(x.editId)+'">明細を編集</button>':'')+
        '</div><b class="hub-amt">'+yen(Math.abs(n(x.amount)))+'</b></div>';
    }
@@ -214,82 +214,89 @@ function detailPanel(bucket){
 function render(){
  if(!mount())return false;
  if(!month)month=initialMonth();
- const st=stateNow(),v=calculate(st),all=buckets(st,v),root=$('expenseHubV148');
- const total=all.reduce((sum,b)=>sum+b.amount,0);
- const target=lens==='cash'?v.outActual:v.spentActual;
- const benchmark=v.incomeActual>0?v.incomeActual:Math.max(0,n(st.settings?.salary));
- const settingOnly=v.incomeActual===0&&benchmark>0;
- const difference=benchmark-total,ratio=benchmark>0?total*100/benchmark:null;
- const p=ratioParts(all,benchmark);
- let html='<div class="hub-card"><div class="hub-period"><div class="hub-title">月次支出サマリー <small style="color:#72dbc6;font-size:11px">v152</small></div>'+
-   '<div class="hub-toolbar"><button type="button" class="hub-arrow" id="hubPrevV148" aria-label="前月">‹</button>'+
-   '<input id="hubMonthV148" aria-label="対象月" class="hub-month" type="month" value="'+esc(month)+'">'+
-   '<button type="button" class="hub-arrow" id="hubNextV148" aria-label="翌月">›</button></div></div>'+
-   '<div class="hub-muted" style="margin:12px 0 5px">集計サイクル</div><div class="hub-toolbar">'+
-   '<button type="button" class="hub-toggle" data-hub-cycle="payday" aria-pressed="'+(cycle==='payday')+'">給与サイクル</button>'+
-   '<button type="button" class="hub-toggle" data-hub-cycle="calendar" aria-pressed="'+(cycle==='calendar')+'">暦月（1日〜末日）</button></div>'+
-   '<div class="hub-muted" style="margin:13px 0 5px">集計の見方</div><div class="hub-toolbar">'+
-   '<button type="button" class="hub-toggle" data-hub-lens="cash" aria-pressed="'+(lens==='cash')+'">資金流出（返済・投資含む）</button>'+
-   '<button type="button" class="hub-toggle" data-hub-lens="economic" aria-pressed="'+(lens==='economic')+'">消費・購入額</button></div>'+
-   '<p class="hub-muted" style="margin:12px 0 0">'+esc(v.start)+' 〜 '+esc(v.end)+' / '+(cycle==='payday'?'給与日基準':'暦月')+'</p></div>';
- html+='<div class="hub-card"><div class="hub-muted">'+
-    (settingOnly?'設定手取りを比較基準として表示（入金未照合）':'銀行等で確認できた入金との比較')+'</div>'+
-   '<div class="hub-totals"><span>比較基準'+(settingOnly?'（設定値）':'（確認済み入金）')+'</span><b>'+yen(benchmark)+'</b></div>'+
-   '<p class="hub-muted" style="margin:14px 0 3px">'+(lens==='cash'?'固定費・変動費・特別費と返済・積立を分けた資金流出':'固定費・変動費・特別費を利用日基準で分類した消費')+'。各行をタップして内訳を確認できます。</p>'+
-   '<div class="hub-tablehead"><span>区分</span><span>金額</span></div>';
- for(const b of all)html+='<button type="button" class="hub-line" data-hub-bucket="'+b.id+'" aria-expanded="'+(openBucket===b.id)+'">'+
-   '<span class="hub-rowtitle"><i class="hub-dot" style="background:'+b.color+'"></i>'+esc(b.label)+'</span>'+
-   '<span class="hub-amt">'+yen(b.amount)+' <span style="color:#a3bed0">›</span></span></button>';
- html+='<div class="hub-totals"><span>把握済み合計</span><b>'+yen(total)+'</b></div>'+
-   '<div class="hub-totals"><span>比較基準との差額</span><b style="color:'+(difference<0?'#ffa9a0':'#e9fdf7')+'">'+yen(difference)+'</b></div>'+
-   '<div style="margin-top:20px;display:flex;justify-content:space-between;gap:10px;align-items:end">'+
-   '<b>手取りに対する把握済み'+(lens==='cash'?'流出':'消費')+'</b>'+
-   '<span class="hub-big">'+(ratio===null?'—':ratio.toFixed(1)+'%')+'</span></div>'+
-   '<div class="hub-progress" role="img" aria-label="支出割合">'+p.html+'</div>'+
-   '<div class="hub-legend">'+p.legend+'</div>'+
-   (ratio!==null&&ratio>100?'<p class="hub-muted" style="color:#ffada2">比較基準を超えています。</p>':'')+
-   (Math.abs(target-total)>1?'<p class="hub-muted" style="color:#ffa9a0">明細照合に差があります：'+yen(target-total)+'</p>':'')+
-   (v.outPending?'<p class="hub-muted">未照合・今後の支払予定 '+yen(v.outPending)+' は実績合計に含めていません。</p>':'')+
-   '<p class="hub-muted" style="margin-top:10px">'+(lens==='cash'?'カード購入は引落日に資金流出として計上。利用日基準の内訳は「消費・購入額」で確認できます。':
-    'カード利用を購入日に計上。カード引落やローン元金、投資積立を消費に重ねません。')+'</p>'+ 
-   (lens==='cash'?'<p class="hub-muted">カード引落は食費・光熱費など複数の用途を含むため、一律に固定費・変動費へ配分せず用途未配分に残します。利用店ごとの区分は「消費・購入額」で確認してください。</p>':'')+'</div>';
+ const st=stateNow(),ul=window.householdUsageLedgerV157;
+ if(!ul){$('expenseHubV148').innerHTML='<div class="hub-note">利用日基準の集計処理を読み込み中です。</div>';return false}
+ const usage=ul.calculate(st,month,cycle);
+ const bank=ul.bankFlow(st,month,cycle);
+ const economic=lens==='economic',p=economic?usage:bank;
+ const all=economic?usageBuckets(usage,st):bank.buckets;
+ const total=economic?usage.funds:bank.total;
+ const income=usage.income;
+ const difference=income-total,ratio=income>0?total*100/income:null;
+ const bars=ratioParts(all,income);
+ const root=$('expenseHubV148');
+ let html='<div class="hub-card"><div class="hub-period"><div class="hub-title">月次支出サマリー <small style="color:#72dbc6;font-size:11px">v157</small></div>'+
+ '<div class="hub-toolbar"><button type="button" class="hub-arrow" id="hubPrevV148" aria-label="前月">‹</button>'+
+ '<input id="hubMonthV148" aria-label="対象月" class="hub-month" type="month" value="'+esc(month)+'">'+
+ '<button type="button" class="hub-arrow" id="hubNextV148" aria-label="翌月">›</button></div></div>'+
+ '<div class="hub-muted" style="margin:12px 0 5px">集計サイクル</div><div class="hub-toolbar">'+
+ '<button type="button" class="hub-toggle" data-hub-cycle="payday" aria-pressed="'+(cycle==='payday')+'">給与サイクル</button>'+
+ '<button type="button" class="hub-toggle" data-hub-cycle="calendar" aria-pressed="'+(cycle==='calendar')+'">暦月（1日〜末日）</button></div>'+
+ '<div class="hub-muted" style="margin:13px 0 5px">集計の見方（初期表示は利用日基準）</div><div class="hub-toolbar">'+
+ '<button type="button" class="hub-toggle" data-hub-lens="economic" aria-pressed="'+economic+'">消費・購入額（利用日ベース）</button>'+
+ '<button type="button" class="hub-toggle" data-hub-lens="cash" aria-pressed="'+(!economic)+'">口座資金流出（引落日ベース）</button></div>'+
+ '<p class="hub-muted" style="margin:12px 0 0">'+esc(p.start)+' 〜 '+esc(p.end)+' / '+
+ (cycle==='payday'?'給与サイクル':'暦月')+
+ (usage.auditCycle&&economic?' ・ 監査サイクル明示帰属を適用':'')+'</p></div>';
+ html+='<div class="hub-card">'+
+ '<div class="hub-muted">'+(economic?'実際に購入・使用した金額と、消費ではないローン・投資拠出を分離':'銀行口座から実際に出金された金額。消費・生活費の統計ではありません')+'</div>'+
+ '<div class="hub-totals"><span>確認済み収入</span><b>'+yen(income)+'</b></div>'+
+ '<div class="hub-tablehead"><span>'+ (economic?'消費・資金用途':'銀行引落・資金移動') +'</span><span>金額</span></div>';
+ for(const b of all)html+='<button type="button" class="hub-line" data-hub-bucket="'+esc(b.id)+'" aria-expanded="'+(openBucket===b.id)+'">'+
+ '<span class="hub-rowtitle"><i class="hub-dot" style="background:'+b.color+'"></i>'+esc(b.label)+'</span>'+
+ '<span class="hub-amt">'+yen(b.amount)+' <span style="color:#a3bed0">›</span></span></button>';
+ if(economic)html+='<div class="hub-totals"><span>消費・購入額</span><b>'+yen(usage.consumption)+'</b></div>';
+ html+='<div class="hub-totals"><span>'+(economic?'支出・資金用途合計':'口座資金流出合計（消費とは別）')+'</span><b>'+yen(total)+'</b></div>'+
+ '<div class="hub-totals"><span>'+(economic?'収支':'確認済み入金との差（口座移動を含む）')+'</span>'+
+ '<b style="color:'+(difference<0?'#ffa9a0':'#e9fdf7')+'">'+(difference>0?'+':'')+yen(difference)+'</b></div>'+
+ '<div style="margin-top:20px;display:flex;justify-content:space-between;gap:10px;align-items:end"><b>'+
+ (economic?'確認済み収入に対する資金用途':'確認済み入金に対する口座流出（消費率ではない）')+
+ '</b><span class="hub-big">'+(ratio===null?'—':ratio.toFixed(1)+'%')+'</span></div>'+
+ '<div class="hub-progress" role="img" aria-label="'+(economic?'資金用途構成':'銀行資金流出構成')+'">'+bars.html+'</div>'+
+ '<div class="hub-legend">'+bars.legend+'</div>';
+ if(economic){
+   const noDate=usage.byKind.cash.filter(x=>!x.date);
+   const provisional=usage.byKind.cash.filter(x=>x.provisional&&x.date);
+   const sum=x=>x.reduce((v,r)=>v+r.amount,0);
+   html+='<p class="hub-muted" style="margin-top:12px">現金・商品券等 '+yen(usage.subtotals.cashExpenses)+
+     '／カード利用 '+yen(usage.subtotals.purchaseEvents)+'／口座直接支出 '+yen(usage.subtotals.directBank)+'</p>';
+   if(noDate.length||provisional.length)html+='<p class="hub-muted">監査サイクル帰属：日付未確定 '+
+     yen(sum(noDate))+'（'+noDate.length+'件）、仮記帳 '+yen(sum(provisional))+'（'+provisional.length+'件）。購入日は確定していません。</p>';
+   if(usage.unresolvedBankFee)html+='<p class="hub-muted" style="color:#ffbe6b">未解決銀行手数料 '+
+     yen(usage.unresolvedBankFee)+'は取引記録を保持し、監査認定収支との差額として別表示。含めた場合の消費額は'+
+     yen(usage.consumption+usage.unresolvedBankFee)+'です。</p>';
+   html+='<p class="hub-muted">カード引落は購入日ベースの支出に加算しません。元金返済とiDeCoは消費には含まず資金用途にのみ含めます。</p>';
+ }else{
+   html+='<p class="hub-muted" style="margin-top:12px">ATM出金・口座間送金・カード引落は、銀行残高管理用に表示しています。上の金額は消費・生活費に加算しません。</p>';
+ }
+ html+='</div>';
  const selected=all.find(b=>b.id===openBucket);
  if(selected)html+=detailPanel(selected);
- const budget=budgetReference(st,month);
- if(lens==='cash'){
-   html+='<details class="hub-card" id="hubBudgetV151"><summary style="cursor:pointer;font-size:16px;font-weight:750">'+
-     '毎月の基本予算（マスターから・参考）'+yen(budget.total)+'</summary>'+
-     '<p class="hub-muted" style="margin:10px 0">登録済みの毎月予算です。家族カード・現金配分は通常生活費としてまとめます。実際に使用した金額ではなく、上の把握済み支出には加算しません。</p>'+
-     [['通常生活費（家族カード・現金等）',budget.living],['固定費・通常ローン',budget.fixed],
-      ['iDeCo',budget.ideco],['その他の積立',budget.investment]]
-       .map(x=>'<div class="hub-totals" style="font-size:13px"><span>'+x[0]+'</span><b>'+yen(x[1])+'</b></div>').join('')+
-     (budget.total===0?'<p class="hub-muted">月額マスターの登録額がないため、実績から予算を推測していません。</p>':'')+
-     '<p class="hub-muted">固定費の各項目は上の「固定費・通常ローン」をタップして表示される参考欄で確認できます。</p></details>';
+ if(economic){
+   html+='<details class="hub-note" id="hubReviewV157"><summary style="cursor:pointer;font-weight:700">要確認：'+usage.reviewCount+
+     '件（費目に重複加算なし）</summary><p class="hub-muted">要確認は警告属性であり、独立した支出カテゴリーではありません。通常費・特別費に計上済みです。</p>'+
+     usage.flags.slice(0,100).map(r=>'<div class="hub-detailrow"><span>'+esc(r.label)+' <span class="hub-muted">['+esc(r.spendingClass==='SPECIAL'?'特別費':'通常費')+']</span></span><b>'+yen(r.amount)+'</b></div>').join('')+'</details>';
  }
-
- const special=(v.economicRows||[]).filter(x=>rowDetails(x,st).costNature==='SPECIAL').reduce((s,x)=>s+n(x.amount),0);
- html+='<div class="hub-note"><b>ⓘ 今月の支出について</b><div>'+
-   (special?'特別費 '+yen(special)+' を含みます。一時的な出費を通常の毎月の生活費と混同しないでください。':'生活費と特別費は利用明細の内訳から確認できます。')+
-   '</div><div style="margin-top:8px">'+
-   (settingOnly?'給与入金が未照合です。設定手取りとの比較であり、銀行残高の確定値ではありません。':
-    'この差額は期間中の収支の比較値で、銀行残高ではありません。')+'</div>'+
-   v.quality.slice(0,3).map(q=>'<div style="margin-top:7px">'+esc(q)+'</div>').join('')+'</div>';
+ const budget=budgetReference(st,month);
+ html+='<details class="hub-card" id="hubBudgetV151"><summary style="cursor:pointer;font-size:16px;font-weight:750">'+
+   '毎月の基本予算（参考）'+yen(budget.total)+'</summary>'+
+   '<p class="hub-muted">マスターに登録された計画値です。実際の消費・資金用途へ加算しません。</p>'+
+   [['通常生活費（家族カード・現金等）',budget.living],['固定費・通常ローン',budget.fixed],
+    ['iDeCo',budget.ideco],['その他積立',budget.investment]].map(x=>
+     '<div class="hub-totals"><span>'+x[0]+'</span><b>'+yen(x[1])+'</b></div>').join('')+
+   '<details class="hub-fixed-ref"><summary style="cursor:pointer">固定費マスターの月額内訳（参考）</summary>'+
+     fixedReference(st,month).items.map(x=>'<div class="hub-detailrow"><span>'+esc(x.name)+(x.route==='CARD'?'（カード払い）':'')+'</span><b>'+yen(x.amount)+'</b></div>').join('')+
+   '</details></details>';
  const annual=engine().annual(st,Number(month.slice(0,4)),cycle,localDate(),{
    cardEstimates:cardEstimates(),revolvingEstimates:revolvingEstimates()
  });
- const annualDebt=annual.groups.find(g=>g.kind==='debt')?.actual||0;
- const annualInvestment=annual.groups.find(g=>g.kind==='investment')?.actual||0;
  html+='<details class="hub-card" id="hubAnnualV148"'+(annualOpen?' open':'')+'>'+
-   '<summary style="cursor:pointer;font-weight:750;font-size:16px">年間の収支を見る（'+esc(annual.year)+'年）</summary>'+
-   '<div class="hub-muted" style="margin:10px 0">同じ'+(cycle==='payday'?'給与サイクル':'暦月')+'の12期間で集計。実績と未照合の予定を分けて表示します。</div>'+
-   [['年間の給与実入金',annual.salaryActual],['年間の賞与実入金',annual.bonusActual],
-    ['年間の実入金合計',annual.incomeActual],['年間の資金流出',annual.outActual],
-    ['うちローン・リボ返済',annualDebt],['うち投資積立',annualInvestment],
-    ['年間の消費・購入額',annual.spentActual],['年間の差額（実績のみ）',annual.remainderActual],
-    ['未照合の支払予定',annual.outPending],['未入金の予定',annual.incomePending]]
-     .map(x=>'<div class="hub-totals" style="font-size:13px"><span>'+x[0]+'</span><b>'+yen(x[1])+'</b></div>').join('')+
-   '<p class="hub-muted">銀行明細のない期間：'+annual.missingBankPeriods+
-   '。予定は実績残高に足しません。給与サイクルの12月分は翌年1月の次回給与日前日まで含みます。</p></details>';
+   '<summary style="cursor:pointer;font-weight:750">年間の収支を見る（'+esc(annual.year)+'年）</summary>'+
+   '<p class="hub-muted">年間欄は銀行の資金流出基準です。月次の購入日基準と混ぜて加算しないでください。</p>'+
+   [['年間実入金',annual.incomeActual],['年間口座等流出',annual.outActual],
+    ['年間の利用日基準消費（旧台帳）',annual.spentActual]]
+    .map(x=>'<div class="hub-totals"><span>'+x[0]+'</span><b>'+yen(x[1])+'</b></div>').join('')+
+ '</details>';
  root.innerHTML=html;
  bind(root);
  return true;
@@ -334,6 +341,6 @@ function boot(){
  window.addEventListener('focus',()=>{if($('expenses')?.classList.contains('active'))render()});
  if($('expenses')?.classList.contains('active'))render();
 }
-window.householdExpenseUnifiedV148={mount,render,calculate,buckets,subgroups,rowDetails,fixedReference,seasonalReference,budgetReference,masterNature,getSelection:()=>({cycle,lens,month,openBucket,openCategory})};
+window.householdExpenseUnifiedV148={mount,render,calculate,usageBuckets,subgroups,rowDetails,fixedReference,seasonalReference,budgetReference,masterNature,getSelection:()=>({cycle,lens,month,openBucket,openCategory})};
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});else setTimeout(boot,0);
 })();

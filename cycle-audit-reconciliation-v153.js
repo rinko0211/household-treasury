@@ -1,7 +1,7 @@
 (() => {
 'use strict';
 if(window.householdCycleAuditV153)return;
-const VERSION=153,FORMAT='household-treasury-cycle-reconciliation-v153';
+const VERSION=154,FORMAT='household-treasury-cycle-reconciliation-v153';
 const START='2026-09-18',END='2026-10-16',CYCLE='cycle:2026-09-18:2026-10-16';
 const arrays=['cashTransactions','purchaseEvents','cashExpenses','cardSettlements','cardCashflowOverrides'];
 const $=id=>document.getElementById(id);
@@ -106,6 +106,40 @@ function calculations(state){
 }
 // No debit, status, balance or source is overwritten if ANY part of a private delta conflicts.
 // Original purchase IDs and heterogeneous row structures are preserved.
+// Settlement imports may already have the same source ID with additional
+// original statement fields. Strict JSON equality falsely rejects those rows.
+// Reconcile ONLY the immutable transaction identity; never overwrite the user's
+// original settlement or accept mismatched money/date/card/bank references.
+function settlementFamily(v){
+ const x=norm(v);
+ if(/JAL/.test(x)&&(/DC|MUFG/.test(x)||x==='JAL'))return 'JAL_DC';
+ return x;
+}
+function verifySameBankSettlement(existing,planned,state){
+ const id=String(planned.settlement_id||'');
+ const invalid=reason=>{throw Error('既存カード精算の照合不一致（'+reason+'）：'+id+
+   '。データは変更していません。現状バックアップと差分を照合してください。')};
+ if(String(existing.settlement_id||'')!==id)invalid('ID');
+ if(!Number.isSafeInteger(Number(existing.amount))||Number(existing.amount)<=0||
+    Number(existing.amount)!==Number(planned.amount))invalid('引落金額');
+ if(String(existing.due_date||'')!==String(planned.due_date||''))invalid('引落日');
+ if(settlementFamily(existing.card)!==settlementFamily(planned.card))invalid('カード');
+ if(existing.bank_transaction_id&&String(existing.bank_transaction_id)!==String(planned.bank_transaction_id))invalid('銀行取引ID');
+ if(existing.confirmed_bank_debit===false)invalid('確認状況');
+ if(existing.economic_type&&String(existing.economic_type)!=='TRANSFER')invalid('経済区分');
+ if(existing.record_kind&&String(existing.record_kind)!=='CARD_SETTLEMENT')invalid('記録種別');
+ // A matching card/billing label is not enough: require one real bank debit
+ // with matching ID, booked date, and exact magnitude.
+ const bank=(state.cashTransactions||[]).filter(x=>String(x.id||'')===String(planned.bank_transaction_id||''));
+ if(bank.length!==1||String(bank[0].date||'')!==String(planned.due_date||'')||
+    Number(bank[0].amount)!==-Number(planned.amount)||
+    String(bank[0].cashflow_type||'')!=='CARD_SETTLEMENT')
+  invalid('銀行引落原本');
+ const conflicts=(state.cardSettlements||[]).filter(x=>x!==existing&&
+   String(x.bank_transaction_id||'')===String(planned.bank_transaction_id||''));
+ if(conflicts.length)invalid('他のカード精算と銀行取引IDが重複');
+ return true;
+}
 function planPatch(state,patch){
  if(!patch||patch.format!==FORMAT||!Array.isArray(patch.updates)||!Array.isArray(patch.inserts)||!Array.isArray(patch.meta_additions))
    throw Error('監査差分ファイルの形式が違います。通常のバックアップJSONは使用できません。');
@@ -121,7 +155,18 @@ function planPatch(state,patch){
   if(rr.length>1)throw Error('対象IDが複数あります。'+id);
   if('record'in o){
    if(!o.record||String(o.record[field])!==id)throw Error('追加IDが一致しません。'+id);
-   if(rr.length){if(!equals(rr[0],o.record))throw Error('同じIDに別の取引があります。'+id);matched.push(id);continue}
+   if(rr.length){
+    if(!equals(rr[0],o.record)){
+     if(array==='cardSettlements')verifySameBankSettlement(rr[0],o.record,next);
+     else throw Error('同じIDに別の取引があります。'+id);
+    }
+    matched.push(id);continue
+   }
+   if(array==='cardSettlements'){
+    verifySameBankSettlement(o.record,o.record,next);
+    const duplicates=next.cardSettlements.filter(x=>String(x.bank_transaction_id||'')===String(o.record.bank_transaction_id||'')&&!!o.record.bank_transaction_id);
+    if(duplicates.length)throw Error('同一銀行引落に別IDのカード精算が存在します。端末バックアップを確認してください：'+id);
+   }
    if(array==='purchaseEvents'){
     const sig=cardSignature(o.record);
     if(next.purchaseEvents.some(x=>cardSignature(x)===sig))throw Error('別IDの同一カード利用候補。'+id);
@@ -133,9 +178,9 @@ function planPatch(state,patch){
   if(!rr.length)throw Error('更新元の明細IDが見つかりません。'+id);
   const r=rr[0],set=o.set||{},before=o.before||{},guard=o.guard||{};
   const already=Object.keys(set).every(k=>Object.hasOwn(r,k)&&equals(r[k],set[k]));
+  for(const [k,v] of Object.entries(guard))if(!equals(r[k],v))throw Error('元明細照合不一致。'+id+' '+k);
   if(already){matched.push(id);continue}
   if(!Object.keys(set).length||!Object.keys(before).length)throw Error('更新項目がありません。'+id);
-  for(const [k,v] of Object.entries(guard))if(!equals(r[k],v))throw Error('元明細照合不一致。'+id+' '+k);
   for(const [k,spec] of Object.entries(before)){
     if(!Object.hasOwn(set,k)||Object.hasOwn(r,k)!==spec.present||spec.present&&!equals(r[k],spec.value))
       throw Error('元明細の項目が変更済みです。'+id+' '+k);
@@ -196,7 +241,7 @@ function mount(){
  }
  if(imports&&!$('cycleAuditImportV153')){
   const box=document.createElement('div');box.id='cycleAuditImportV153';box.className='card full';
-  box.innerHTML='<div class="title">原本照合済み9〜10月差分修正（v153）</div>'+
+  box.innerHTML='<div class="title">原本照合済み9〜10月差分修正（v154）</div>'+
     '<div class="tiny">この機能は専用差分JSONのみを受け付け、端末の取引IDと元項目を照合してから一括修正します。既存の家計バックアップを上書きしません。</div>'+
     '<button type="button" class="btn secondary" id="cycleAuditChooseV153">専用差分JSONを選ぶ</button>'+
     '<input type="file" id="cycleAuditInputV153" accept=".json,application/json" style="display:none">'+
@@ -226,7 +271,7 @@ function show(){
    el.innerHTML='<div class="hub-title">2026年9–10月 監査済み収支</div>'+
      '<p class="hub-muted">未適用：この端末にv153監査データがありません。Importから専用差分JSONを照合・適用してください。</p>';return;
   }
-  el.innerHTML='<div class="hub-title">9/18〜10/16 原本・残高監査（v153）</div>'+
+  el.innerHTML='<div class="hub-title">9/18〜10/16 原本・残高監査（v154）</div>'+
    '<p class="hub-muted">給与サイクル特別監査。10/16入金の給与は次期扱い。実取引から再計算し、見込額は含めません。</p>'+
    '<div class="hub-totals"><span>収入（9月給与等）</span><b>'+money(r.income)+'</b></div>'+
    '<div class="hub-totals"><span>実質消費（監査認定）</span><b>'+money(r.consumption)+'</b></div>'+

@@ -78,8 +78,8 @@ jobs:
           assert.ok(html.includes('expense-unified-v148.css?v=148'));
           assert.ok(html.includes('sync-state-sanitizer-v22.js?v=153'));
           assert.ok(html.includes('treasury-ledger-v145.js?v=153'));
-          assert.ok(sw.includes('household-treasury-v153-cycle-audit-reconciliation'));
-          assert.ok(html.includes('cycle-audit-reconciliation-v153.js?v=153'));
+          assert.ok(sw.includes('household-treasury-v154-settlement-collision-safe'));
+          assert.ok(html.includes('cycle-audit-reconciliation-v153.js?v=154'));
           assert.ok(audit.includes('planPatch')&&audit.includes('reallocateResidual'));
           assert.ok(loader.includes('card-cycle-v81.js?v=153'));
           assert.ok(html.includes('verified-correction-patch-v149.js?v=149'));
@@ -90,7 +90,7 @@ jobs:
             'expense-unified-v148.js?v=152',
             'expense-unified-v148.css?v=148',
             'verified-correction-patch-v149.js?v=149',
-            'cycle-audit-reconciliation-v153.js?v=153',
+            'cycle-audit-reconciliation-v153.js?v=154',
             'card-cycle-v81.js?v=153',
             'treasury-ledger-v145.js?v=153',
             'mdc-pdf-delta-v144.js?v=144'
@@ -109,7 +109,7 @@ jobs:
           assert.ok(hub.includes('通常費（変動費）'));
           assert.ok(hub.includes('カード引落（用途未配分）'));
           assert.ok(hub.includes('毎月の基本予算（マスターから・参考）'));
-          console.log('RELEASE_V153_CYCLE_RECONCILIATION_PASS');
+          console.log('RELEASE_V154_SETTLEMENT_COLLISION_SAFE_PASS');
           NODE
       - name: Bundle PDF.js parser for same-origin iPhone import
         shell: bash

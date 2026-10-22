@@ -120,7 +120,7 @@
     if(key==='GENERIC_CAR_LOAN')return {nature:'FIXED',key:'',reason:'debt-master'};
     return {nature:'REVIEW',key:'',reason:'unmapped-master'};
   }
-  // Individual record choice wins for REVIEW only; no bulk auto-category edit.
+  // User decisions on individual records win over category defaults.
   function classify({category,subcategory,source,kind,label,semantic}={}){
     const eco=String(source?.economic_type||'').toUpperCase();
     const cashflow=String(source?.cashflow_type||'').toUpperCase();
@@ -145,7 +145,9 @@
       // A bank card settlement combines many purchases, so no merchant guess.
       return {nature:'REVIEW',key:'',reason:'card-settlement-unallocated',economicType:'TRANSFER'};
     }
-    if((!configured||configured==='REVIEW')&&['FIXED','VARIABLE','SPECIAL'].includes(explicit))
+    // An explicit user decision on an individual purchase always wins over
+    // a default subcategory rule. Keep economics and payment channels separate.
+    if(['FIXED','VARIABLE','SPECIAL','REVIEW'].includes(explicit))
       return {nature:explicit,key,reason:'record-override',economicType:eco||'EXPENSE'};
     if(configured&&configured!=='REVIEW')
       return {nature:configured,key,reason:'approved-rule',economicType:eco||'EXPENSE'};

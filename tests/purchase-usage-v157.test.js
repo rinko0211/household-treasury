@@ -1,0 +1,129 @@
+// node tests/purchase-usage-v157.test.js
+'use strict';
+const fs=require('node:fs'),vm=require('node:vm'),assert=require('node:assert/strict');
+let tests=0;const eq=(a,b,m)=>{assert.equal(a,b,m);tests++},ok=(x,m)=>{assert.ok(x,m);tests++};
+const C='cycle:2026-09-18:2026-10-16';
+let seq=0;
+const cash=(amount,date,label,kind='NORMAL',more={})=>({
+ id:'cash-'+(++seq),description:label,amount,purchase_total:amount,
+ date,economic_type:'EXPENSE',spending_class:kind,...more});
+const purchase=(amount,date,label,kind='NORMAL',more={})=>({
+ purchase_id:'purchase-'+(++seq),card:'SYNTHETIC_CARD',
+ merchant_raw:label,purchase_date:date,original_amount:amount,
+ billing_month:'2026-11',economic_type:'EXPENSE',spending_class:kind,
+ occurrence_index:1,source_original_id:'purchase-'+seq,...more});
+const bank=(amount,date,label,type,eco,more={})=>({
+ id:'bank-'+(++seq),source:'SYNTHETIC BANK',account:'main',balance_after:seq,
+ amount,date,description_raw:label,cashflow_type:type,economic_type:eco,...more});
+const st={
+ settings:{salaryDay:18,salary:540000},
+ masters:{cards:[],fixedExpenses:[]},
+ auditMigrations:[{migration:'v153-sep-oct-audit',period_start:'2026-09-18',period_end:'2026-10-16'}],
+ cashExpenses:[
+  cash(178640,'2026-09-20','Everyday groceries'),
+  cash(21050,'2026-09-27','Holiday gifts','SPECIAL'),
+  ...[[4000,'Undated bath'],[14000,'Undated protein'],[1300,'Undated transport'],
+      [8500,'Undated fuel'],[871,'Undated stationery'],[880,'Undated snack'],
+      [34569,'Cash balance residue']].map(([a,txt])=>
+         cash(a,null,txt,'NORMAL',{audit_cycle:C,no_source_date:true})),
+  cash(4100,'2026-10-16','Provisional grocery','NORMAL',
+       {audit_cycle:C,cycle_start:'2026-09-18',cycle_end:'2026-10-16',provisional_attribution:true}),
+  cash(5506,'2026-10-16','Voucher + cash purchase','NORMAL',
+       {audit_cycle:C,provisional_attribution:true,payment_breakdown:[{type:'CASH',amount:506},{type:'GIFT',amount:5000}]}),
+  cash(20000,'2026-10-16','Provisional souvenir','SPECIAL',
+       {audit_cycle:C,provisional_attribution:true}),
+  ...[1500,1710,5830].map(a=>cash(a,'2026-09-27','Hospital cash receipt','NORMAL',
+       {count_in_spending:false,reconciliation_status:'ABSORBED_DUPLICATE',
+       absorbed_into_purchase_id:'hospital-card'}))
+ ],
+ purchaseEvents:[
+  {...purchase(9040,'2026-09-27','Hospital charge'),purchase_id:'hospital-card'},
+  purchase(3240,'2026-09-18','Terminal purchase','NORMAL',{card:'Dカード'}),
+  purchase(7040,'2026-09-18','Flight purchase','NORMAL',{card:'Dカード'}),
+  purchase(8424,'2026-09-18','Sweets purchase','NORMAL',{card:'Dカード'}),
+  purchase(1000,'2026-09-25','Cafe prepaid uncertain','NORMAL',
+        {card:'Dカード',potential_prepaid_topup:true,review_status:'NEEDS_REVIEW'}),
+  purchase(95487,'2026-10-10','Genuine other card purchases'),
+  purchase(35317,'2026-10-01','Holiday trip','SPECIAL'),
+  purchase(10000,'2026-09-25','Transit prepaid topup','NORMAL',
+        {economic_type:'TRANSFER'})
+ ],
+ cashTransactions:[
+  bank(540288,'2026-09-18','September salary','INCOME_SALARY','INCOME'),
+  bank(54020,'2026-09-29','Insurance refund','OTHER_INCOME','INCOME'),
+  bank(30000,'2026-10-07','Extra salary','INCOME_SALARY','INCOME'),
+  bank(831,'2026-09-30','Interest','OTHER_INCOME','INCOME'),
+  bank(541194,'2026-10-16','Next salary','INCOME_SALARY','INCOME'),
+  bank(-48000,'2026-09-18','Car principal A','DEBT_PRINCIPAL','DEBT_PRINCIPAL'),
+  bank(-12000,'2026-09-18','Car principal B','DEBT_PRINCIPAL','DEBT_PRINCIPAL'),
+  bank(-12000,'2026-09-28','Investment iDeCo','INVESTMENT_CONTRIBUTION','INVESTMENT'),
+  bank(-3790,'2026-09-24','Direct merchant','HOUSEHOLD_EXPENSE','EXPENSE'),
+  bank(-3650,'2026-10-10','Direct merchant 2','HOUSEHOLD_EXPENSE','EXPENSE'),
+  bank(-145,'2026-10-15','Extra bank fee','HOUSEHOLD_EXPENSE','EXPENSE',
+      {reconciliation_disputed_difference:145}),
+  bank(-124012,'2026-09-28','Card debit A','CARD_SETTLEMENT','TRANSFER'),
+  bank(-11475,'2026-10-13','Card debit B','CARD_SETTLEMENT','TRANSFER'),
+  bank(-10846,'2026-10-13','Card debit C','CARD_SETTLEMENT','TRANSFER'),
+  bank(-50000,'2026-09-30','ATM withdrawal','CASH_WITHDRAWAL','TRANSFER'),
+  bank(-35000,'2026-10-13','ATM withdrawal 2','CASH_WITHDRAWAL','TRANSFER'),
+  bank(-150000,'2026-10-06','Household bank transfer','INTERNAL_TRANSFER','TRANSFER')
+ ]};
+const win={
+ householdSemanticV47:{
+  normalizeCategoryValue:x=>x||null,
+  inferCategory:()=> 'FOOD',
+  inferSubcategory:()=> 'GROCERIES'
+ },
+ householdExpenseNatureV152:{
+  classify:()=>({nature:'VARIABLE'})
+ }};
+const doc={readyState:'loading',addEventListener:()=>{},getElementById:()=>null};
+const ctx={window:win,document:doc,Date,Intl,Number,String,Set,Map,Math,JSON};
+vm.createContext(ctx);
+vm.runInContext(fs.readFileSync('treasury-ledger-v145.js','utf8'),ctx);
+vm.runInContext(fs.readFileSync('purchase-usage-ledger-v157.js','utf8'),ctx);
+const api=win.householdUsageLedgerV157;
+const r=api.calculate(st,'2026-09','payday');
+eq(r.start,'2026-09-18','Actual audited cycle start');
+eq(r.end,'2026-10-16','Actual audited cycle closes 16 October');
+eq(r.subtotals.cashExpenses,293416,'All cash including explicit null dates and mixed tender');
+eq(r.subtotals.purchaseEvents,159548,'Card use date spending, not card settlements');
+eq(r.subtotals.directBank,7440,'Direct bank spending after separately disclosed disputed fee');
+eq(r.ordinary,384037,'Approved ordinary spending');
+eq(r.special,76367,'Approved special expenses');
+eq(r.consumption,460404,'Approved total consumption');
+eq(r.debt,60000,'Car principal outside of consumption');
+eq(r.ideco,12000,'iDeCo outside of consumption');
+eq(r.investment,0,'No invented investment');
+eq(r.funds,532404,'Approved total uses');
+eq(r.income,625139,'Salary from next cycle excluded');
+eq(r.net,92735,'Approved net balance');
+eq(r.unresolvedBankFee,145,'Unresolved bank fee kept separately');
+eq(r.byKind.cash.filter(x=>!x.date).reduce((a,x)=>a+x.amount,0),64120,'Null-date audit-bound expenses counted');
+eq(r.byKind.cash.filter(x=>x.provisional&&x.date).reduce((a,x)=>a+x.amount,0),29606,
+  'Oct 16 provisional cash receipts included in audited cycle');
+eq(r.byKind.purchase.filter(x=>x.label==='Hospital charge').length,1,'Hospital card only');
+ok(r.byKind.cash.every(x=>x.label!=='Hospital cash receipt'),'Hospital cash receipts absorbed');
+ok(r.reviewCount>=1,'Review flag retained');
+const debit=api.bankFlow(st,'2026-09','payday');
+eq(debit.buckets.find(x=>x.id==='cardSettlement').amount,146333,'Card settlements only in separate bank lens');
+ok(!r.usageRows.some(x=>/Card debit/.test(x.label)),'No card debit in consumption');
+const other=structuredClone(st);other.purchaseEvents.find(x=>x.merchant_raw==='Cafe prepaid uncertain').review_status='RESOLVED';
+other.purchaseEvents.find(x=>x.merchant_raw==='Cafe prepaid uncertain').potential_prepaid_topup=false;
+eq(api.calculate(other,'2026-09','payday').consumption,460404,'Review changes do not modify spending');
+ok(api.calculate(other,'2026-09','payday').reviewCount<r.reviewCount,
+ 'Review flags are independent of money');
+const next=api.calculate(st,'2026-10','payday');
+ok(!next.byKind.cash.some(x=>x.provisional&&x.date==='2026-10-16'),
+   'Provisional previous-cycle receipts do not leak into next pay period');
+ok(next.income>=541194,'Next cycle gets October 16 salary');
+const cal=api.calculate(st,'2026-10','calendar');
+eq(cal.start,'2026-10-01','Calendar start differs');
+eq(cal.end,'2026-10-31','Calendar end differs');
+ok(!cal.byKind.cash.some(x=>!x.date),'Null-date audit-only receipts are not assigned a fake calendar date');
+const edited=structuredClone(st);
+edited.cashExpenses[0].amount=123;edited.cashExpenses[0].purchase_total=178640;
+eq(api.calculate(edited,'2026-09','payday').consumption,460404,
+ 'Mixed tender uses purchase_total once, never only the cash portion');
+
+console.log('PASS '+tests+' purchase-usage v157 assertions');

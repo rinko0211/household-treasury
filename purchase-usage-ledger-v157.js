@@ -100,6 +100,11 @@ function calculate(st,month,basis='payday'){
  for(const [i,r] of (st.purchaseEvents||[]).entries()){
    if(!belongs(r,'purchase_date',p)||!paidOnce(r)||!expense(r))continue;
    const amount=fullAmount(r);if(!amount)continue;
+   // If a statement is imported after a receipt-first purchase but the
+   // importer has not yet merged its metadata, prefer the original receipt
+   // for consumption; a card statement is evidence, not a second purchase.
+   if(!r.receipt_import_key&&
+      window.householdReceiptCycleV158?.matchExistingReceipt?.(st,r))continue;
    const key=cardSig(r);
    if(seenPurchase.has(key))continue;seenPurchase.add(key);
    addExpense(r,'purchase',i,iso(r.purchase_date),

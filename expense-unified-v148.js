@@ -108,33 +108,13 @@ function rowDetails(row,st){
  return {...row,category,subcategory,costNature:rule.nature,
    costNatureKey:rule.key,costNatureReason:rule.reason,editKind,editId};
 }
-function buckets(st,v,mode=lens){
- const actual=(mode==='cash'?(v.rows||[]).filter(r=>r.status==='confirmed'&&r.amount<0):(v.economicRows||[]))
-   .map(x=>rowDetails(x,st));
- const expense=actual.filter(r=>!['investment','debt','card'].includes(r.kind));
- const specs=[
-  {id:'fixed',label:'通常費（固定費・ローン）',color:'#ff9f35',
-   rows:[...expense.filter(r=>r.costNature==='FIXED'),...(mode==='cash'?actual.filter(r=>r.kind==='debt'):[])]},
-  {id:'variable',label:'通常費（変動費）',color:'#13c7b5',rows:expense.filter(r=>r.costNature==='VARIABLE')},
-  {id:'special',label:'特別費',color:'#eab86d',rows:expense.filter(r=>r.costNature==='SPECIAL')},
-  {id:'review',label:'要確認（明細ごとに判断）',color:'#b4a1a1',rows:expense.filter(r=>r.costNature==='REVIEW')}
- ];
- if(mode==='cash')specs.splice(3,0,
-   {id:'cardUnallocated',label:'カード引落（用途未配分）',color:'#5899b3',rows:actual.filter(r=>r.kind==='card')},
-   {id:'ideco',label:'iDeCo（固定拠出）',color:'#987efd',
-      rows:actual.filter(r=>r.kind==='investment'&&isIdecoText(r.label))},
-   {id:'investment',label:'その他の投資・積立',color:'#67b9f4',
-      rows:actual.filter(r=>r.kind==='investment'&&!isIdecoText(r.label))}
- );
- return specs.map(b=>({id:b.id,label:b.label,color:b.color,items:b.rows,
-    amount:b.rows.reduce((sum,x)=>sum+Math.abs(n(x.amount)),0)}));
-}
-function usageBuckets(usage){
+function usageBuckets(usage,st){
+ const enriched=usage.usageRows.map(row=>rowDetails(row,st));
  const groups=[
   {id:'ordinary',label:'通常の消費・生活費',color:'#13c7b5',
-    items:usage.usageRows.filter(x=>['cash','purchase','bank'].includes(x.kind)&&x.spendingClass!=='SPECIAL')},
+    items:enriched.filter(x=>['cash','purchase','bank'].includes(x.kind)&&x.spendingClass!=='SPECIAL')},
   {id:'special',label:'特別費',color:'#eab86d',
-    items:usage.usageRows.filter(x=>['cash','purchase','bank'].includes(x.kind)&&x.spendingClass==='SPECIAL')},
+    items:enriched.filter(x=>['cash','purchase','bank'].includes(x.kind)&&x.spendingClass==='SPECIAL')},
   {id:'debt',label:'車ローン・元金返済',color:'#ff9f35',items:usage.byKind.debt},
   {id:'ideco',label:'iDeCo',color:'#987efd',items:usage.byKind.ideco},
   {id:'investment',label:'その他投資',color:'#67b9f4',items:usage.byKind.investment}
@@ -237,7 +217,7 @@ function render(){
  const usage=ul.calculate(st,month,cycle);
  const bank=ul.bankFlow(st,month,cycle);
  const economic=lens==='economic',p=economic?usage:bank;
- const all=economic?usageBuckets(usage):bank.buckets;
+ const all=economic?usageBuckets(usage,st):bank.buckets;
  const total=economic?usage.funds:bank.total;
  const income=usage.income;
  const difference=income-total,ratio=income>0?total*100/income:null;

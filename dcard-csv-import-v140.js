@@ -108,6 +108,15 @@
       if(same.some(x=>Number(x.occurrence_index||1)===e.occurrence)){
         duplicates++;continue;
       }
+      const receiptStatement={
+        card:'dカード',purchase_date:e.date,original_amount:e.amount,
+        merchant_raw:e.merchant,billing_month:e.billing,source_file:file.name
+      };
+      const matchedReceipt=window.householdReceiptCycleV158?.matchExistingReceipt?.(st,receiptStatement);
+      if(matchedReceipt){
+        window.householdReceiptCycleV158.mergeStatement(st,receiptStatement);
+        duplicates++;continue;
+      }
       const c=classify(e);
       const p={
         purchase_id:'dcard:'+hash32(['dcard',e.signature,e.occurrence].join('|')),

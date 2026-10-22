@@ -142,8 +142,8 @@ eq(api.calculate(edited,'2026-09','payday').consumption,460404,
  eq(api.bankKindWithHistory(loan,sample),'debt','Exact previously verified loan recipient is principal, not a living expense');
  eq(api.bankKindWithHistory(wife,sample),'transfer','Exact earlier transfer recipient remains a transfer');
  const v=api.calculate(sample,'2026-10','payday');
- eq(v.debt,r.debt+12000,'Previously verified bank loan increases debt use only once');
- eq(v.consumption,r.consumption,'Previously verified loan and same-recipient transfer do not increase purchases');
+ eq(v.debt,12000,'Previously verified bank loan increases the new cycle debt exactly once');
+ eq(v.consumption,0,'Previously verified loan and same-recipient transfer do not increase new-cycle purchases');
  eq(loan.economic_type,'EXPENSE','Read-only inference does not change imported raw evidence');
  const wrong=bank(-12001,'2026-10-19',bankRecipient+'（依頼人名：TEST）','UNKNOWN','EXPENSE');
  sample.cashTransactions.push(wrong);

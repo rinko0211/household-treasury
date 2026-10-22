@@ -263,4 +263,56 @@ eq(state.cashExpenses.find(x=>x.id==='cash-3').payment_method,'MIXED','Input rem
  eq(partially.cashExpenses[0].payment_method,'CASH','No half-saved metadata after batch failure');
 }
 
+// v156 regression: original card purchases were entered by a trusted importer,
+// then the user reviewed and enriched them with a confidence score. All source
+// fields must match, but extra review metadata MUST NOT create duplicate spend.
+{
+ const sourcePurchase={
+   purchase_id:'synthetic-dcard-haneda',card:'Dカード',
+   purchase_date:'2026-09-18',original_amount:3240,
+   merchant_raw:'SYNTHETIC HANEDA TERMINAL',
+   merchant_normalized:'SYNTHETIC HANEDA TERMINAL',
+   billing_month:'2026-11',record_kind:'CARD_PURCHASE',
+   economic_type:'EXPENSE',source_file:'synthetic-statement.csv'
+ };
+ const enriched={...clone(sourcePurchase),
+   confidence:0.8,review_status:'RESOLVED',reviewed_by:'user',
+   original_statement_hash:'synthetic-evidence-digest'
+ };
+ const state={cashExpenses:[],cashTransactions:[],cardSettlements:[],
+  cardCashflowOverrides:[],purchaseEvents:[enriched]};
+ const delta={format:m.FORMAT,updates:[],meta_additions:[],inserts:[{
+   array:'purchaseEvents',id_key:'purchase_id',
+   id:sourcePurchase.purchase_id,record:sourcePurchase
+ }]};
+ const first=m.planPatch(state,delta);
+ eq(first.changed.length,0,'Existing D-card source transaction is not re-inserted');
+ eq(first.already.length,1,'Purchase with extra confidence recognized as already present');
+ eq(JSON.stringify(first.next),JSON.stringify(state),'All enrichment is preserved byte-for-byte');
+ eq(m.planPatch(first.next,delta).changed.length,0,'Reapply twice yields no additional card entries');
+ const rejects=[
+   ['original_amount',3250],
+   ['purchase_date','2026-09-19'],
+   ['card','OTHER CARD'],
+   ['merchant_raw','DIFFERENT SHOP'],
+   ['billing_month','2026-10'],
+   ['source_file','different-import.csv'],
+   ['economic_type','TRANSFER'],
+   ['record_kind','CASH_EXPENSE'],
+   ['purchase_id','other-id']
+ ];
+ for(const [key,value] of rejects){
+   const bad=clone(state);bad.purchaseEvents[0][key]=value;
+   assert.throws(()=>m.planPatch(bad,delta),/原本情報が一致しません|同一カード利用候補/,'Reject changed '+key);
+   tests++;
+ }
+ const incomplete=clone(state);delete incomplete.purchaseEvents[0].billing_month;
+ assert.throws(()=>m.planPatch(incomplete,delta),/原本情報が一致しません/);tests++;
+ const other=clone(state);other.purchaseEvents=[];
+ const fresh=m.planPatch(other,delta);
+ eq(fresh.changed.length,1,'Missing D-card record still inserted once');
+ eq(fresh.next.purchaseEvents[0].original_amount,3240,'Inserted amount unchanged');
+ eq(m.planPatch(fresh.next,delta).changed.length,0,'Inserted record second application idempotent');
+}
+
 console.log('PASS '+tests+' cycle reconciliation and patch assertions');

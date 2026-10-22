@@ -8,7 +8,7 @@ const STORAGE='householdFamilyShareTokenV160';
 const yen=v=>new Intl.NumberFormat('ja-JP',{style:'currency',currency:'JPY',maximumFractionDigits:0}).format(Number(v)||0);
 const $=s=>document.getElementById(s);
 const TODAY=()=>new Intl.DateTimeFormat('sv-SE',{timeZone:'Asia/Tokyo',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
-let shareExists=false,enabled=false,budget=0,busy=false,autoTimer=null,lastPublishedRevision=-1;
+let shareExists=false,enabled=false,budget=0,busy=false,autoTimer=null,lastPublishedRevision=-1,initialAutoScheduled=false;
 const context=()=>window.householdShareSyncContext?.()||{};
 function setNote(msg,warning=false){const el=$('familyShareNoteV160');if(el){el.textContent=msg;el.style.color=warning?'#f8b66d':'#bcd2e7'}}
 function storeToken(token){if(/^[a-f0-9]{64}$/.test(token))localStorage.setItem(STORAGE,token)}
@@ -84,6 +84,7 @@ async function refreshStatus(silent=false){
   if($('familyShareStopV160'))$('familyShareStopV160').disabled=!enabled;
   showLink();
   if(!silent)setNote(enabled?'共有中・最終更新 '+(r.published_at?new Date(r.published_at).toLocaleString('ja-JP'):'未更新'):'共有は停止中です。');
+  if(enabled&&context().ready&&!initialAutoScheduled&&!busy){initialAutoScheduled=true;setTimeout(()=>publish(true).catch(e=>setNote('共有の自動更新に失敗：'+e.message,true)),1700)}
  }catch(e){if(!silent)setNote(e.message,true)}
 }
 async function publish(silent=false){

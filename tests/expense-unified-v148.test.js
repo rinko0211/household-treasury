@@ -75,6 +75,7 @@ const window={
    ),
    CATEGORY_DEFS:{
      FOOD:{label:'食費',subs:['GROCERIES','CAFE','OTHER']},
+     DAILY_GOODS:{label:'日用品',subs:['CLOTHING','HOUSEHOLD','OTHER']},
      GIFTS_EVENTS:{label:'イベント・贈答',subs:['GIFT','OTHER']},
      UTILITIES:{label:'公共料金',subs:['ELECTRICITY','OTHER']},
      COMMUNICATION:{label:'通信',subs:['INTERNET','OTHER']},

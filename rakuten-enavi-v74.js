@@ -55,7 +55,13 @@
     const purchaseByRecord=new Map();
     for(const r of a.regularPurchases){
       const c=classify(r.merchant),base=[r.date,rowNorm(r.merchant),Math.abs(Number(r.amount)||0)].join('|'),occ=(purchaseCounts.get(base)||0)+1;purchaseCounts.set(base,occ);
-      const existing=st.purchaseEvents.find(p=>isRakuten(p.card)&&purchaseBase(p)===base&&Number(p.occurrence_index||1)===occ);
+      const receiptStatement={
+        card:'Rakuten',purchase_date:r.date,original_amount:Math.abs(Number(r.amount)||0),
+        merchant_raw:r.merchant,billing_month:r.billingMonth||null,source_file:file.name
+      };
+      const priorReceipt=window.householdReceiptCycleV158?.matchExistingReceipt?.(st,receiptStatement);
+      if(priorReceipt)window.householdReceiptCycleV158.mergeStatement(st,receiptStatement);
+      const existing=priorReceipt||st.purchaseEvents.find(p=>isRakuten(p.card)&&purchaseBase(p)===base&&Number(p.occurrence_index||1)===occ);
       if(existing){
         const oldMonth=existing.billing_month;Object.assign(existing,{card:'Rakuten',source_file:file.name,purchase_date:r.date,merchant_raw:r.merchant,merchant_normalized:rowNorm(r.merchant),original_amount:Math.abs(Number(r.amount)||0),payment_method:r.payment,billing_month:r.billingMonth||oldMonth||null,occurrence_index:occ,billing_month_source:'CSV_PAYMENT_ROW_V74'});updated++;purchaseByRecord.set(r,existing);
       }else{

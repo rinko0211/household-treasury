@@ -339,6 +339,6 @@ function boot(){
  window.addEventListener('focus',()=>{if($('expenses')?.classList.contains('active'))render()});
  if($('expenses')?.classList.contains('active'))render();
 }
-window.householdExpenseUnifiedV148={mount,render,calculate,buckets,subgroups,rowDetails,fixedReference,seasonalReference,budgetReference,masterNature,getSelection:()=>({cycle,lens,month,openBucket,openCategory})};
+window.householdExpenseUnifiedV148={mount,render,calculate,usageBuckets,subgroups,rowDetails,fixedReference,seasonalReference,budgetReference,masterNature,getSelection:()=>({cycle,lens,month,openBucket,openCategory})};
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});else setTimeout(boot,0);
 })();

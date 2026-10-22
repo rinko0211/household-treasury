@@ -1,7 +1,7 @@
 (() => {
 'use strict';
 if(window.householdCycleAuditV153)return;
-const VERSION=155,FORMAT='household-treasury-cycle-reconciliation-v153';
+const VERSION=156,FORMAT='household-treasury-cycle-reconciliation-v153';
 const START='2026-09-18',END='2026-10-16',CYCLE='cycle:2026-09-18:2026-10-16';
 const arrays=['cashTransactions','purchaseEvents','cashExpenses','cardSettlements','cardCashflowOverrides'];
 const $=id=>document.getElementById(id);
@@ -140,6 +140,22 @@ function verifySameBankSettlement(existing,planned,state){
  if(conflicts.length)invalid('他のカード精算と銀行取引IDが重複');
  return true;
 }
+// Strictly match all expected purchase fields, while preserving legitimate
+// per-record enrichment (e.g., a local confidence: 0.8 review flag).
+// Different amount/date/card/merchant/billing/source/economic type must fail.
+function verifyExistingCardPurchase(existing,planned){
+ const id=String(planned?.purchase_id||'');
+ const diffs=[];
+ if(!existing||String(existing.purchase_id||'')!==id)
+  throw Error('既存カード明細のID照合不一致：'+id);
+ for(const [key,value] of Object.entries(planned)){
+  if(!Object.hasOwn(existing,key)||!equals(existing[key],value))
+   diffs.push(key);
+ }
+ if(diffs.length)throw Error('既存カード明細の原本情報が一致しません：'+id+
+    '（'+diffs.slice(0,6).join('、')+'）。銀行・カード原本を確認してください。');
+ return true;
+}
 function planPatch(state,patch){
  if(!patch||patch.format!==FORMAT||!Array.isArray(patch.updates)||!Array.isArray(patch.inserts)||!Array.isArray(patch.meta_additions))
    throw Error('監査差分ファイルの形式が違います。通常のバックアップJSONは使用できません。');
@@ -158,6 +174,7 @@ function planPatch(state,patch){
    if(rr.length){
     if(!equals(rr[0],o.record)){
      if(array==='cardSettlements')verifySameBankSettlement(rr[0],o.record,next);
+     else if(array==='purchaseEvents')verifyExistingCardPurchase(rr[0],o.record);
      else throw Error('同じIDに別の取引があります。'+id);
     }
     matched.push(id);continue
@@ -255,7 +272,7 @@ function mount(){
  }
  if(imports&&!$('cycleAuditImportV153')){
   const box=document.createElement('div');box.id='cycleAuditImportV153';box.className='card full';
-  box.innerHTML='<div class="title">原本照合済み9〜10月差分修正（v155）</div>'+
+  box.innerHTML='<div class="title">原本照合済み9〜10月差分修正（v156）</div>'+
     '<div class="tiny">この機能は専用差分JSONのみを受け付け、端末の取引IDと元項目を照合してから一括修正します。既存の家計バックアップを上書きしません。</div>'+
     '<button type="button" class="btn secondary" id="cycleAuditChooseV153">専用差分JSONを選ぶ</button>'+
     '<input type="file" id="cycleAuditInputV153" accept=".json,application/json" style="display:none">'+
@@ -285,7 +302,7 @@ function show(){
    el.innerHTML='<div class="hub-title">2026年9–10月 監査済み収支</div>'+
      '<p class="hub-muted">未適用：この端末にv153監査データがありません。Importから専用差分JSONを照合・適用してください。</p>';return;
   }
-  el.innerHTML='<div class="hub-title">9/18〜10/16 原本・残高監査（v155）</div>'+
+  el.innerHTML='<div class="hub-title">9/18〜10/16 原本・残高監査（v156）</div>'+
    '<p class="hub-muted">給与サイクル特別監査。10/16入金の給与は次期扱い。実取引から再計算し、見込額は含めません。</p>'+
    '<div class="hub-totals"><span>収入（9月給与等）</span><b>'+money(r.income)+'</b></div>'+
    '<div class="hub-totals"><span>実質消費（監査認定）</span><b>'+money(r.consumption)+'</b></div>'+

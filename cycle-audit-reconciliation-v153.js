@@ -1,7 +1,7 @@
 (() => {
 'use strict';
 if(window.householdCycleAuditV153)return;
-const VERSION=154,FORMAT='household-treasury-cycle-reconciliation-v153';
+const VERSION=155,FORMAT='household-treasury-cycle-reconciliation-v153';
 const START='2026-09-18',END='2026-10-16',CYCLE='cycle:2026-09-18:2026-10-16';
 const arrays=['cashTransactions','purchaseEvents','cashExpenses','cardSettlements','cardCashflowOverrides'];
 const $=id=>document.getElementById(id);
@@ -177,14 +177,28 @@ function planPatch(state,patch){
   }
   if(!rr.length)throw Error('更新元の明細IDが見つかりません。'+id);
   const r=rr[0],set=o.set||{},before=o.before||{},guard=o.guard||{};
-  const already=Object.keys(set).every(k=>Object.hasOwn(r,k)&&equals(r[k],set[k]));
-  for(const [k,v] of Object.entries(guard))if(!equals(r[k],v))throw Error('元明細照合不一致。'+id+' '+k);
-  if(already){matched.push(id);continue}
   if(!Object.keys(set).length||!Object.keys(before).length)throw Error('更新項目がありません。'+id);
+  // A previous local correction can have already moved 980 -> 1980 while
+  // leaving the payment breakdown unfinished. Accept ONLY those field values
+  // explicitly permitted by this signed-off patch: the exact old value OR the
+  // exact target value. Never weaken date, merchant, source, or card identity.
   for(const [k,spec] of Object.entries(before)){
-    if(!Object.hasOwn(set,k)||Object.hasOwn(r,k)!==spec.present||spec.present&&!equals(r[k],spec.value))
-      throw Error('元明細の項目が変更済みです。'+id+' '+k);
+    if(!Object.hasOwn(set,k))throw Error('差分構成の不一致。'+id+' '+k);
+    const isOld=Object.hasOwn(r,k)===spec.present&&(!spec.present||equals(r[k],spec.value));
+    const isTarget=Object.hasOwn(r,k)&&equals(r[k],set[k]);
+    if(!isOld&&!isTarget)throw Error('元明細の項目が第三の値に変更されています。'+id+' '+k);
   }
+  for(const [k,v] of Object.entries(guard)){
+    const exactlyOriginal=Object.hasOwn(r,k)&&equals(r[k],v);
+    // This exception is narrowly limited to a guard field that the very
+    // same patch changes, and only if the before-value also matches guard.
+    const spec=before[k],target=Object.hasOwn(set,k)&&Object.hasOwn(r,k)&&equals(r[k],set[k]);
+    const guardIsOld=spec&&spec.present&&equals(spec.value,v);
+    if(!exactlyOriginal&&!(target&&guardIsOld))
+      throw Error('元明細照合不一致。'+id+' '+k+'（元の値にも修正後の値にも一致しません）');
+  }
+  const already=Object.keys(set).every(k=>Object.hasOwn(r,k)&&equals(r[k],set[k]));
+  if(already){matched.push(id);continue}
   Object.assign(r,clone(set));changed.push(id);
  }
  for(const o of patch.meta_additions){
@@ -241,7 +255,7 @@ function mount(){
  }
  if(imports&&!$('cycleAuditImportV153')){
   const box=document.createElement('div');box.id='cycleAuditImportV153';box.className='card full';
-  box.innerHTML='<div class="title">原本照合済み9〜10月差分修正（v154）</div>'+
+  box.innerHTML='<div class="title">原本照合済み9〜10月差分修正（v155）</div>'+
     '<div class="tiny">この機能は専用差分JSONのみを受け付け、端末の取引IDと元項目を照合してから一括修正します。既存の家計バックアップを上書きしません。</div>'+
     '<button type="button" class="btn secondary" id="cycleAuditChooseV153">専用差分JSONを選ぶ</button>'+
     '<input type="file" id="cycleAuditInputV153" accept=".json,application/json" style="display:none">'+
@@ -271,7 +285,7 @@ function show(){
    el.innerHTML='<div class="hub-title">2026年9–10月 監査済み収支</div>'+
      '<p class="hub-muted">未適用：この端末にv153監査データがありません。Importから専用差分JSONを照合・適用してください。</p>';return;
   }
-  el.innerHTML='<div class="hub-title">9/18〜10/16 原本・残高監査（v154）</div>'+
+  el.innerHTML='<div class="hub-title">9/18〜10/16 原本・残高監査（v155）</div>'+
    '<p class="hub-muted">給与サイクル特別監査。10/16入金の給与は次期扱い。実取引から再計算し、見込額は含めません。</p>'+
    '<div class="hub-totals"><span>収入（9月給与等）</span><b>'+money(r.income)+'</b></div>'+
    '<div class="hub-totals"><span>実質消費（監査認定）</span><b>'+money(r.consumption)+'</b></div>'+

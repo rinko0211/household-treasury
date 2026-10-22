@@ -194,4 +194,73 @@ eq(state.cashExpenses.find(x=>x.id==='cash-3').payment_method,'MIXED','Input rem
  assert.throws(()=>m.planPatch(base,guarded),/元明細照合不一致/);tests++;
 }
 
+// v155 regression: a real user may already have corrected the purchase amount
+// while leaving the original cash tender and voucher split incomplete.
+// The importer must accept ONLY the approved old or target value, retaining
+// source provenance; all third values or changed merchant/date must stop.
+{
+ const source={cashTransactions:[],purchaseEvents:[],cardSettlements:[],
+   cardCashflowOverrides:[],cashExpenses:[{
+     id:'synthetic-mixed-tender',date:'2026-09-27',amount:100,
+     description:'SYNTHETIC SHOP A',source_file:'original-cash.csv',
+     payment_method:'CASH',economic_type:'EXPENSE'
+   }]};
+ const expected={
+   amount:160,purchase_total:160,payment_method:'MIXED',
+   payment_breakdown:[{method:'CASH',amount:100},{method:'VOUCHER',amount:60}],
+   mixed_tender_verified:true
+ };
+ const beforeFields={
+   amount:{present:true,value:100},
+   purchase_total:{present:false,value:null},
+   payment_method:{present:true,value:'CASH'},
+   payment_breakdown:{present:false,value:null},
+   mixed_tender_verified:{present:false,value:null}
+ };
+ const spec={format:m.FORMAT,inserts:[],meta_additions:[],updates:[{
+   array:'cashExpenses',id_key:'id',id:'synthetic-mixed-tender',
+   guard:{date:'2026-09-27',amount:100,description:'SYNTHETIC SHOP A',source_file:'original-cash.csv'},
+   before:beforeFields,set:expected
+ }]};
+ const original=m.planPatch(source,spec);
+ eq(original.changed.length,1,'Original small cash amount gets full approved mixed-tender correction');
+ eq(original.next.cashExpenses[0].amount,160,'Complete price counted, not only cash portion');
+ const partially=clone(source);
+ partially.cashExpenses[0].amount=160; // user had already edited the purchase total locally
+ const resumed=m.planPatch(partially,spec);
+ eq(resumed.changed.length,1,'Pre-corrected total resumes remaining payment-method metadata');
+ eq(resumed.next.cashExpenses[0].purchase_total,160,'Partially applied price is preserved');
+ eq(resumed.next.cashExpenses[0].payment_breakdown[1].amount,60,'Voucher split is added exactly once');
+ eq(resumed.next.cashExpenses[0].source_file,'original-cash.csv','Source file provenance never rewritten');
+ eq(m.planPatch(resumed.next,spec).changed.length,0,'Reapplying finished partial correction is no-op');
+ eq(JSON.stringify(m.planPatch(resumed.next,spec).next),JSON.stringify(resumed.next),
+    'Fully applied correction is byte-preserving');
+ const finished=clone(source);
+ Object.assign(finished.cashExpenses[0],clone(expected));
+ eq(m.planPatch(finished,spec).changed.length,0,'Prior full correction accepted despite stale original guard');
+ const invalid=(edit,description)=>{
+   const altered=clone(source);
+   Object.assign(altered.cashExpenses[0],edit);
+   assert.throws(()=>m.planPatch(altered,spec),/照合不一致|第三の値/,description);tests++;
+ };
+ invalid({amount:130},'Third amount between old and approved new is rejected');
+ invalid({amount:170},'Another price is rejected');
+ invalid({amount:160,source_file:'re-import-new.csv'},'Changed source provenance is rejected');
+ invalid({amount:160,description:'DIFFERENT SYNTHETIC SHOP'},'Changed merchant is rejected');
+ invalid({amount:160,date:'2026-09-28'},'Changed purchase date is rejected');
+ invalid({amount:160,purchase_total:155},'Conflicting mixed-tender purchase total is rejected');
+ invalid({amount:160,payment_breakdown:[{method:'CASH',amount:160}]},'Conflicting tender split is rejected');
+ invalid({amount:160,payment_method:'CARD'},'Third payment method is rejected');
+ const badSpec=clone(spec);
+ badSpec.updates[0].guard.amount=90;
+ assert.throws(()=>m.planPatch(partially,badSpec),/照合不一致/);tests++;
+ // An unrelated edit must remain untouched when any row in a batch conflicts.
+ const multi=clone(spec);
+ multi.updates.push({array:'cashExpenses',id_key:'id',id:'absent-row',
+   guard:{amount:1},before:{amount:{present:true,value:1}},set:{amount:2}});
+ assert.throws(()=>m.planPatch(partially,multi));tests++;
+ eq(partially.cashExpenses[0].amount,160,'Atomic fail leaves input state unchanged');
+ eq(partially.cashExpenses[0].payment_method,'CASH','No half-saved metadata after batch failure');
+}
+
 console.log('PASS '+tests+' cycle reconciliation and patch assertions');

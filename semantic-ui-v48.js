@@ -181,7 +181,7 @@
     delete o.cost_behavior;delete o.fixed_variable_class;
     if(kind==='cash')o.is_transfer=econ==='TRANSFER';
     if(kind!=='cash_expense'){if(remember)setRememberRule(st,kind,o,name,actions);else disableConflictingRules(st,kind,o,name,actions)}
-    st.reviewQueue=(st.reviewQueue||[]).filter(q=>norm(q.merchant||q.description||'')!==norm(name));persist(st,remember?'取引分類ルール保存済み':'取引分類保存済み');closeTransactionEditor();setTimeout(()=>{window.renderDashboardV39?.();window.householdPlanningUiV79?.renderDashboard79?.()},0)
+    st.reviewQueue=(st.reviewQueue||[]).filter(q=>norm(q.merchant||q.description||'')!==norm(name));persist(st,remember?'取引分類ルール保存済み':'取引分類保存済み');closeTransactionEditor();window.householdExpenseUnifiedV148?.render?.();setTimeout(()=>{window.renderDashboardV39?.();window.householdPlanningUiV79?.renderDashboard79?.()},0)
   }
   function transactionClick(e){const d=e.target.closest?.('[data-v110-tx-detail]');if(!d)return;e.preventDefault();openTransactionDetail(d.dataset.v110Kind,d.dataset.v110Id)}
   window.openSemanticTransactionEditorV108=openTransactionEditor;

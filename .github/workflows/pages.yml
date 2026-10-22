@@ -85,7 +85,7 @@ jobs:
           assert.ok(html.includes('expense-unified-v148.css?v=148'));
           assert.ok(html.includes('sync-state-sanitizer-v22.js?v=159'));
           assert.ok(html.includes('treasury-ledger-v145.js?v=153'));
-          assert.ok(sw.includes('household-treasury-v159-receipt-payment-and-cost-editor'));
+          assert.ok(sw.includes('household-treasury-v160-family-readonly-share'));
           assert.ok(html.includes('cycle-audit-reconciliation-v153.js?v=155'));
           assert.ok(html.includes('payment-reclass-patch-v159.js?v=159'));
           assert.ok(html.includes('family-share-owner-v160.js?v=160'));
@@ -142,7 +142,7 @@ jobs:
           assert.ok(!hub.includes('カード引落（用途未配分）'));
           assert.ok(hub.includes('要確認：'));
           assert.ok(hub.includes('毎月の基本予算（参考）'));
-          console.log('RELEASE_V159_MIXED_PAYMENT_AND_COST_EDIT_PASS');
+          console.log('RELEASE_V160_FAMILY_READONLY_SHARE_PASS');
           NODE
       - name: Bundle PDF.js parser for same-origin iPhone import
         shell: bash

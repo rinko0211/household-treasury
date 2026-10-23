@@ -46,5 +46,10 @@
 #expenseHubV148 .hub-fixed-ref>summary{cursor:pointer;font-size:12px;color:#c4d2df}
 #expenseHubV148 .hub-fixed-ref .hub-detailrow{font-size:12px}
 #expenseHubV148 .hub-line[aria-expanded=true]{border-bottom-color:#506a69}
+#expenseHubV148 .hub-review-item{border-top:1px solid #34414e;padding:11px 0 6px}
+#expenseHubV148 .hub-review-item .hub-detailrow{border-bottom:0}
+#expenseHubV148 .hub-review-reason{display:flex;flex-wrap:wrap;gap:5px;margin:8px 0 3px}
+#expenseHubV148 .hub-review-reason>span{display:inline-block;font-size:11px;line-height:1.4;padding:4px 7px;border:1px solid #746443;border-radius:6px;background:#352e20;color:#ffe1a6}
+#expenseHubV148 .hub-review-item .hub-edit{font-size:12px;min-height:38px;padding:8px 11px;margin-top:9px}
 @media(max-width:550px){#expenseHubV148 .hub-drilldown{padding-left:8px;margin-left:3px}#expenseHubV148 .hub-category{font-size:13px}#expenseHubV148 .hub-subcategory{font-size:12.5px}#expenseHubV148 .hub-amt{font-size:13px}}
 @media(max-width:550px){#expenseHubV148 .hub-card{padding:13px;border-radius:15px}#expenseHubV148 .hub-title{font-size:19px}#expenseHubV148 .hub-big{font-size:22px}#expenseHubV148 .hub-amt{font-size:13px}}

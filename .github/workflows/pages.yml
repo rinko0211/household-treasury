@@ -83,21 +83,27 @@ jobs:
           assert.ok(!html.includes('monthly-treasury-v142.js?v=146'));
           assert.ok(html.includes('expense-nature-rules-v152.js?v=159'));
           assert.ok(html.includes('purchase-usage-ledger-v157.js?v=158'));
-          assert.ok(html.includes('expense-unified-v148.js?v=162'));
+          assert.ok(html.includes('expense-unified-v148.js?v=165'));
           assert.ok(html.indexOf('expense-nature-rules-v152.js?v=159') < html.indexOf('purchase-usage-ledger-v157.js?v=158'));
-          assert.ok(html.indexOf('purchase-usage-ledger-v157.js?v=158') < html.indexOf('expense-unified-v148.js?v=162'));
-          assert.ok(html.includes('expense-unified-v148.css?v=162'));
-          assert.ok(html.includes('sync-state-sanitizer-v22.js?v=161'));
+          assert.ok(html.indexOf('purchase-usage-ledger-v157.js?v=158') < html.indexOf('expense-unified-v148.js?v=165'));
+          assert.ok(html.includes('expense-unified-v148.css?v=165'));
+          assert.ok(hub.includes('この明細を確認・編集'));
+          assert.ok(hub.includes('チャージ・資金移動の疑い'));
+          assert.ok(loader.includes('semantic-ui-v48.js?v=165'));
+          assert.ok(fs.readFileSync('semantic-ui-v48.js','utf8').includes('transactionEditorTopupV165'));
+          assert.ok(fs.readFileSync('family/family.js','utf8').includes('管理アプリの「支出」'));
+
+          assert.ok(html.includes('sync-state-sanitizer-v22.js?v=165'));
           assert.ok(html.includes('treasury-ledger-v145.js?v=153'));
-          assert.ok(sw.includes('household-treasury-v164-light-family-and-snapshot-version'));
+          assert.ok(sw.includes('household-treasury-v165-editable-review-items'));
           assert.ok(html.includes('cycle-audit-reconciliation-v153.js?v=161'));
           assert.ok(html.includes('payment-reclass-patch-v159.js?v=161'));
           assert.ok(html.includes('family-share-owner-v160.js?v=164'));
           assert.ok(sw.includes('./family-share-owner-v160.js?v=164'));
           assert.ok(sw.includes('./family/index.html'));
-          assert.ok(sw.includes('./family/family.js?v=164'));
+          assert.ok(sw.includes('./family/family.js?v=165'));
           assert.ok(sw.includes('./family/family.css?v=164'));
-          assert.ok(fs.readFileSync('family/index.html','utf8').includes('family.js?v=164'));
+          assert.ok(fs.readFileSync('family/index.html','utf8').includes('family.js?v=165'));
           assert.ok(fs.readFileSync('family/index.html','utf8').includes('family.css?v=164'));
           assert.ok(fs.readFileSync('family/index.html','utf8').includes('id="legacyHint"'));
           assert.ok(fs.readFileSync('family-share-owner-v160.js','utf8').includes('schema_version:2'));
@@ -117,8 +123,8 @@ jobs:
           assert.ok(!loader.includes("injectClassic('./expense-tab-v130.js"), 'old expense renderer was not retired');
           assert.ok(!sw.includes('./expense-tab-v130.js?v=130'), 'old expense renderer remains precached');
           assert.ok(loader.includes('cash-expense-analytics-v106.js?v=159'));
-          assert.ok(loader.includes('semantic-ui-v48.js?v=159'));
-          assert.ok(!html.includes('<script src="./semantic-ui-v48.js?v=159"'), 'duplicate legacy editor loader');
+          assert.ok(loader.includes('semantic-ui-v48.js?v=165'));
+          assert.ok(!html.includes('<script src="./semantic-ui-v48.js?v=165"'), 'duplicate legacy editor loader');
           assert.ok(audit.includes('planPatch')&&audit.includes('reallocateResidual'));
           assert.ok(audit.includes('元明細の項目が第三の値に変更されています'));
           assert.ok(audit.includes('guardIsOld'));
@@ -127,11 +133,11 @@ jobs:
           assert.ok(html.includes('verified-correction-patch-v149.js?v=161'));
           assert.ok(correction.includes('treasuryRecoverySnapshot')&&correction.includes('replaceTreasuryState'));
           for(const path of [
-            'sync-state-sanitizer-v22.js?v=161',
+            'sync-state-sanitizer-v22.js?v=165',
             'expense-nature-rules-v152.js?v=159',
             'purchase-usage-ledger-v157.js?v=158',
-            'expense-unified-v148.js?v=162',
-            'expense-unified-v148.css?v=162',
+            'expense-unified-v148.js?v=165',
+            'expense-unified-v148.css?v=165',
             'verified-correction-patch-v149.js?v=161',
             'cycle-audit-reconciliation-v153.js?v=161',
             'card-cycle-v81.js?v=153',
@@ -159,7 +165,7 @@ jobs:
           assert.ok(!hub.includes('カード引落（用途未配分）'));
           assert.ok(hub.includes('要確認：'));
           assert.ok(hub.includes('毎月の基本予算（参考）'));
-          console.log('RELEASE_V164_FAMILY_SHARING_SCHEMA_LIGHT_PASS');
+          console.log('RELEASE_V165_EDITABLE_REVIEW_ITEMS_PASS');
           NODE
       - name: Bundle PDF.js parser for same-origin iPhone import
         shell: bash

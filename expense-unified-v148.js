@@ -209,6 +209,20 @@ function ratioParts(list,baseline){
  if(baseline>0&&remain>0)legend+='<span><i class="hub-dot" style="background:#c8d4e1"></i>残額 '+(remain*100/baseline).toFixed(1)+'%</span>';
  return {html,legend};
 }
+function reviewReasons(row,st){
+  const [kind,idx]=String(row.identity||'').split(':');
+  const i=Number(idx);
+  const source=Number.isInteger(i)&&i>=0?
+    (kind==='cash'?st.cashExpenses?.[i]:kind==='purchase'?st.purchaseEvents?.[i]:kind==='bank'?st.cashTransactions?.[i]:null):null;
+  const reasons=[],status=String(source?.review_status||'').toUpperCase();
+  if(['NEEDS_REVIEW','PENDING','OPEN','UNREVIEWED','REVIEW_REQUIRED'].includes(status))
+    reasons.push('取込時の確認待ち');
+  if(source?.potential_prepaid_topup===true)reasons.push('チャージ・資金移動の疑い');
+  if(row.costNature==='REVIEW'||row.costBucket==='UNDETERMINED')reasons.push('固定・変動の分類未確定');
+  if(row.costNature==='SPECIAL'&&row.spendingClass!=='SPECIAL')
+    reasons.push('通常費・特別費の判定相違');
+  return reasons.length?reasons:['分類の再確認'];
+}
 function detailPanel(bucket){
  groups=categoryGroups(bucket);
  if(openCategory&&!groups.some(g=>g.key===openCategory)){openCategory='';openSubcategory=''}
@@ -321,9 +335,23 @@ function render(){
  }
  html+='</div>';
  if(economic){
-   html+='<details class="hub-note" id="hubReviewV157"><summary style="cursor:pointer;font-weight:700">要確認：'+usage.reviewCount+
-     '件（費目に重複加算なし）</summary><p class="hub-muted">要確認は警告属性であり、独立した支出カテゴリーではありません。通常費・特別費に計上済みです。</p>'+
-     usage.flags.slice(0,100).map(r=>'<div class="hub-detailrow"><span>'+esc(r.label)+' <span class="hub-muted">['+esc(r.spendingClass==='SPECIAL'?'特別費':'通常費')+']</span></span><b>'+yen(r.amount)+'</b></div>').join('')+'</details>';
+   html+='<details class="hub-note" id="hubReviewV157"><summary style="cursor:pointer;font-weight:700">'+
+     '要確認：'+usage.reviewCount+'件（支出への追加加算なし）</summary>'+
+     '<p class="hub-muted">これらは支出に計上済みであり、別途加算しません。理由を確認し、下の「この明細を確認・編集」から確定してください。保存後も残る場合は固定・変動の個別指定やチャージ判定をご確認ください。</p>'+
+     usage.flags.slice(0,100).map(r=>{
+       const detail=rowDetails(r,st),reasons=reviewReasons(r,st);
+       return '<div class="hub-review-item" data-hub-review-item="1">'+
+         '<div class="hub-detailrow"><div class="hub-merchant">'+
+         '<b>'+esc(r.label)+'</b>'+
+         '<div class="hub-muted">'+esc(r.date||'日付未確定')+' ・ '+esc(r.source||'')+
+         ' ・ '+esc(r.spendingClass==='SPECIAL'?'特別費':'通常費')+'</div>'+
+         '<div class="hub-review-reason">'+reasons.map(reason=>'<span>'+esc(reason)+'</span>').join('')+'</div>'+
+         (detail.editKind&&detail.editId?
+           '<button type="button" class="hub-edit" data-hub-edit="'+esc(detail.editKind)+
+             '" data-hub-editid="'+esc(detail.editId)+'">この明細を確認・編集</button>':
+           '<span class="hub-muted">この明細の編集元を特定できませんでした</span>')+
+         '</div><b class="hub-amt">'+yen(r.amount)+'</b></div></div>';
+     }).join('')+'</details>';
  }
  const budget=budgetReference(st,month);
  html+='<details class="hub-card" id="hubBudgetV151"><summary style="cursor:pointer;font-size:16px;font-weight:750">'+

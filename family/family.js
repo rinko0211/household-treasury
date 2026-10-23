@@ -92,8 +92,8 @@ function render(d){
  $('caution').hidden=!(undetermined||review);
  if(undetermined||review)$('cautionText').textContent=
    (undetermined?'固定・変動未確定 '+money(undetermined)+'。':'')+
-   (review?'確認待ち '+review+'件。':'')+
-   '管理側で分類されると表示額が変わる場合があります。';
+   (review?'要確認の明細 '+review+'件（支出への二重加算なし）。':'')+
+   '管理アプリの「支出」→「要確認」から個別に編集できます。この画面は閲覧専用です。';
  $('updated').textContent='最終更新 '+new Date(d.published_at).toLocaleString('ja-JP',
   {timeZone:'Asia/Tokyo',month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'});
  const age=Date.now()-new Date(d.published_at).getTime();

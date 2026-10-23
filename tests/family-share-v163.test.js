@@ -62,7 +62,8 @@ assert.ok(!JSON.stringify(snapshot).includes('source_cash_expense_id'));
 const piece=server.slice(server.indexOf('const MAJOR_NAMES'),server.indexOf('Deno.serve('))
  .replace(/const MAJOR_NAMES:Record<string,string>/,'const MAJOR_NAMES')
  .replace(/const MINOR_NAMES:Record<string,string>/,'const MINOR_NAMES')
- .replace('function cleanSnapshot(v:any)','function cleanSnapshot(v)');
+ .replace('function cleanSnapshot(v:any)','function cleanSnapshot(v)')
+ .replaceAll('new Set<string>()','new Set()');
 const clean=new Function('numeric',piece+';return cleanSnapshot;')(
  (n,max=5000000)=>Number.isSafeInteger(n)&&Number(n)>=0&&Number(n)<=max
 );

@@ -87,7 +87,7 @@ const prior=clean({...snapshot,schema_version:undefined,variable:500,categories:
 assert.equal(prior.categories[0].amount,500,'v160 snapshots stay readable');
 assert.ok(viewer.includes("aria-expanded")&&viewer.includes("major-row")&&viewer.includes("minor-row"));
 assert.ok(viewer.includes("day-details")&&viewer.includes("rowButton("));
-assert.ok(page.includes('閲覧専用')&&page.includes('family.js?v=164'));
+assert.ok(page.includes('閲覧専用')&&page.includes('family.js?v=165'));
 assert.ok(css.includes('color-scheme:light')&&css.includes('.major-row')&&css.includes('.minor-row'));
 assert.ok(!page.includes('ログイン用パスワード'));
 assert.ok(server.includes("input?.snapshot?.schema_version!==2"),'Stale client cannot overwrite hierarchical published snapshot');

@@ -196,7 +196,7 @@ ok(!!edit,'Card edit button exists');edit.click();
 eq(events[0][0],'purchase','Editor kind correct');
 eq(events[0][1],'buy1','Editor opens exact selected row');
 btn('bucket','fixed');
-ok(root.innerHTML.includes('固定費マスターの月額内訳（参考）'),'Fixed detail shows read-only master reference');
+ok(root.innerHTML.includes('固定支払マスターの月額内訳（ローン含む・参考）'),'Fixed detail shows read-only master reference');
 ok(root.innerHTML.includes('毎月の基本予算（参考）'),'Plan shown separately from actual');
 ok(root.innerHTML.includes('電気'),'Fixed reference contains electricity');
 ok(root.innerHTML.includes('カード払い'),'Card-route reference labeled');

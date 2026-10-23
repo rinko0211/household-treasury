@@ -23,7 +23,7 @@ const csvRows=t=>{
 };
 const categoryName=category=>{
  const normalized=norm(category);
- const lookup={'食費':'FOOD','日用品':'DAILY_GOODS','娯楽レジャー':'ENTERTAINMENT',
+ const lookup={'食費':'FOOD','日用品':'DAILY_GOODS','娯楽レジャ':'ENTERTAINMENT',
   '娯楽':'ENTERTAINMENT','交通':'TRANSPORT','旅行':'TRAVEL','車':'CAR','子ども':'CHILD','その他':'OTHER'};
  if(lookup[normalized])return lookup[normalized];
  if(window.householdSemanticV47?.normalizeCategoryValue){
@@ -65,6 +65,16 @@ function parse(raw){
  return data;
 }
 const counted=x=>x?.count_in_spending!==false&&x?.reconciliation_status!=='ABSORBED_DUPLICATE';
+function pdfCandidate(row,pdf){
+ if(!pdf?.mdc_import_v144&&!pdf?.pdf_card_identity&&!/^MDC_PDF_/i.test(String(pdf?.source_file||'')))return false;
+ if(!counted(pdf)||String(pdf.card||'').toUpperCase()!=='MUFG/DC/JAL'||
+   Math.abs(Number(pdf.original_amount)||0)!==row.amount)return false;
+ const elapsed=Math.abs(Date.parse(pdf.purchase_date+'T00:00:00Z')-Date.parse(row.date+'T00:00:00Z'))/86400000;
+ if(!Number.isFinite(elapsed)||elapsed>3)return false;
+ const a=norm(row.merchant),b=norm(pdf.merchant_raw||pdf.merchant_normalized);
+ if(a.includes('セブンイレブン')&&b.includes('セブンイレブン'))return true;
+ return Boolean(a.length>=5&&(a.includes(b)||b.includes(a)));
+}
 function candidate(row,rec,kind){
  const date=kind==='cash'?rec.date:rec.purchase_date;
  const amount=Number(kind==='cash'?rec.amount:rec.original_amount);
@@ -86,7 +96,9 @@ function plan(input,rows,fileName=''){
   const cash=st.cashExpenses.map((rec,i)=>({rec,i})).filter(({rec})=>candidate(row,rec,'cash'));
   const purchases=st.purchaseEvents.map((rec,i)=>({rec,i})).filter(({rec})=>
     counted(rec)&&row.method==='QUICPAY'&&
-    (rec.dedup_key===row.dedup||candidate(row,rec,'purchase')));
+    (rec.dedup_key===row.dedup||
+     (String(rec.card||'')==='MUFG/DC/JAL'&&
+       (candidate(row,rec,'purchase')||pdfCandidate(row,rec)))));
   if(cash.length>1||purchases.length>1)
     throw Error('同日・同額・店舗の重複候補が複数あります: '+row.merchant+' '+row.amount+'円。元明細を確認してください');
   if(row.method==='CASH'){

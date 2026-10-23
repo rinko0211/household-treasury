@@ -194,9 +194,9 @@
           try{
             const delta=engine.previewPdf(p,identity,otherCard.checked);
             const cross=window.householdJalCrossSourceV166?.scanPdfPreview?.(p)||[];
-            const blocked=delta.issues.some(x=>x.startsWith('MDC-D11:'));
+            const blocked=delta.issues.some(x=>x.startsWith('MDC-D11:')||x.startsWith('MDC-R18:'));
             previewBox.innerHTML=
-              '<b>今回の差分：新規 '+delta.added+'件／登録済み '+delta.duplicates+'件／旧版識別更新 '+delta.upgraded+'件</b>'+
+              '<b>今回の差分：新規 '+delta.added+'件／登録済み '+delta.duplicates+'件／領収書へ吸収 '+(delta.receiptAbsorbed||0)+'件／旧版識別更新 '+delta.upgraded+'件</b>'+
               '<div class="tiny">PDF同士の重複は再登録しません。CSV・既存現金・購入記録との照合候補は別表示します。</div>'+
               (cross.length?'<div class="note" style="margin-top:8px;color:#ffc78d">既存CSV・購入記録と同じ日付・金額の候補 '+cross.length+'組。PDF取込後に下の「CSV・購入記録とJAL PDFの重複照合」で、同じ買い物か確認して修正してください。自動除外はしません。</div>':'')+
               (delta.issues.length?'<div class="tiny" style="margin-top:7px">'+

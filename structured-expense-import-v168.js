@@ -151,6 +151,7 @@ function plan(input,rows,fileName=''){
     subcategory:'OTHER',occurrence_index:1,
     receipt_reconciliation_pending:true,confidence:1,review_status:'RESOLVED',
     source_receipt_description:row.description||row.merchant,
+    receipt_purchase_date:row.date,receipt_note:row.note,
     count_in_spending:true,imported_at:now,note:row.note,...props
    });
    newCard++;actions.push({type:cash.length?'cash-to-card':'card-new',row});

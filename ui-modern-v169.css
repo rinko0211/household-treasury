@@ -45,32 +45,75 @@ details>summary{cursor:pointer}
 #expenseHubV148 .hub-toggle[aria-pressed=true],#expenseHubV148 .hub-line[aria-expanded=true]{background:rgba(40,141,124,.10)}
 #expenseHubV148 .hub-line{border-color:#2d4148}
 #expenseHubV148 .hub-note{border-radius:13px}
-/* A single optional panel for auditable card master recommendations. */
-.treasury-panel-heading{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;flex-wrap:wrap;margin-bottom:15px}
-.treasury-panel-heading .title{font-size:18px;margin:3px 0 4px}
-.treasury-eyebrow{font-size:10px;letter-spacing:.12em;font-weight:780;color:#6fe4c4}
-.treasury-panel-heading p{margin:2px 0 0;max-width:650px}
-.treasury-card-sum{text-align:right;white-space:nowrap;color:#c0e8e0}
-.treasury-card-sum>span{display:block;font-size:11px;color:#a4c3c3}
-.treasury-card-sum>b{font-size:28px;color:#80e8cd;letter-spacing:-.04em}
-.treasury-card-sum>small{font-size:12px;margin-left:3px;color:#8badb0}
-.treasury-baseline-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
-.treasury-baseline-row{padding:17px;border:1px solid #35505a;background:linear-gradient(150deg,#182b34,#14222a);border-radius:15px;min-width:0;display:flex;flex-direction:column;align-items:flex-start}
-.treasury-baseline-title{width:100%;display:flex;align-items:center;justify-content:space-between;gap:8px}
-.treasury-baseline-title>b{font-size:14px}.treasury-baseline-title>span{font-size:10px;color:#9ed8ca;background:#21433e;padding:4px 7px;border-radius:18px}
-.treasury-baseline-number{font-size:28px;letter-spacing:-.05em;font-weight:830;color:#e6fcf5;margin-top:15px;font-variant-numeric:tabular-nums}
-.treasury-baseline-row p{margin:12px 0 18px;flex:1}
-.treasury-baseline-actions{display:flex;flex-wrap:wrap;align-items:center;gap:12px;margin-top:18px}
-#v169BaselineStatus{margin-top:11px;color:#aedfca}
-@media(max-width:900px){.treasury-baseline-grid{grid-template-columns:1fr}}
-@media(max-width:760px){.top{align-items:flex-start}.app{padding:12px 12px 50px}.card{padding:16px}.card.kpi{min-height:103px}.tabs{margin:10px -12px 16px;padding:5px 12px 9px}.tab{font-size:12px;padding:9px 12px}.treasury-panel-heading .treasury-card-sum{text-align:left}}
-@media(max-width:480px){.form{grid-template-columns:1fr}.top h1{font-size:22px}.top .muted{font-size:11px}#saveStatus{max-width:130px;white-space:normal;text-align:right}.kpi>b{font-size:30px} .treasury-card-sum>b{font-size:24px}}
-@media(prefers-reduced-motion:reduce){*,*:before,*:after{transition:none!important;animation:none!important}}
 
-/* v170: Editable budget-to-card allocation, all values stored privately. */
-.treasury-family-budget-form{grid-template-columns:repeat(2,minmax(0,1fr));margin:14px 0}
-.treasury-budget-check{border:1px solid #35585b;background:#132c32;border-radius:12px;padding:12px 14px;margin-bottom:15px;color:#dae9e8}
-.treasury-baseline-row .field{gap:6px}
-.treasury-baseline-row input{width:100%}
-.treasury-baseline-row .btn{margin-top:auto}
-@media(max-width:620px){.treasury-family-budget-form{grid-template-columns:1fr}.treasury-budget-check{font-size:12px}}
+/* v171: Mobile-safe forms, master records and interaction surfaces.
+   Fix min-content overflow at the container AND the input level, instead of
+   clipping the entire page and hiding inaccessible save/delete controls. */
+html,body,.app,.page{max-width:100%}
+.grid{grid-template-columns:repeat(12,minmax(0,1fr))}
+.grid>*,
+.card,
+.card>*,
+.form,
+.form>*,
+.field,
+.field>*,
+details,
+details>summary,
+#settings .row>div,
+#settings .controls{min-width:0;max-width:100%}
+.form{grid-template-columns:repeat(4,minmax(0,1fr))}
+#settings .v171-fixed-fields{grid-template-columns:repeat(3,minmax(0,1fr))}
+#settings .v171-card-fields{grid-template-columns:repeat(2,minmax(0,1fr))}
+#settings input:not([type=checkbox]):not([type=radio]),
+#settings select,
+#settings textarea{box-sizing:border-box;width:100%;max-width:100%;min-width:0}
+#settings .field>label,
+#settings .tiny,
+#settings .note,
+#settings summary,
+#settings .row{overflow-wrap:anywhere;word-break:normal}
+#settings .card summary>div:first-child,
+#settings .row>div:first-child{flex:1 1 0;min-width:0}
+#settings .controls{display:flex;flex-wrap:wrap;gap:8px}
+#settings .row{flex-wrap:wrap;gap:8px}
+#settings .row>.controls{flex:0 1 auto;max-width:100%}
+#settings .btn{max-width:100%;white-space:normal;overflow-wrap:anywhere}
+#settings .field>.controls{min-width:0;width:100%;flex-wrap:wrap}
+#settings .field>.controls input[type=number]{flex:1 1 62px;width:0;min-width:0}
+#settings #v43FixedRows,
+#settings #unifiedCardRowsV77,
+#settings #householdMasterCardV1,
+#settings #v43FixedRows .card,
+#settings #unifiedCardRowsV77 .card{min-width:0;max-width:100%}
+#settings #v43FixedRows .card>div:first-child>div,
+#settings #unifiedCardRowsV77 summary>div:first-child{min-width:0;overflow-wrap:anywhere}
+#settings .tag{white-space:normal;max-width:100%}
+#settings .table{max-width:100%;overflow-x:auto;overscroll-behavior-x:contain}
+@media(max-width:900px){
+ #settings .v171-fixed-fields{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media(max-width:760px){
+ .top{align-items:flex-start}
+ .app{padding:12px 12px 50px}
+ .card{padding:16px}
+ .card.kpi{min-height:103px}
+ .tabs{margin:10px -12px 16px;padding:5px 12px 9px}
+ .tab{font-size:12px;padding:9px 12px}
+ .form{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media(max-width:560px){
+ #settings .v171-fixed-fields,
+ #settings .v171-card-fields,
+ #settings .form{grid-template-columns:minmax(0,1fr)}
+ #settings .row>.controls{flex:1 1 100%;justify-content:flex-start}
+ #settings .field>.controls input[type=number]{flex:1 1 75px}
+ .form{grid-template-columns:minmax(0,1fr)}
+ .top h1{font-size:22px}
+ .top .muted{font-size:11px}
+ #saveStatus{max-width:130px;white-space:normal;text-align:right}
+ .kpi>b{font-size:30px}
+}
+@media(prefers-reduced-motion:reduce){
+ *,*:before,*:after{transition:none!important;animation:none!important}
+}

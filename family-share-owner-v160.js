@@ -126,8 +126,8 @@ function mount(){
  const panel=document.createElement('section');
  panel.id='familySharePanelV160';panel.className='card full';
  panel.style.cssText='margin-top:16px;border:1px solid #397b80';
- panel.innerHTML='<div class="title">家族用・変動費メーター（v160）</div>'+
-  '<div class="note">妻の画面はログインなし・閲覧専用。給与・残高・投資・ローンや購入先の明細は共有しません。リンクを知っている人は閲覧できます。</div>'+
+ panel.innerHTML='<div class="title">家族用・変動費メーター</div>'+
+  '<div class="note">妻の画面はログインなし・閲覧専用。中カテゴリ・小カテゴリ・利用日別金額だけを共有。給与・残高・投資・ローン・購入先名は共有しません。リンクを知っている人は閲覧できます。</div>'+
   '<div class="form" style="margin-top:12px"><div class="field"><label for="familyShareBudgetV160">給与サイクルの変動費予算（円）</label><input type="number" id="familyShareBudgetV160" min="0" max="5000000" step="1000" value="0"></div>'+
   '<div class="field"><label for="familyShareLinkV160">奥さんに送る閲覧用URL</label><input id="familyShareLinkV160" readonly placeholder="共有開始後にURLを表示"></div></div>'+
   '<div class="controls" style="margin-top:12px;flex-wrap:wrap">'+

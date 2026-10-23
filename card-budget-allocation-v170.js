@@ -152,7 +152,7 @@ function redraw(){
  const values=p?p.entries:KEYS.map(key=>({key,label:LABELS[key],variable:draft.by_card[key],fixedTotal:0,total:0,current:null,fixed:{items:[]},card:null}));
  root.innerHTML='<div class="treasury-panel-heading"><div><div class="treasury-eyebrow">BUDGET → PAYMENT PLAN</div>'+
  '<div class="title">カード引落標準額を家計予算から設計</div>'+
- '<p class="tiny">過去の請求平均ではなく、今後カードで払う家族費の配分＋各カード払い固定費から計算します。入力はこの端末にのみ保存され、承認前はマスターを変更しません。</p></div>'+
+ '<p class="tiny">過去の請求平均ではなく、今後カードで払う家族費の配分＋各カード払い固定費から計算します。入力中はマスターを変更しません。反映ボタンで承認すると、設定値だけをマスターに保存・同期します。</p></div>'+
  '<div class="treasury-card-sum"><span>3カードの標準引落見込</span><b>'+(p?yen(p.total):'—')+'</b><small>／月</small></div></div>'+
  '<div class="form treasury-family-budget-form">'+
  '<div class="field"><label>家族の日常生活費（カード化する額）</label><input type="number" min="0" step="1000" data-v170-field="family_daily_budget" value="'+(draft.family_daily_budget||0)+'"></div>'+

@@ -10,9 +10,10 @@ class Node {
  addEventListener(k,cb){this.events[k]=cb}
  click(){this.events.click?.()}
 }
-const ids=Object.fromEntries(['status','period','spent','budgetSection','budgetEmpty','budget','remaining','remainLabel','progressFill','budgetMeter','budgetRatio','categories','caution','cautionText','updated','refresh'].map(id=>[id,new Node()]));
+const ids=Object.fromEntries(['status','period','spent','budgetSection','budgetEmpty','budget','remaining','remainLabel','progressFill','budgetMeter','budgetRatio','categories','caution','cautionText','updated','refresh','legacyHint'].map(id=>[id,new Node()]));
 const document={getElementById:id=>ids[id],createElement:tag=>new Node(tag),addEventListener:()=>{},hidden:false};
 const snapshot={
+ schema_version:2,
  period_start:'2026-10-16',period_end:'2026-11-17',variable:22000,undetermined:0,review_count:0,
  categories:[
   {key:'DAILY_GOODS',label:'日用品',amount:17000,subcategories:[
@@ -31,6 +32,7 @@ async function check(){
  await new Promise(resolve=>setImmediate(resolve));
  assert.ok(ids.spent.textContent.includes('22,000'));
  assert.equal(ids.categories.children.length,2);
+ assert.equal(ids.legacyHint.hidden,true,'New hierarchical data must hide update warning');
  assert.equal(!!lookup(ids.categories,'day-row'),false,'Individual dates are hidden before expansion');
  let major=ids.categories.children[0].children[0];
  assert.equal(major.attributes['aria-expanded'],'false');

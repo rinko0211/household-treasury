@@ -34,6 +34,8 @@ function cleanSnapshot(v:any) {
   for(const item of categories){
     if(!numeric(item?.amount,100000000))throw new Error('カテゴリ金額が不正です');
     const hierarchical=Array.isArray(item?.subcategories);
+    if(!hierarchical && v.schema_version===2)
+      throw new Error('最新版の共有形式に小カテゴリがありません。');
     if(!hierarchical){
       // Backward compatibility for v160 snapshots and still-open owner tabs.
       const label=String(item?.label||'').trim().slice(0,32);
@@ -67,7 +69,7 @@ function cleanSnapshot(v:any) {
     clean.push({key,label:MAJOR_NAMES[key],amount:item.amount,subcategories});
   }
   if(clean.reduce((n,x)=>n+x.amount,0)!==variable)throw new Error('変動費の内訳合計が一致しません');
-  return {period_start,period_end,variable,undetermined,review_count,categories:clean,source_revision};
+  return {schema_version:2,period_start,period_end,variable,undetermined,review_count,categories:clean,source_revision};
 }
 Deno.serve(async(req)=>{
   if(req.method==='OPTIONS')return new Response(null,{status:204,headers:cors});
@@ -97,7 +99,7 @@ Deno.serve(async(req)=>{
   if(action==='owner'){
     const {data,error}=await client.from(table).select('enabled,monthly_budget,published_at,snapshot').eq('owner_user_id',uid).maybeSingle();
     if(error)return respond({error:'共有状態を取得できません'},503);
-    return respond({exists:!!data,enabled:!!data?.enabled,budget:data?.monthly_budget??0,published_at:data?.published_at??null,period_start:data?.snapshot?.period_start??null,period_end:data?.snapshot?.period_end??null});
+    return respond({exists:!!data,enabled:!!data?.enabled,budget:data?.monthly_budget??0,published_at:data?.published_at??null,period_start:data?.snapshot?.period_start??null,period_end:data?.snapshot?.period_end??null,snapshot_version:Number(data?.snapshot?.schema_version??1),source_revision:Number(data?.snapshot?.source_revision??-1)});
   }
   if(action==='create'||action==='rotate'){
     if(action==='rotate'){
@@ -125,6 +127,10 @@ Deno.serve(async(req)=>{
     return respond({budget:data.monthly_budget});
   }
   if(action==='publish'){
+    // v164: a prior open v160 tab can otherwise overwrite the newer
+    // hierarchy with a flat summary, even after the wife page is updated.
+    if(input?.snapshot?.schema_version!==2)
+      return respond({error:'管理アプリが旧バージョンです。家計アプリを完全に再読み込みしてから、最新の変動費を反映してください。'},409);
     let snapshot;
     try{snapshot=cleanSnapshot(input?.snapshot)}catch(e){return respond({error:(e as Error).message},400)}
     const {data:prev,error:readError}=await client.from(table).select('snapshot').eq('owner_user_id',uid).maybeSingle();

@@ -15,7 +15,7 @@ assert.ok(css.includes('.grid{grid-template-columns:repeat(12,minmax(0,1fr))}'),
 assert.ok(css.includes('#settings .v171-fixed-fields{grid-template-columns:repeat(3,minmax(0,1fr))}'));
 assert.ok(css.includes('#settings .v171-card-fields{grid-template-columns:repeat(2,minmax(0,1fr))}'));
 assert.ok(css.includes('@media(max-width:560px)'),'Mobile breakpoint must be present');
-assert.ok(css.includes('#settings .v171-card-fields,')&&css.includes('#settings .form{grid-template-columns:minmax(0,1fr)}'),'Phone forms use one-column layout');
+assert.ok(css.includes('#settings .v171-card-fields,')&&css.includes('.page .form{grid-template-columns:minmax(0,1fr)!important}'),'Phone forms override inline legacy column templates');
 assert.ok(css.includes('#settings .field>.controls input[type=number]'),'Side-by-side bonus inputs need flexible shrink');
 assert.ok(css.includes('#settings .row{flex-wrap:wrap'),'Master edit buttons wrap rather than overflow');
 assert.ok(css.includes('overflow-wrap:anywhere'),'Long labels and IDs wrap');

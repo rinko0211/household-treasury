@@ -41,6 +41,7 @@ const document={readyState:'loading',addEventListener:()=>{},getElementById:()=>
 vm.runInNewContext(owner,{window,document,Intl,Date,localStorage:{getItem:()=>null,setItem:()=>{}},setTimeout:()=>{},clearTimeout:()=>{},URL});
 const snapshot=window.householdFamilyShareV160.makeSnapshot();
 assert.equal(snapshot.variable,22000);
+assert.equal(snapshot.schema_version,2);
 assert.equal(snapshot.categories.length,2);
 const food=snapshot.categories.find(c=>c.key==='FOOD'),goods=snapshot.categories.find(c=>c.key==='DAILY_GOODS');
 assert.equal(food.amount,5000);
@@ -82,11 +83,16 @@ invalid.categories[0].subcategories[0].days[0].amount++;
 assert.throws(()=>clean(invalid),/合計/);
 const invalidKey=JSON.parse(JSON.stringify(snapshot));invalidKey.categories[0].key='CUSTOM_MERCHANT';
 assert.throws(()=>clean(invalidKey),/コード/);
-const prior=clean({...snapshot,variable:500,categories:[{label:'食費',amount:500}]});
+const prior=clean({...snapshot,schema_version:undefined,variable:500,categories:[{label:'食費',amount:500}]});
 assert.equal(prior.categories[0].amount,500,'v160 snapshots stay readable');
 assert.ok(viewer.includes("aria-expanded")&&viewer.includes("major-row")&&viewer.includes("minor-row"));
 assert.ok(viewer.includes("day-details")&&viewer.includes("rowButton("));
-assert.ok(page.includes('閲覧専用')&&page.includes('family.js?v=163'));
-assert.ok(css.includes('color-scheme:dark')&&css.includes('.major-row')&&css.includes('.minor-row'));
+assert.ok(page.includes('閲覧専用')&&page.includes('family.js?v=164'));
+assert.ok(css.includes('color-scheme:light')&&css.includes('.major-row')&&css.includes('.minor-row'));
 assert.ok(!page.includes('ログイン用パスワード'));
+assert.ok(server.includes("input?.snapshot?.schema_version!==2"),'Stale client cannot overwrite hierarchical published snapshot');
+assert.ok(server.includes('snapshot_version:Number(data?.snapshot?.schema_version??1)'));
+const flat={...snapshot,schema_version:2,variable:500,categories:[{label:'食費',amount:500}]};
+assert.throws(()=>clean(flat),/小カテゴリ/);
+
 console.log('FAMILY_SHARE_V163_PASS');

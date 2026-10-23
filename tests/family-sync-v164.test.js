@@ -38,6 +38,7 @@ vm.runInNewContext(source,{
  window,document,localStorage:{getItem:()=>null,setItem:()=>{}},setTimeout,clearTimeout,
  fetch,Intl,Date,Number,String,Math,Array,Set,Map,Error,JSON,URL
 });
+async function main(){
 assert.equal(ready,false);
 assert.ok(callbacks.householdShareCloudSyncedV160);
 // Simulate cloud login and initialization resolving AFTER original UI setup.
@@ -56,3 +57,5 @@ assert.equal(published[0].variable,36085);
 assert.equal(published[0].categories.find(x=>x.key==='DAILY_GOODS').subcategories.length,2);
 assert.ok(!JSON.stringify(published[0]).includes('REDACTED MERCHANT'),'Private merchant excluded');
 console.log('FAMILY_SYNC_V164_DELAYED_INITIALIZATION_PASS');
+}
+main().catch(e=>{console.error(e);process.exitCode=1});

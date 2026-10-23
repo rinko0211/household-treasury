@@ -168,6 +168,14 @@ function readFields(root){
  for(const key of KEYS){
   const inp=root.querySelector('[data-v170-card="'+key+'"]');if(inp)obj.by_card[key]=Number(inp.value);
  }
+ obj.fixed_card_assignments={...(obj.fixed_card_assignments||{})};
+ obj.fixed_projection_overrides={...(obj.fixed_projection_overrides||{})};
+ for(const inp of root.querySelectorAll('[data-v170-fixed-route]')){
+   obj.fixed_card_assignments[inp.dataset.v170FixedRoute]=inp.value;
+ }
+ for(const inp of root.querySelectorAll('[data-v170-fixed-amount]')){
+   obj.fixed_projection_overrides[inp.dataset.v170FixedAmount]=Number(inp.value);
+ }
  return validated(obj);
 }
 const el=id=>document.getElementById(id);
@@ -190,7 +198,17 @@ function redraw(){
  '<div class="field"><label>帰省など定期交通費（カード払い）</label><input type="number" min="0" step="1000" data-v170-field="homecoming_card_budget" value="'+(draft.homecoming_card_budget||0)+'"></div>'+
  '</div><div class="treasury-budget-check"><b>家族カード予算 '+yen(target)+'</b> → 3カード割当 '+yen(distributed)+
  (target===distributed?' <span class="good">一致</span>':' <span class="warn">差額 '+yen(target-distributed)+'</span>')+
- '</div><div class="treasury-baseline-grid">'+values.map(x=>
+
+ '</div><details class="treasury-card-fixed-config"><summary>固定費をカード別に割り当てる（今後の支払方法）</summary>'+
+ '<p class="tiny">月々のマスター固定費を、今後どのカードで支払うか指定してください。ローン・現金・銀行引落は「カード払いなし」のままにします。予定金額だけの変更もできます。マスターの原額は変更しません。</p>'+
+ (fixedCandidates(st,draft).length?fixedCandidates(st,draft).map(f=>
+ '<div class="treasury-fixed-assign-row"><div><b>'+esc(f.name)+'</b><small>マスター '+yen(f.base)+'</small></div>'+
+ '<label>予定月額 <input type="number" min="0" step="100" value="'+f.amount+'" data-v170-fixed-amount="'+esc(f.id)+'"></label>'+
+ '<label>支払先 <select data-v170-fixed-route="'+esc(f.id)+'">'+
+ [['direct','カード払いなし'],['rakuten','楽天'],['jal','JAL/DC'],['dcard','dカード']].map(([k,v])=>
+ '<option value="'+k+'" '+(f.assigned===k?'selected':'')+'>'+v+'</option>').join('')+'</select></label></div>'
+ ).join(''):'<p class="tiny">対象の月額固定費マスターはありません。</p>')+
+ '</details><div class="treasury-baseline-grid">'+values.map(x=>
  '<article class="treasury-baseline-row"><div class="treasury-baseline-title"><b>'+x.label+'</b><span>配分案を編集</span></div>'+
  '<div class="field" style="width:100%;margin:13px 0 7px"><label>家族費の配分額</label><input type="number" min="0" step="1000" data-v170-card="'+x.key+'" value="'+x.variable+'"></div>'+
  '<div class="tiny">このカードで払う月額固定費：'+yen(x.fixedTotal)+'</div>'+
@@ -233,12 +251,16 @@ function mount(){
        catch(err){flash('ファイルを読み込めません：'+String(err.message||err))}
        return;
      }
-     if(e.target.matches?.('[data-v170-field], [data-v170-card]')){
+     if(e.target.matches?.('[data-v170-field], [data-v170-card], [data-v170-fixed-route], [data-v170-fixed-amount]')){
        const snapshot=structuredClone(draft||blank());
        for(const key of ['family_daily_budget','homecoming_card_budget']){
          const input=root.querySelector('[data-v170-field="'+key+'"]');if(input)snapshot[key]=Number(input.value);
        }
        for(const key of KEYS){const input=root.querySelector('[data-v170-card="'+key+'"]');if(input)snapshot.by_card[key]=Number(input.value)}
+       snapshot.fixed_card_assignments={...(snapshot.fixed_card_assignments||{})};
+       snapshot.fixed_projection_overrides={...(snapshot.fixed_projection_overrides||{})};
+       for(const inp of root.querySelectorAll('[data-v170-fixed-route]'))snapshot.fixed_card_assignments[inp.dataset.v170FixedRoute]=inp.value;
+       for(const inp of root.querySelectorAll('[data-v170-fixed-amount]'))snapshot.fixed_projection_overrides[inp.dataset.v170FixedAmount]=Number(inp.value);
        draft=snapshot;redraw();
      }
    });

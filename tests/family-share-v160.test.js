@@ -47,6 +47,7 @@ const snapshot=window.householdFamilyShareV160.makeSnapshot();
 assert.equal(snapshot.period_start,'2026-10-16');
 assert.equal(snapshot.period_end,'2026-11-17');
 assert.equal(snapshot.variable,1700);
+assert.equal(snapshot.schema_version,2);
 assert.equal(snapshot.undetermined,300);
 assert.equal(snapshot.review_count,2);
 assert.equal(snapshot.source_revision,17);

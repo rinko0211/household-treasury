@@ -72,6 +72,7 @@ function showBreakdown(v){
 }
 function render(d){
  const v=d.snapshot,spend=Number(v.variable)||0,budget=Number(d.budget)||0;
+ $('legacyHint').hidden=Number(v.schema_version||1)>=2&&Array.isArray(v.categories)&&v.categories.every(c=>Array.isArray(c.subcategories));
  $('period').textContent=v.period_start.replaceAll('-','/')+' 〜 '+v.period_end.replaceAll('-','/');
  $('spent').textContent=money(spend);
  $('budgetSection').hidden=budget===0;

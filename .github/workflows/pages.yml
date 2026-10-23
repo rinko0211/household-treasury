@@ -43,6 +43,7 @@ jobs:
           set -euo pipefail
           node tests/treasury-ledger-v145.test.js
           node tests/expense-unified-v148.test.js
+          node tests/continuous-transaction-editor-v167.test.cjs
           node tests/expense-nature-rules-v152.test.js
           node tests/verified-correction-v149.test.js
           node tests/cycle-audit-reconciliation-v153.test.js

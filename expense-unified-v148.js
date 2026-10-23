@@ -51,7 +51,7 @@ function referenceFor(st,viewMonth,seasonal){
 }
 function fixedReference(st,viewMonth){return referenceFor(st,viewMonth,false)}
 function seasonalReference(st,viewMonth){return referenceFor(st,viewMonth,true)}
-let cycle='payday',lens='economic',month='',openBucket='',openCategory='',openSubcategory='',groups=[],annualOpen=false;
+let cycle='payday',lens='economic',month='',openBucket='',openCategory='',openSubcategory='',groups=[],annualOpen=false,reviewOpen=false;
 function budgetReference(st,viewMonth){
  const fixed=fixedReference(st,viewMonth);
  let living=0,ideco=0,investment=0;
@@ -272,6 +272,7 @@ function detailPanel(bucket){
 }
 function render(){
  if(!mount())return false;
+ const priorReview=$('hubReviewV157');if(priorReview)reviewOpen=!!priorReview.open;
  if(!month)month=initialMonth();
  const st=stateNow(),ul=window.householdUsageLedgerV157;
  if(!ul){$('expenseHubV148').innerHTML='<div class="hub-note">利用日基準の集計処理を読み込み中です。</div>';return false}
@@ -335,7 +336,7 @@ function render(){
  }
  html+='</div>';
  if(economic){
-   html+='<details class="hub-note" id="hubReviewV157"><summary style="cursor:pointer;font-weight:700">'+
+   html+='<details class="hub-note" id="hubReviewV157"'+(reviewOpen?' open':'')+'><summary style="cursor:pointer;font-weight:700">'+
      '要確認：'+usage.reviewCount+'件（支出への追加加算なし）</summary>'+
      '<p class="hub-muted">これらは支出に計上済みであり、別途加算しません。理由を確認し、下の「この明細を確認・編集」から確定してください。保存後も残る場合は固定・変動の個別指定やチャージ判定をご確認ください。</p>'+
      usage.flags.slice(0,100).map(r=>{
@@ -379,6 +380,7 @@ function render(){
 }
 function bind(root){
  const annually=$('hubAnnualV148');if(annually)annually.addEventListener('toggle',()=>{annualOpen=annually.open});
+ const review=$('hubReviewV157');if(review)review.addEventListener('toggle',()=>{reviewOpen=review.open});
  root.querySelectorAll('[data-hub-cycle]').forEach(btn=>btn.addEventListener('click',()=>{
    if(cycle===btn.dataset.hubCycle)return;
    cycle=btn.dataset.hubCycle;openBucket='';openCategory='';openSubcategory='';render();
@@ -408,6 +410,39 @@ function bind(root){
    else window.alert?.('明細編集機能の読み込みが完了していません。再読み込みしてください。');
  }));
 }
+// Keep the edited row's surrounding disclosure and position stable even
+// though saving replaces the expense hub's DOM. Capture the NEXT visible edit
+// before the row is regrouped (e.g. variable -> fixed).
+function captureEditContext(kind,id){
+ const root=$('expenseHubV148'),page=$('expenses');
+ if(!root||!page?.classList?.contains('active'))return null;
+ const all=[...root.querySelectorAll('[data-hub-edit]')];
+ const index=all.findIndex(el=>el.dataset.hubEdit===String(kind)&&el.dataset.hubEditid===String(id));
+ const next=index>=0&&index+1<all.length?all[index+1]:null;
+ const anchor=root.querySelector('[data-hub-bucket][aria-expanded="true"]');
+ const rect=anchor?.getBoundingClientRect?.();
+ const scrollY=Number(window.scrollY??window.pageYOffset);
+ return {
+   next:next?{kind:String(next.dataset.hubEdit),id:String(next.dataset.hubEditid)}:null,
+   scrollY:Number.isFinite(scrollY)?scrollY:null,
+   anchorBucket:anchor?.dataset.hubBucket||'',
+   anchorTop:Number.isFinite(rect?.top)?rect.top:null,
+   cycle,lens,month,openBucket,openCategory,openSubcategory
+ };
+}
+function restoreEditContext(context){
+ if(!context||!$('expenses')?.classList?.contains('active'))return;
+ // Selection state is intentionally not reset by render(). If the selected
+ // category was emptied by reclassification, render can collapse only it.
+ const root=$('expenseHubV148');
+ const anchor=[...root?.querySelectorAll('[data-hub-bucket]')||[]]
+    .find(el=>el.dataset.hubBucket===context.anchorBucket);
+ const rect=anchor?.getBoundingClientRect?.();
+ if(Number.isFinite(context.anchorTop)&&Number.isFinite(rect?.top)&&typeof window.scrollBy==='function')
+   window.scrollBy(0,rect.top-context.anchorTop);
+ else if(context.scrollY!==null&&Number.isFinite(context.scrollY)&&typeof window.scrollTo==='function')
+   window.scrollTo(0,context.scrollY);
+}
 function boot(){
  if(!engine()){setTimeout(boot,90);return}
  if(!month)month=initialMonth();
@@ -418,6 +453,6 @@ function boot(){
  window.addEventListener('focus',()=>{if($('expenses')?.classList.contains('active'))render()});
  if($('expenses')?.classList.contains('active'))render();
 }
-window.householdExpenseUnifiedV148={mount,render,calculate,usageBuckets,subgroups,categoryGroups,rowDetails,fixedReference,seasonalReference,budgetReference,masterNature,getSelection:()=>({cycle,lens,month,openBucket,openCategory,openSubcategory})};
+window.householdExpenseUnifiedV148={mount,render,calculate,usageBuckets,subgroups,categoryGroups,rowDetails,fixedReference,seasonalReference,budgetReference,masterNature,captureEditContext,restoreEditContext,getSelection:()=>({cycle,lens,month,openBucket,openCategory,openSubcategory})};
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});else setTimeout(boot,0);
 })();

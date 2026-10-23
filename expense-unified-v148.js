@@ -419,7 +419,7 @@ function captureEditContext(kind,id){
  const all=[...root.querySelectorAll('[data-hub-edit]')];
  const index=all.findIndex(el=>el.dataset.hubEdit===String(kind)&&el.dataset.hubEditid===String(id));
  const next=index>=0&&index+1<all.length?all[index+1]:null;
- const anchor=root.querySelector('[data-hub-bucket][aria-expanded="true"]');
+ const anchor=root.querySelector?.('[data-hub-bucket][aria-expanded="true"]');
  const rect=anchor?.getBoundingClientRect?.();
  const scrollY=Number(window.scrollY??window.pageYOffset);
  return {

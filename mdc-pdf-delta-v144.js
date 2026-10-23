@@ -14,7 +14,7 @@
     String(date||''),norm(merchant),Math.abs(Number(amount)||0),
     String(billing||''),Number(installment)||0
   ].join('|');
-  const rowSig=x=>signature(x.purchase_date,x.merchant_raw||x.merchant_normalized,x.original_amount,x.billing_month,x.installment_number);
+  const rowSig=x=>x.mdc_pdf_signature_v168||signature(x.purchase_date,x.merchant_raw||x.merchant_normalized,x.original_amount,x.billing_month,x.installment_number);
   const cardId=x=>String(x.pdf_card_identity||'').normalize('NFKC').trim();
   const pdfSource=x=>/^MDC_PDF_/i.test(String(x?.source_file||''))||!!x?.pdf_card_identity;
   const isMdcCard=x=>norm(x?.card||'')==='MUFGDCJAL'||pdfSource(x);
@@ -50,6 +50,24 @@
       throw Error('MDC-D05: 別カード・別請求月が混在しています。');
     return collected;
   };
+  function receiptMatch(st,r,used){
+    // Payment settlement itself is never a purchase. Absorb only a confirmed
+    // JAL/QUICPay receipt and only if the PDF evidence is unique.
+    const name=norm(r.merchant),day=Date.parse(r.date+'T00:00:00Z');
+    const rows=(st.purchaseEvents||[]).map((x,i)=>({x,i})).filter(({x,i})=>{
+      if(used.has(i)||pdfSource(x)||x.count_in_spending===false||
+        x.reconciliation_status==='ABSORBED_DUPLICATE')return false;
+      if(String(x.card||'')!=='MUFG/DC/JAL'||String(x.payment_method||'').toUpperCase()!=='QUICPAY')return false;
+      if(Math.abs(Number(x.original_amount)||0)!==r.amount)return false;
+      if(!Number.isFinite(day)||!Number.isFinite(Date.parse(x.purchase_date+'T00:00:00Z'))||
+         Math.abs(Date.parse(x.purchase_date+'T00:00:00Z')-day)>3*86400000)return false;
+      const receipt=norm(x.merchant_raw||x.merchant_normalized);
+      if(!receipt||!name)return false;
+      if(receipt.includes('セブンイレブン')&&name.includes('セブンイレブン'))return true;
+      return receipt.length>=5&&(receipt.includes(name)||name.includes(receipt));
+    });
+    return rows;
+  }
   const groupBy=(xs,fn)=>{
     const m=new Map();for(const x of xs){const k=fn(x),l=m.get(k)||[];l.push(x);m.set(k,l)}return m;
   };
@@ -78,7 +96,7 @@
         '種類あります。カード識別名が変わった可能性があるため取込を停止しました。以前と同じカードなら、その識別名を入力してください。別カードなら「別カードとして登録」を明示してください。');
     }
     const grouped=groupBy(entries,r=>r.key),used=new Set();
-    let duplicate=0,upgraded=0;
+    let duplicate=0,upgraded=0,receiptAbsorbed=0;
     for(const [key,group] of grouped){
       const r=group[0];
       const candidates=existing.map((x,i)=>({x,i})).filter(({x})=>isMdcCard(x)&&rowSig(x)===key);
@@ -98,6 +116,26 @@
         if(match){
           used.add(match.i);duplicate++;
           if(!cardId(match.x)){updates.push({index:match.i,identity});upgraded++}
+          continue;
+        }
+        const receipts=receiptMatch(st,r,used);
+        if(receipts.length>1){
+          issues.push('MDC-R18: '+r.date+' '+r.merchant+' '+r.amount+
+            '円の領収書が複数一致します。自動吸収を中止し、元明細を確認してください。');
+          continue;
+        }
+        if(receipts.length===1){
+          const candidate=receipts[0],old=candidate.x;
+          if(old.card_last4&&/\\d{4}/.test(identity)&&!identity.includes(String(old.card_last4))){
+            issues.push('MDC-R18: カード末尾が一致しません。'+r.date+' '+r.merchant);
+            continue;
+          }
+          used.add(candidate.i);
+          updates.push({index:candidate.i,identity,
+            receiptPdf:{key:r.key,date:r.date,merchant:r.merchant,amount:r.amount,
+              billing:r.billing,payDate:r.payDate,inst:r.inst,count:r.count,occurrence:occurrenceRow.occurrence,
+              sourceFile:fileName}});
+          duplicate++;receiptAbsorbed++;
           continue;
         }
         // A prior duplicated import may already contain this ordinal twice.
@@ -123,7 +161,7 @@
     }
     return {read:entries.length,added:additions.length,duplicates:duplicate,upgraded,issues:[...new Set(issues)],additions,updates,
       billing_month:entries[0].billing,identity,conflicts,
-      importedMonths:[...new Set(entries.map(x=>x.date.slice(0,7)))].sort()};
+      importedMonths:[...new Set(entries.map(x=>x.date.slice(0,7)))].sort(),receiptAbsorbed};
   }
   function dryRun(st,entries,sourceFile){return plan(st,entries,sourceFile)}
   function importScoped(src,file){
@@ -133,10 +171,31 @@
     if(!st||!Array.isArray(st.purchaseEvents))throw Error('MDC-D06: 保存先の取引データが取得できません。');
     const result=plan(st,entries,file?.name||'');
     if(result.issues.some(x=>x.startsWith('MDC-D11:')))throw Error(result.issues.find(x=>x.startsWith('MDC-D11:')));
+    if(result.issues.some(x=>x.startsWith('MDC-R18:')))throw Error(result.issues.find(x=>x.startsWith('MDC-R18:')));
     // Transactional: validation and dedup decisions precede all mutations.
     for(const u of result.updates){
       const x=st.purchaseEvents[u.index];
-      if(x&&!cardId(x)){x.pdf_card_identity=u.identity;x.pdf_statement_migrated_v144=true}
+      if(!x)throw Error('MDC-R19: 照合対象の取引を取得できません');
+      if(u.receiptPdf){
+        const evidence=u.receiptPdf;
+        x.mdc_pdf_signature_v168=evidence.key;
+        x.mdc_pdf_purchase_date=evidence.date;
+        x.mdc_pdf_merchant_raw=evidence.merchant;
+        x.mdc_pdf_source_file=evidence.sourceFile;
+        x.mdc_pdf_statement_ordinal=evidence.occurrence;
+        x.mdc_import_v144=true;
+        x.pdf_card_identity=u.identity;
+        x.receipt_reconciliation_pending=false;
+        x.receipt_absorbed_v168=true;
+        x.billing_month=evidence.billing;
+        x.expected_settlement_date=evidence.payDate;
+        x.settlement_due_date=evidence.payDate;
+        x.installment_count=evidence.count;
+        x.installment_number=evidence.inst;
+        // Preserve the original receipt date/merchant and source_file.
+        // The statement evidence is stored separately and reimports use
+        // mdc_pdf_signature_v168 instead of changing economic purchase date.
+      }else if(!cardId(x)){x.pdf_card_identity=u.identity;x.pdf_statement_migrated_v144=true}
     }
     for(const row of result.additions){
       st.purchaseEvents.push(row);
@@ -145,7 +204,7 @@
       });
     }
     return {source:'MDC/JAL PDF',detectedType:'mdc_pdf',read:result.read,added:result.added,
-      duplicates:result.duplicates,upgraded:result.upgraded,review:result.additions.filter(x=>x.confidence<.7).length,
+      duplicates:result.duplicates,upgraded:result.upgraded,receiptAbsorbed:result.receiptAbsorbed,review:result.additions.filter(x=>x.confidence<.7).length,
       latest:entries.map(x=>x.date).sort().at(-1)||'',billing_month:result.billing_month,
       importedMonths:result.importedMonths,issues:result.issues,incrementalDedup:true};
   }

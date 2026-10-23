@@ -99,7 +99,8 @@
     let duplicate=0,upgraded=0,receiptAbsorbed=0;
     for(const [key,group] of grouped){
       const r=group[0];
-      const candidates=existing.map((x,i)=>({x,i})).filter(({x})=>isMdcCard(x)&&rowSig(x)===key);
+      const candidates=existing.map((x,i)=>({x,i})).filter(({x})=>isMdcCard(x)&&rowSig(x)===key&&
+        String(x.payment_method||'').toUpperCase()!=='QUICPAY');
       const scoped=candidates.filter(({x})=>cardId(x)===identity);
       const legacy=candidates.filter(({x})=>!cardId(x) && (
         String(x.source_file||'')===r.oldFilename||
@@ -126,7 +127,8 @@
         }
         if(receipts.length===1){
           const candidate=receipts[0],old=candidate.x;
-          if(old.card_last4&&/\\d{4}/.test(identity)&&!identity.includes(String(old.card_last4))){
+          const cardTail=(identity.match(/(?:末尾|last4|下4桁)\D*(\d{4})$/i)||identity.match(/^(\d{4})$/)||[])[1];
+          if(old.card_last4&&cardTail&&cardTail!==String(old.card_last4)){
             issues.push('MDC-R18: カード末尾が一致しません。'+r.date+' '+r.merchant);
             continue;
           }

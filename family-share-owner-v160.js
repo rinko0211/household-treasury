@@ -8,7 +8,7 @@ const STORAGE='householdFamilyShareTokenV160';
 const yen=v=>new Intl.NumberFormat('ja-JP',{style:'currency',currency:'JPY',maximumFractionDigits:0}).format(Number(v)||0);
 const $=s=>document.getElementById(s);
 const TODAY=()=>new Intl.DateTimeFormat('sv-SE',{timeZone:'Asia/Tokyo',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
-let shareExists=false,enabled=false,budget=0,busy=false,autoTimer=null,lastPublishedRevision=-1,initialAutoScheduled=false;
+let shareExists=false,enabled=false,budget=0,busy=false,autoTimer=null,lastPublishedRevision=-1,initialAutoScheduled=false,lastPublishedVersion=0;
 const context=()=>window.householdShareSyncContext?.()||{};
 function setNote(msg,warning=false){const el=$('familyShareNoteV160');if(el){el.textContent=msg;el.style.color=warning?'#f8b66d':'#bcd2e7'}}
 function storeToken(token){if(/^[a-f0-9]{64}$/.test(token))localStorage.setItem(STORAGE,token)}
@@ -82,6 +82,7 @@ function makeSnapshot(){
  const revision=Number(ctx.revision);
  if(!Number.isSafeInteger(revision)||revision<1)throw Error('クラウド同期のrevisionを確認できません。');
  return {
+  schema_version:2,
   period_start:calc.start,period_end:calc.end,source_revision:revision,variable,
   undetermined:Math.round(Number(calc.normalUndetermined)||0),
   review_count:Math.max(0,Math.round(Number(calc.reviewCount)||0)),
@@ -93,11 +94,13 @@ async function refreshStatus(silent=false){
  try{
   const r=await api('owner');
   shareExists=!!r.exists;enabled=!!r.enabled;budget=Number(r.budget)||0;
+  const legacyShared=enabled&&Number(r.snapshot_version||1)<2;
   if($('familyShareBudgetV160'))$('familyShareBudgetV160').value=String(budget);
   if($('familyShareCreateV160'))$('familyShareCreateV160').textContent=shareExists?'リンクを再発行':'共有リンクを作成';
   if($('familyShareStopV160'))$('familyShareStopV160').disabled=!enabled;
   showLink();
-  if(!silent)setNote(enabled?'共有中・最終更新 '+(r.published_at?new Date(r.published_at).toLocaleString('ja-JP'):'未更新'):'共有は停止中です。');
+  if(legacyShared)setNote('共有された細目は旧形式です。クラウド同期後に自動更新します。更新されない場合は「最新の変動費を反映」を押してください。',true);
+  else if(!silent)setNote(enabled?'共有中・最終更新 '+(r.published_at?new Date(r.published_at).toLocaleString('ja-JP'):'未更新'):'共有は停止中です。');
   if(enabled&&context().ready&&!initialAutoScheduled&&!busy){initialAutoScheduled=true;setTimeout(()=>publish(true).catch(e=>setNote('共有の自動更新に失敗：'+e.message,true)),1700)}
  }catch(e){if(!silent)setNote(e.message,true)}
 }
@@ -105,9 +108,9 @@ async function publish(silent=false){
  const ctx=context();
  if(!ctx.ready||ctx.blocked){if(!silent)throw Error('家計アプリのクラウド同期が完了してから実行してください。');return}
  const snapshot=makeSnapshot();
- if(silent&&snapshot.source_revision===lastPublishedRevision)return;
+ if(silent&&snapshot.source_revision===lastPublishedRevision&&lastPublishedVersion===2)return;
  const r=await api('publish',{snapshot});
- enabled=!!r.enabled;lastPublishedRevision=snapshot.source_revision;
+ enabled=!!r.enabled;lastPublishedRevision=snapshot.source_revision;lastPublishedVersion=2;
  showLink();
  setNote('更新済み：変動費 '+yen(snapshot.variable)+' / '+snapshot.period_start+'〜'+snapshot.period_end+
   (snapshot.undetermined?'（未分類 '+yen(snapshot.undetermined)+' あり）':''));
@@ -137,7 +140,7 @@ function mount(){
   '<button class="btn secondary" id="familyShareCopyV160" disabled>URLをコピー</button>'+
   '<button class="btn secondary" id="familyShareStopV160" disabled>共有停止</button></div>'+
   '<div id="familyShareNoteV160" class="tiny" style="margin-top:12px">ログイン状態を確認しています。</div>'+
-  '<div class="tiny" style="margin-top:8px">自動反映はメインアプリのクラウド同期後に行われます。別端末では閲覧URLを再表示できないため、再発行が必要です。</div>';
+  '<div class="tiny" style="margin-top:8px">クラウド同期後にカテゴリ内訳まで自動反映します。更新されない場合は「最新の変動費を反映」を押してください。共有URLの再発行は不要です。</div>';
  cloud.parentElement.appendChild(panel);
  $('familyShareCreateV160').onclick=()=>guarded(async()=>{
   if(!context().ready||context().blocked)throw Error('まず家計アプリのクラウド同期を完了してください。');
@@ -169,8 +172,16 @@ function mount(){
 }
 window.addEventListener('householdShareCloudSyncedV160',()=>{
  clearTimeout(autoTimer);
- if(!enabled||busy)return;
- autoTimer=setTimeout(()=>publish(true).catch(e=>setNote('自動共有に失敗：'+e.message,true)),2000);
+ if(busy)return;
+ // Cloud initialization can finish AFTER the Settings card's earlier
+ // status checks. Resolve the share's actual enabled state before publishing.
+ autoTimer=setTimeout(async()=>{
+   try{
+     if(!context().ready||context().blocked)return;
+     if(!shareExists||!enabled)await refreshStatus(true);
+     else await publish(true);
+   }catch(e){setNote('共有の自動更新に失敗：'+e.message,true)}
+ },450);
 });
 window.addEventListener('focus',()=>{if($('familySharePanelV160'))refreshStatus(true)});
 window.householdFamilyShareV160={mount,makeSnapshot,publish,refreshStatus};

@@ -247,7 +247,16 @@ QA: `node tests/expense-unified-v148.test.js`、`node tests/continuous-transacti
 - Schema: `{format, family_daily_budget, homecoming_card_budget, by_card: {rakuten,jal,dcard}, fixed_projection_overrides?: {masterId: projectedAmount}, fixed_card_assignments?: {masterId: 'rakuten'|'jal'|'dcard'|'direct'}}`. `by_card` must sum to the two family reference budgets; this is a math integrity check, not a spending limit.
 - Each card forecast is **allocated family purchases + active monthly ordinary fixed expenses planned for that card**. Settings exposes a future payment-card selector and a projected amount for each recurring fixed master. A selection changes only the forecast (not the source fixed master). Annual expenses, non-consumption transfers and car loan principal are never counted as card consumption. `fixed_projection_overrides` adjust the *projection only*; the original fixed-expense master is unchanged.
 - An import/entry only previews the impact. Writing card monthly standard estimates requires explicit confirmation, a recovery snapshot, and usual local/cloud sync. Confirmed bills, explicit month overrides, underlying receipts, settlement history and account balances are preserved. Revolving card configurations and ambiguous card identities block applying recommendations.
-- Regression: `node tests/card-budget-allocation-v170.test.cjs`, `node tests/expense-unified-v148.test.js`, plus Pages CI. Settings has one budget-planning panel; outdated historic-mean UI and source removed.
+- Historical note: the v170 budget-planning widget was subsequently retired in v171 at the user's request. Existing saved card master baseline values are preserved; only the standalone suggestion/forecast-assignment UI and its unused code were removed.
 
 
 - v170 displays **「固定費・ローン」** as a single usage bucket with both regular fixed consumption and debt principal in its amount. Drilldown separates major categories of ordinary fixed bills from 「ローン・借入返済（消費外）」 and then individual loan lines; the economic consumption subtotal remains unchanged. The monthly reference-budget summary likewise combines the two in one fixed-commitments line, without adding principal twice.
+
+
+## v171 — 設定画面の簡素化と横はみ出し対策
+
+- Settingsの「カード引落標準額を家計予算から設計」推奨・試算ブロックを削除。v169の旧推奨表示も復活させない。旧画面のスクリプト・テスト・CSSは削除し、配信キャッシュも切り替えた。**既存のカードマスターに設定済みの標準額、通常のカード設定機能、元の家計データ、バックアップ、クラウド同期は変更しない**。
+- Settingsにおける固定費・カード設定の2〜3列インライン指定をレスポンシブCSSへ移動。狭い画面では1列にして、入力幅、セレクト、ボーナス月額入力、カード名や長い明細説明、編集/削除ボタンの折返しを調整。
+- 古い明細編集のインライン横2〜3列フォームも、幅560px以下ではCSSを優先して1列化する。ルート要素のoverflowを隠してボタンに触れなくする方法ではなく、グリッドのmin-content制約とflexの折返しを解消する。
+- フォームに保存・編集するロジック、固定費・ローン会計、支出集計、カード支払実績の仕様に変更なし。
+- 回帰：`node tests/settings-mobile-layout-v171.test.cjs` 及び既存のCIを実行。

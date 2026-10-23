@@ -205,6 +205,7 @@ function mount(){
  // editable using the v108 semantic editor in the inline details below.
  const legacy=$('expenseTabRootV129');
  if(legacy)legacy.remove();
+ const placeholder=$('expenseCurrentV169');if(placeholder)placeholder.remove();
  const oldWrapper=$('expenseLegacyDetailsV148');
  if(oldWrapper)oldWrapper.remove();
  return true;

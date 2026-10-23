@@ -9,10 +9,10 @@ const norm=s=>String(s||'').normalize('NFKC').replace(/[\s　()（）\[\]［］_
 const profiles=Object.freeze({
  rakuten:{label:'楽天カード',amount:75000,confidence:'参考水準',
    details:'2026年9月請求124,012円と10月請求25,517円の中間（74,765円を千円単位で丸め）。引越分割・前年購入を含む1月52万円は除外。'},
- jal:{label:'JAL/DC',amount:40000,confidence:'暫定水準',
-   details:'9月のリボ完済221,823円を除外。10月確定10,846円と11月PDF 63,736円の中間（37,291円）を安全側で40,000円。'},
+ jal:{label:'JAL/DC',amount:70000,confidence:'暫定水準',
+   details:'9月のリボ完済221,823円を除外。9月・10月のJALカード利用80,504円／78,441円と11月PDF 63,736円を参考に70,000円と推定。'},
  dcard:{label:'dカード',amount:20000,confidence:'暫定水準',
-   details:'既存マスター50,000円に対し、11月の月別見込は20,000円。妻スマホ料金が約14,000円→3,000円へ縮小予定。明細未収録月がある。'}
+   details:'古いマスター50,000円から、最新10月23日バックアップでは20,000円へ変更済み。妻スマホ料金が約14,000円→3,000円へ縮小予定。明細未収録月がある。'}
 });
 function keyOf(card){
  const a=norm(card?.name||card?.importLabel);

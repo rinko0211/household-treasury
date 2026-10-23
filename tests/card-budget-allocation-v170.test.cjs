@@ -26,6 +26,8 @@ const st={masters:{cards:[
   cadence:'MONTHLY',paymentRoute:'CARD',paymentCard:'KABU&'},
  {id:'fx-loan',name:'Car loan',amount:50000,economic_type:'DEBT_PRINCIPAL',expense_scope:'DEBT',
   cadence:'MONTHLY',paymentRoute:'DIRECT'},
+ {id:'fx-household-envelope',name:'家族カード生活費',amount:250000,economic_type:'EXPENSE',expense_scope:'NORMAL',
+  cadence:'MONTHLY',paymentRoute:'CARD',paymentCard:'Rakuten'},
  {id:'fx-annual',name:'Annual',amount:60000,economic_type:'EXPENSE',expense_scope:'NORMAL',
   cadence:'ANNUAL',paymentRoute:'CARD',paymentCard:'Rakuten'}
  ]},purchaseEvents:[{original_amount:12345}],cardSettlements:[{amount:5000}],assets:{bank:50000}};
@@ -33,6 +35,7 @@ const p=api.preview(st,plan);
 assert.equal(p.familyCard,220000);
 assert.equal(p.variableTotal,220000);
 assert.equal(p.fixedTotal,15500);
+assert.equal(api.fixedCandidates(st,plan).some(x=>x.id==='fx-household-envelope'),false,'Family budget envelope must never become a second card fixed charge');
 assert.equal(p.total,235500);
 assert.equal(p.entries.map(x=>x.total).join(','),'98000,114000,23500');
 assert.equal(p.entries[2].fixed.items.find(x=>x.id==='fx-mobile').masterAmount,9000);

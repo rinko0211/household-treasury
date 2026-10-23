@@ -66,3 +66,11 @@ details>summary{cursor:pointer}
 @media(max-width:760px){.top{align-items:flex-start}.app{padding:12px 12px 50px}.card{padding:16px}.card.kpi{min-height:103px}.tabs{margin:10px -12px 16px;padding:5px 12px 9px}.tab{font-size:12px;padding:9px 12px}.treasury-panel-heading .treasury-card-sum{text-align:left}}
 @media(max-width:480px){.form{grid-template-columns:1fr}.top h1{font-size:22px}.top .muted{font-size:11px}#saveStatus{max-width:130px;white-space:normal;text-align:right}.kpi>b{font-size:30px} .treasury-card-sum>b{font-size:24px}}
 @media(prefers-reduced-motion:reduce){*,*:before,*:after{transition:none!important;animation:none!important}}
+
+/* v170: Editable budget-to-card allocation, all values stored privately. */
+.treasury-family-budget-form{grid-template-columns:repeat(2,minmax(0,1fr));margin:14px 0}
+.treasury-budget-check{border:1px solid #35585b;background:#132c32;border-radius:12px;padding:12px 14px;margin-bottom:15px;color:#dae9e8}
+.treasury-baseline-row .field{gap:6px}
+.treasury-baseline-row input{width:100%}
+.treasury-baseline-row .btn{margin-top:auto}
+@media(max-width:620px){.treasury-family-budget-form{grid-template-columns:1fr}.treasury-budget-check{font-size:12px}}

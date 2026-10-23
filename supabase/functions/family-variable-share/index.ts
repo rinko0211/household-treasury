@@ -24,7 +24,7 @@ const MINOR_NAMES:Record<string,string>={"HOUSING.RENT_MORTGAGE":"家賃・住�
 function cleanSnapshot(v:any) {
   if(!v||typeof v!=='object'||Array.isArray(v))throw new Error('集計結果がありません');
   const {period_start,period_end,variable,undetermined,review_count,categories,source_revision}=v;
-  const date=/^\\d{4}-\\d{2}-\\d{2}$/;
+  const date=/^\d{4}-\d{2}-\d{2}$/;
   if(typeof period_start!=='string'||typeof period_end!=='string'||!date.test(period_start)||!date.test(period_end)||period_start>period_end)
     throw new Error('集計期間が不正です');
   if(!numeric(variable,100000000)||!numeric(undetermined,100000000)||!numeric(review_count,100000)||!numeric(source_revision,1000000000))

@@ -26,7 +26,7 @@ function validated(raw){
    family_daily_budget:amount(raw.family_daily_budget,'家族の日常生活費'),
    homecoming_card_budget:amount(raw.homecoming_card_budget,'カード払いの帰省費'),
    by_card:{},
-   fixed_projection_overrides:{}
+   fixed_projection_overrides:{},fixed_card_assignments:{}
  };
  for(const k of KEYS)value.by_card[k]=amount(raw.by_card[k],LABELS[k]);
  if(raw.fixed_projection_overrides!==undefined){
@@ -37,21 +37,52 @@ function validated(raw){
    value.fixed_projection_overrides[id]=amount(v,'固定費予定');
   }
  }
+ if(raw.fixed_card_assignments!==undefined){
+  if(!raw.fixed_card_assignments||Array.isArray(raw.fixed_card_assignments)||
+     typeof raw.fixed_card_assignments!=='object')throw Error('固定費の支払先設定が不正です');
+  for(const [id,k] of Object.entries(raw.fixed_card_assignments)){
+   if(!/^fx-[a-z0-9_-]+$/i.test(id)||!['rakuten','jal','dcard','direct'].includes(k))
+     throw Error('固定費の支払カード指定が不正です');
+   value.fixed_card_assignments[id]=k;
+  }
+ }
  const expected=value.family_daily_budget+value.homecoming_card_budget;
  const supplied=KEYS.reduce((n,k)=>n+value.by_card[k],0);
  if(expected!==supplied)throw Error('3カードへの配分合計 '+yen(supplied)+' が、家族カード予算 '+yen(expected)+' と一致しません。これは支出の上限ではなく配分計算の整合確認です');
  return value;
 }
+function fixedCandidates(st,settings){
+ const fixed=[];
+ for(const x of st?.masters?.fixedExpenses||[]){
+  const id=String(x.id||''),mode=String(x.cadence||'MONTHLY').toUpperCase();
+  const eco=String(x.economic_type||'EXPENSE').toUpperCase();
+  const scope=String(x.expense_scope||x.ordinary_or_special||'NORMAL').toUpperCase();
+  if(!/^fx-[a-z0-9_-]+$/i.test(id)||x.active===false||x.forecastEnabled===false||
+   mode!=='MONTHLY'||eco!=='EXPENSE'||scope!=='NORMAL')continue;
+  const route=String(x.paymentRoute||x.payment_route||'DIRECT').toUpperCase();
+  const masterCard=route==='CARD'?keyOf(x.paymentCard||x.card):null;
+  const assigned=Object.hasOwn(settings.fixed_card_assignments||{},id)?
+      settings.fixed_card_assignments[id]:(masterCard||'direct');
+  const base=Math.max(0,Math.round(Number(x.amount)||0));
+  const amount=Object.hasOwn(settings.fixed_projection_overrides||{},id)?
+     settings.fixed_projection_overrides[id]:base;
+  fixed.push({id,name:String(x.name||'月額固定費'),base,amount,assigned,masterCard});
+ }
+ return fixed;
+}
 function cardFixed(st,key,settings){
- const items=[],overrides=settings.fixed_projection_overrides||{};
+ const items=[],overrides=settings.fixed_projection_overrides||{},assignments=settings.fixed_card_assignments||{};
  for(const fx of st?.masters?.fixedExpenses||[]){
   const route=String(fx.paymentRoute||fx.payment_route||'DIRECT').toUpperCase();
   const cadence=String(fx.cadence||'MONTHLY').toUpperCase();
   const eco=String(fx.economic_type||'EXPENSE').toUpperCase();
   const scope=String(fx.expense_scope||fx.ordinary_or_special||'NORMAL').toUpperCase();
-  if(fx.active===false||fx.forecastEnabled===false||route!=='CARD'||cadence!=='MONTHLY'||
-    eco!=='EXPENSE'||scope!=='NORMAL'||keyOf(fx.paymentCard||fx.card)!==key)continue;
-  const id=String(fx.id||''),raw=Number(fx.amount),future=Object.hasOwn(overrides,id);
+  if(fx.active===false||fx.forecastEnabled===false||cadence!=='MONTHLY'||
+    eco!=='EXPENSE'||scope!=='NORMAL')continue;
+  const id=String(fx.id||'');
+  const planned=Object.hasOwn(assignments,id)?assignments[id]:(route==='CARD'?keyOf(fx.paymentCard||fx.card):null);
+  if(planned!==key)continue;
+  const raw=Number(fx.amount),future=Object.hasOwn(overrides,id);
   if(!Number.isFinite(raw)||raw<0)continue;
   const projected=future?overrides[id]:Math.round(raw);
   items.push({id,name:String(fx.name||'月額固定費'),amount:projected,masterAmount:Math.round(raw),future});
@@ -127,7 +158,7 @@ function apply(settings,keys=KEYS){
 }
 function blank(){
  return {format:FORMAT,family_daily_budget:0,homecoming_card_budget:0,
-  by_card:{rakuten:0,jal:0,dcard:0},fixed_projection_overrides:{}};
+  by_card:{rakuten:0,jal:0,dcard:0},fixed_projection_overrides:{},fixed_card_assignments:{}};
 }
 function readFields(root){
  const obj=draft?structuredClone(draft):blank();
@@ -214,7 +245,7 @@ function mount(){
  }
  redraw();return true;
 }
-window.householdCardBudgetV170={FORMAT,KEYS,LABELS,keyOf,validated,cardFixed,preview,propose,apply,mount,blank};
+window.householdCardBudgetV170={FORMAT,KEYS,LABELS,keyOf,validated,fixedCandidates,cardFixed,preview,propose,apply,mount,blank};
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',mount,{once:true});else setTimeout(mount,0);
 window.addEventListener?.('treasury:pagechange',e=>{if(e.detail?.page==='settings')setTimeout(mount,0)});
 })();

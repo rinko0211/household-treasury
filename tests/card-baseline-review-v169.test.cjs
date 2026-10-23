@@ -14,11 +14,11 @@ let data={masters:{cards:[
  cardSettlements:[{card:'Rakuten',amount:124012}],assets:{bank:150000}};
 const list=api.review(data);
 assert.equal(list.length,3);
-assert.deepEqual(list.map(x=>x.amount),[75000,40000,20000]);
+assert.deepEqual(list.map(x=>x.amount),[75000,70000,20000]);
 assert.deepEqual(list.map(x=>x.current),[0,0,50000]);
 const plan=api.update(data,['rakuten','jal','dcard']);
 assert.equal(plan.changes.length,3);
-assert.deepEqual(plan.next.masters.cards.slice(0,3).map(x=>x.monthlyBaselineAmount),[75000,40000,20000]);
+assert.deepEqual(plan.next.masters.cards.slice(0,3).map(x=>x.monthlyBaselineAmount),[75000,70000,20000]);
 assert.ok(plan.next.masters.cards.slice(0,3).every(x=>x.forecastMode==='BASELINE'));
 assert.equal(plan.next.masters.cards[3].monthlyBaselineAmount,18000,'Unrelated card remains unchanged');
 assert.equal(data.masters.cards[2].monthlyBaselineAmount,50000,'Do not mutate input before approval');

@@ -193,10 +193,12 @@
           if(!engine?.previewPdf){saveBtn.disabled=true;previewBox.textContent='差分照合機能が読み込まれていません。';return null}
           try{
             const delta=engine.previewPdf(p,identity,otherCard.checked);
+            const cross=window.householdJalCrossSourceV166?.scanPdfPreview?.(p)||[];
             const blocked=delta.issues.some(x=>x.startsWith('MDC-D11:'));
             previewBox.innerHTML=
               '<b>今回の差分：新規 '+delta.added+'件／登録済み '+delta.duplicates+'件／旧版識別更新 '+delta.upgraded+'件</b>'+
-              '<div class="tiny">同じ明細は再登録されません。ファイルの更新日・ファイル名は重複判定に使いません。</div>'+
+              '<div class="tiny">PDF同士の重複は再登録しません。CSV・既存現金・購入記録との照合候補は別表示します。</div>'+
+              (cross.length?'<div class="note" style="margin-top:8px;color:#ffc78d">既存CSV・購入記録と同じ日付・金額の候補 '+cross.length+'組。PDF取込後に下の「CSV・購入記録とJAL PDFの重複照合」で、同じ買い物か確認して修正してください。自動除外はしません。</div>':'')+
               (delta.issues.length?'<div class="tiny" style="margin-top:7px">'+
                 delta.issues.map(esc).join(' / ')+'</div>':'')+
               (delta.conflicts?.length&&blocked?'<button class="btn secondary" id="mdcPdfUseExistingV144" type="button" style="margin-top:8px">以前のカード識別名「'+esc(delta.conflicts[0].identity)+'」を使う</button>':'');
@@ -214,6 +216,9 @@
           if(typeof importOne!=='function'){status.textContent='既存の取込エンジンが利用できません。';return;}
           const verifiedDelta=checkDelta();
           if(!verifiedDelta)return;
+          const cross=window.householdJalCrossSourceV166?.scanPdfPreview?.(p)||[];
+          if(cross.length&&!confirm('CSV・現金・購入記録と同じ利用日・金額の候補が'+cross.length+
+            '組あります。別の買い物かもしれません。PDFを保存後、Import内の「CSV・購入記録とJAL PDFの重複照合」で元記録を確認して整理する必要があります。続けますか？'))return;
           saveBtn.disabled=true;status.textContent='差分照合と登録中…';
           try{
             const identity=String(card.querySelector('#mdcPdfCardLabelV139')?.value||'').normalize('NFKC').trim();
@@ -223,10 +228,15 @@
             const name=await syntheticFilename(p,csv);
             const synthetic=new File([csv],name,{type:'text/csv;charset=utf-8'});
             const result=await importOne(synthetic);
+            // The ledger was saved; never silently drop an existing receipt.
+            // Prompt a manual one-to-one cross-source review.
+            const remainingCross=window.householdJalCrossSourceV166?.scan?.()||[];
+
             const months=[...new Set(p.entries.map(e=>e.date.slice(0,7)))].sort();
             const counts=Object.fromEntries(months.map(month=>[month,p.entries.filter(e=>e.date.startsWith(month)).length]));
             status.innerHTML='<b>取込済み</b>：新規'+Number(result.added||0)+'件、既存'+Number(result.duplicates||0)+'件、旧版データ識別更新'+Number(result.upgraded||0)+'件。'+
               ((result.issues||[]).length?'<div class="tiny">'+(result.issues||[]).map(esc).join(' / ')+'</div>':'')+
+              (remainingCross.length?'<div class="note" style="color:#ffd38e">CSV等との重複候補 '+remainingCross.length+'組があります。Importの既存PDF重複点検欄から同じ購入だけを選択して整理してください。</div>':'')+
               '<div class="tiny">利用月：'+months.map(m=>m+'（'+counts[m]+'件）').join('、')+'。支払月'+p.paymentDate.slice(0,7)+'ではありません。</div>'+
               '<div class="controls" id="mdcPdfMonthLinksV139"></div>';
             const host=card.querySelector('#mdcPdfMonthLinksV139');

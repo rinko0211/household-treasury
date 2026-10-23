@@ -241,6 +241,9 @@
       window.dispatchEvent(new CustomEvent('treasury:expenses-imported',{detail:{months:[],source:'MDC_PDF_REPAIR'}}));
       mountAudit();
     };
+    // Keep CSV/PDF reconciliation in the existing PDF audit surface,
+    // not a version-specific extra Import picker.
+    window.householdJalCrossSourceV166?.mountInto?.(box);
   }
   window.householdMdcPdfDeltaV144={signature,parse,plan,dryRun,previewPdf,duplicatesAudit,crossCardWarnings,mountAudit};
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',mountAudit,{once:true});

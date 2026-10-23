@@ -56,7 +56,7 @@ function cleanSnapshot(v:any) {
       for(const d of sub.days){
         if(!numeric(d?.amount,100000000)||!numeric(d?.count,100000)||d.count<1)throw new Error('利用日内訳の金額が不正です');
         const day=String(d?.date||'');
-        if(day!=='undated'&&(!date.test(day)||day<period_start||day>period_end)||dates.has(day))
+        if(day!=='undated'&&!date.test(day)||dates.has(day))
           throw new Error('利用日内訳の日付が不正です');
         dates.add(day);days.push({date:day,amount:d.amount,count:d.count});
       }

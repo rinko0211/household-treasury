@@ -59,10 +59,13 @@ assert.ok(!JSON.stringify(snapshot).includes('merchant'));
 assert.ok(!JSON.stringify(snapshot).includes('source_cash_expense_id'));
 // Execute the Edge Function's pure sanitizer in a Node VM to verify
 // canonical names, strict sums and compatibility with earlier snapshots.
-const piece=server.slice(server.indexOf('const numeric ='),server.indexOf('Deno.serve('))
+const piece=server.slice(server.indexOf('const MAJOR_NAMES'),server.indexOf('Deno.serve('))
  .replace(/const MAJOR_NAMES:Record<string,string>/,'const MAJOR_NAMES')
- .replace(/const MINOR_NAMES:Record<string,string>/,'const MINOR_NAMES');
-const clean=new Function(piece+';return cleanSnapshot;')();
+ .replace(/const MINOR_NAMES:Record<string,string>/,'const MINOR_NAMES')
+ .replace('function cleanSnapshot(v:any)','function cleanSnapshot(v)');
+const clean=new Function('numeric',piece+';return cleanSnapshot;')(
+ (n,max=5000000)=>Number.isSafeInteger(n)&&Number(n)>=0&&Number(n)<=max
+);
 const canonical=clean(JSON.parse(JSON.stringify(snapshot)));
 assert.equal(canonical.categories.find(c=>c.key==='FOOD').label,'食費');
 assert.equal(canonical.categories.find(c=>c.key==='DAILY_GOODS').label,'日用品');

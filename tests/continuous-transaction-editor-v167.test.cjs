@@ -67,6 +67,8 @@ assert.equal(records.purchaseEvents.length,2,'No transaction created');
 assert.equal(modal.dataset.id,'second','Save-and-next opens next original row directly');
 assert.equal(modal.style.display,'block','Modal stays in edit flow');
 assert.equal(modal.nextButton.style.display,'none','Last row does not offer misleading next action');
+// Emulate the browser's next task before the user taps Save again.
+scheduled.shift()?.();
 assert.equal(events.filter(x=>x[0]==='backup').length,1,'Recovery snapshot before save');
 assert.ok(events.some(x=>x[0]==='restore'&&x[1]===610),'Scroll/context restored after first save');
 fields.get('transactionEditorCatV108').value='FOOD';

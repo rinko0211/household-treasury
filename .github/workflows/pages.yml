@@ -116,7 +116,7 @@ jobs:
 
           assert.ok(fs.readFileSync('family/family.js','utf8').includes('管理アプリの「支出」'));
 
-          assert.ok(html.includes('sync-state-sanitizer-v22.js?v=168'));
+          assert.ok(html.includes('sync-state-sanitizer-v22.js?v=171'));
           assert.ok(html.includes('treasury-ledger-v145.js?v=153'));
           assert.ok(sw.includes('household-treasury-v171-settings-fit-remove-recommendations'));
           assert.ok(html.includes('cycle-audit-reconciliation-v153.js?v=161'));
@@ -156,7 +156,7 @@ jobs:
           assert.ok(html.includes('verified-correction-patch-v149.js?v=161'));
           assert.ok(correction.includes('treasuryRecoverySnapshot')&&correction.includes('replaceTreasuryState'));
           for(const path of [
-            'sync-state-sanitizer-v22.js?v=168',
+            'sync-state-sanitizer-v22.js?v=171',
             'expense-nature-rules-v152.js?v=159',
             'purchase-usage-ledger-v157.js?v=158',
             'expense-unified-v148.js?v=169',

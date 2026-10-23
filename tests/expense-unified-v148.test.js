@@ -201,7 +201,7 @@ ok(root.innerHTML.includes('毎月の基本予算（参考）'),'Plan shown sepa
 ok(root.innerHTML.includes('電気'),'Fixed reference contains electricity');
 ok(root.innerHTML.includes('カード払い'),'Card-route reference labeled');
 ok(!fs.readFileSync('index.html','utf8').includes('id="monthlyTreasuryTabV142"'),'Redundant monthly tab removed');
-ok(fs.readFileSync('index.html','utf8').includes('expense-unified-v148.js?v=162'),'Unified hub loaded');
+ok(fs.readFileSync('index.html','utf8').includes('expense-unified-v148.js?v=165'),'Unified hub loaded');
 // v158: fixed and variable are PRESENTATION cost-behavior within economic NORMAL;
 // source category overrides and review badges do not change booked consumption.
 {
@@ -275,4 +275,41 @@ ok(fs.readFileSync('index.html','utf8').includes('expense-unified-v148.js?v=162'
  ok(!css.includes('#expenseHubV148 .hub-group{'),
    'Legacy oversized category card styling retired');
 }
+// v165: flagged purchases must be actionable from the review disclosure,
+// including explicit top-up/transfer checks; warnings aren't new expenses.
+{
+ const old=window.householdUsageLedgerV157.calculate(state,'2026-10','payday');
+ const topup={purchase_id:'topup-flag-demo',card:'CARD_UNIDENTIFIED',
+  purchase_date:'2026-10-20',merchant_raw:'電子マネーチャージ疑い',
+  original_amount:1000,category:'FOOD',subcategory:'OTHER',
+  economic_type:'EXPENSE',spending_class:'NORMAL',billing_month:'2026-12',
+  review_status:'NEEDS_REVIEW',potential_prepaid_topup:true};
+ state.purchaseEvents.push(topup);
+ const now=window.householdUsageLedgerV157.calculate(state,'2026-10','payday');
+ eq(now.consumption,old.consumption+1000,'Review warning counts only the underlying expense');
+ ok(now.flags.some(x=>x.label==='電子マネーチャージ疑い'),
+   'Topup flag included in review list without double counting');
+ app.render();
+ ok(root.innerHTML.includes('チャージ・資金移動の疑い'),
+   'Flagged topup clearly explains why confirmation is needed');
+ ok(root.innerHTML.includes('固定・変動の分類未確定'),
+   'Review shows unresolved cost-behavior reason');
+ ok(root.innerHTML.includes('この明細を確認・編集'),
+   'Review section gives a direct action, not just label and amount');
+ const edit=root.querySelectorAll('[data-hub-edit]').find(x=>x.dataset.hubEditid==='topup-flag-demo');
+ ok(!!edit,'Flagged original purchase has an editor button');
+ edit.click();
+ eq(events[events.length-1][0],'purchase','Review edit routes to purchase editor');
+ eq(events[events.length-1][1],'topup-flag-demo','Review edit targets exact original transaction');
+ topup.economic_type='TRANSFER';topup.potential_prepaid_topup=false;topup.review_status='RESOLVED';
+ const confirmed=window.householdUsageLedgerV157.calculate(state,'2026-10','payday');
+ eq(confirmed.consumption,old.consumption,'Confirmed topup removes spending, not re-booked as another expense');
+ state.purchaseEvents.pop();
+ app.render();
+}
+const semanticEditorSource=fs.readFileSync('semantic-ui-v48.js','utf8');
+ok(semanticEditorSource.includes('transactionEditorTopupV165'),
+   'Semantic editor gives explicit prepaid purchase-versus-transfer decision');
+ok(semanticEditorSource.includes("o.potential_prepaid_topup=false"),
+   'Explicit confirmation can clear the topup warning');
 console.log('PASS '+asserts+' expense unified v148 assertions');

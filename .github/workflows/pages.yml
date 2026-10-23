@@ -43,7 +43,7 @@ jobs:
           set -euo pipefail
           node tests/treasury-ledger-v145.test.js
           node tests/expense-unified-v148.test.js
-          node tests/card-baseline-review-v169.test.cjs
+          node tests/card-budget-allocation-v170.test.cjs
           node tests/continuous-transaction-editor-v167.test.cjs
           node tests/expense-nature-rules-v152.test.js
           node tests/verified-correction-v149.test.js
@@ -91,12 +91,14 @@ jobs:
           assert.ok(html.indexOf('expense-nature-rules-v152.js?v=159') < html.indexOf('purchase-usage-ledger-v157.js?v=158'));
           assert.ok(html.indexOf('purchase-usage-ledger-v157.js?v=158') < html.indexOf('expense-unified-v148.js?v=169'));
           assert.ok(html.includes('expense-unified-v148.css?v=169'));
-          assert.ok(html.includes('ui-modern-v169.css?v=169'));
-          assert.ok(html.includes('card-baseline-review-v169.js?v=169'));
-          assert.ok(sw.includes('./ui-modern-v169.css?v=169'));
-          assert.ok(sw.includes('./card-baseline-review-v169.js?v=169'));
+          assert.ok(html.includes('ui-modern-v169.css?v=170'));
+          assert.ok(html.includes('card-budget-allocation-v170.js?v=170'));
+          assert.ok(sw.includes('./ui-modern-v169.css?v=170'));
+          assert.ok(sw.includes('./card-budget-allocation-v170.js?v=170'));
           assert.ok(!html.includes('expenseTabRootV129'));
           assert.ok(!require('node:fs').existsSync('expense-tab-v130.js'),'retired expense UI should be deleted');
+          assert.ok(!require('node:fs').existsSync('card-baseline-review-v169.js'),'stale history-based card suggestions must be removed');
+          assert.ok(fs.readFileSync('card-budget-allocation-v170.js','utf8').includes('family_daily_budget'));
 
           assert.ok(hub.includes('この明細を確認・編集'));
           assert.ok(hub.includes('チャージ・資金移動の疑い'));
@@ -110,7 +112,7 @@ jobs:
 
           assert.ok(html.includes('sync-state-sanitizer-v22.js?v=168'));
           assert.ok(html.includes('treasury-ledger-v145.js?v=153'));
-          assert.ok(sw.includes('household-treasury-v169-modern-ui-fixed-loans-baselines'));
+          assert.ok(sw.includes('household-treasury-v170-budget-led-card-settlement'));
           assert.ok(html.includes('cycle-audit-reconciliation-v153.js?v=161'));
           assert.ok(html.includes('payment-reclass-patch-v159.js?v=161'));
           assert.ok(html.includes('family-share-owner-v160.js?v=164'));
@@ -182,7 +184,8 @@ jobs:
           assert.ok(purchaseUsage.includes('fullAmount')&&purchaseUsage.includes('auditCycle'));
           assert.ok(purchaseUsage.includes('bankFlow')&&purchaseUsage.includes('reviewCount'));
           assert.ok(purchaseUsage.includes('normalFixed')&&purchaseUsage.includes('normalVariable')&&purchaseUsage.includes('normalUndetermined'));
-          assert.ok(hub.includes('通常費（固定費）')&&hub.includes('通常費（変動費）')&&hub.includes('通常費（固定・変動未確定）'));
+          assert.ok(hub.includes('固定費・ローン')&&hub.includes('ローン・借入返済（消費外）')&&hub.includes('通常費（変動費）')&&hub.includes('通常費（固定・変動未確定）'));
+          assert.ok(!hub.includes("{id:'debt',label:"),'Loan bucket must only appear inside fixed commitments');
           assert.ok(hub.includes("lens='economic'"));
           assert.ok(hub.includes('通常の消費・生活費'));
           assert.ok(hub.includes('支出・資金用途合計'));
@@ -190,7 +193,7 @@ jobs:
           assert.ok(!hub.includes('カード引落（用途未配分）'));
           assert.ok(hub.includes('要確認：'));
           assert.ok(hub.includes('毎月の基本予算（参考）'));
-          console.log('RELEASE_V169_MODERN_UI_FIXED_LOANS_BASELINES_PASS');
+          console.log('RELEASE_V170_BUDGET_LED_CARD_SETTLEMENT_PASS');
           NODE
       - name: Bundle PDF.js parser for same-origin iPhone import
         shell: bash

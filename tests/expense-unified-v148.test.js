@@ -115,12 +115,13 @@ eq(usage.funds,88300,'Consumption + debt + iDeCo');
 let cash=app.usageBuckets(usage,state);
 eq(cash.reduce((sum,b)=>sum+b.amount,0),usage.funds,'All purchase-use buckets reconcile to uses');
 eq(cash.find(x=>x.id==='variable').amount,13800,'Grocery and card use as ordinary consumption');
-eq(cash.find(x=>x.id==='fixed').amount,0,'No fixed actual in simple fixture');
+eq(cash.find(x=>x.id==='fixed').amount,60000,'Fixed and car loan share one actual fixed-commitment row');
 eq(cash.find(x=>x.id==='undetermined').amount,0,'No undecided actual in simple fixture');
 eq(usage.normalFixed+usage.normalVariable+usage.normalUndetermined,usage.ordinary,
  'Normal fixed/variable/undetermined reconcile without changing total');
 eq(cash.find(x=>x.id==='special').amount,2500,'Cash gift as special expense');
-eq(cash.find(x=>x.id==='debt').amount,60000,'Car principal separate from ordinary');
+ok(!cash.some(x=>x.id==='debt'),'No separate debt bucket: loan is nested inside 固定費・ローン');
+ eq(app.categoryGroups(cash.find(x=>x.id==='fixed'))[0].label,'ローン・借入返済（消費外）','Loan is visible as a middle category of combined fixed row');
 eq(cash.find(x=>x.id==='ideco').amount,12000,'iDeCo separate from consumption');
 ok(!cash.some(x=>x.id==='cardUnallocated'||x.id==='review'),'No card-debit or review cost buckets');
 const fixedReference=app.fixedReference(state,'2026-10');
@@ -197,6 +198,8 @@ eq(events[0][0],'purchase','Editor kind correct');
 eq(events[0][1],'buy1','Editor opens exact selected row');
 btn('bucket','fixed');
 ok(root.innerHTML.includes('固定支払マスターの月額内訳（ローン含む・参考）'),'Fixed detail shows read-only master reference');
+ ok(root.innerHTML.includes('固定費・ローン'),'Fixed and loans share one actual category');
+ ok(root.innerHTML.includes('ローン・借入返済（消費外）'),'Fixed drilldown contains loan middle category');
 ok(root.innerHTML.includes('毎月の基本予算（参考）'),'Plan shown separately from actual');
 ok(root.innerHTML.includes('電気'),'Fixed reference contains electricity');
 ok(root.innerHTML.includes('カード払い'),'Card-route reference labeled');
@@ -226,15 +229,16 @@ ok(fs.readFileSync('index.html','utf8').includes('expense-unified-v148.js?v=169'
  eq(updated.ordinary,17565,'Normal consumption subtotal unchanged by grouping');
  eq(updated.consumption,20065,'No extra costs created by fixed split');
  let b=app.usageBuckets(updated,state);
- eq(b.find(x=>x.id==='fixed').amount,3210,'Fixed line equals only actual electricity');
+ eq(b.find(x=>x.id==='fixed').amount,63210,'Combined fixed line shows electricity 3,210 plus loan principal 60,000');
  eq(b.find(x=>x.id==='variable').amount,13800,'Variable line equals confirmed purchases');
  eq(b.find(x=>x.id==='undetermined').amount,555,'Unclassified is visible without pretending variable');
  const fixedCategory=app.categoryGroups(b.find(x=>x.id==='fixed'));
- eq(fixedCategory[0].label,'公共料金','Fixed tier uses a major category');
- eq(fixedCategory[0].subcategories[0].amount,3210,'Fixed small category matches actual expense');
+ ok(fixedCategory.some(x=>x.label==='公共料金'&&x.amount===3210),'Electricity appears under combined fixed row');
+ ok(fixedCategory.some(x=>x.label==='ローン・借入返済（消費外）'&&x.amount===60000),'Loan appears below same fixed row');
+ eq(fixedCategory.find(x=>x.label==='公共料金').subcategories[0].amount,3210,'Electricity subcategory matches actual expense');
  eq(b.filter(x=>['fixed','variable','undetermined','special'].includes(x.id))
-      .reduce((a,x)=>a+x.amount,0),updated.consumption,'Expense bar sums exactly to consumption');
- eq(app.subgroups(b.find(x=>x.id==='fixed'))[0].key,'UTILITIES.ELECTRICITY',
+      .reduce((a,x)=>a+x.amount,0),updated.consumption+updated.debt,'Combined bar sums consumption plus debt exactly once');
+ eq(app.subgroups(b.find(x=>x.id==='fixed')).find(x=>x.key==='UTILITIES.ELECTRICITY').key,'UTILITIES.ELECTRICITY',
   'Fixed expense expands to user-approved electricity subcategory');
  ok(updated.flags.some(x=>x.label==='Unknown consumption'),'Unclassified review warning independent');
  const reviewOnly=structuredClone(state);

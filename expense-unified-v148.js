@@ -127,12 +127,11 @@ function usageBuckets(usage,st){
  const enriched=usage.usageRows.map(row=>rowDetails(row,st));
  const normal=enriched.filter(x=>['cash','purchase','bank'].includes(x.kind)&&x.spendingClass!=='SPECIAL');
  const groups=[
-  {id:'fixed',label:'通常費（固定費）',color:'#42c5d0',items:normal.filter(x=>x.costBucket==='FIXED')},
+  {id:'fixed',label:'固定費・ローン',color:'#42c5d0',items:[...normal.filter(x=>x.costBucket==='FIXED'),...usage.byKind.debt]},
   {id:'variable',label:'通常費（変動費）',color:'#13c7b5',items:normal.filter(x=>x.costBucket==='VARIABLE')},
   {id:'undetermined',label:'通常費（固定・変動未確定）',color:'#a2acb9',items:normal.filter(x=>x.costBucket!=='FIXED'&&x.costBucket!=='VARIABLE')},
   {id:'special',label:'特別費',color:'#eab86d',
     items:enriched.filter(x=>['cash','purchase','bank'].includes(x.kind)&&x.spendingClass==='SPECIAL')},
-  {id:'debt',label:'車ローン（固定返済・消費外）',color:'#ff9f35',items:usage.byKind.debt},
   {id:'ideco',label:'iDeCo（固定拠出・投資）',color:'#987efd',items:usage.byKind.ideco},
   {id:'investment',label:'その他投資',color:'#67b9f4',items:usage.byKind.investment}
  ];
@@ -177,8 +176,9 @@ function categoryGroups(bucket,mode=lens){
    // Loans/investments/bank-flow use an "内訳" category without changing
    // any of their accounting classifications or recorded amounts.
    const economicExpense=mode==='economic'&&['cash','purchase','bank'].includes(x.kind);
-   const key=economicExpense?String(x.category||'OTHER'):'TRANSACTION_DETAILS';
-   const label=economicExpense?
+   const debtInFixed=mode==='economic'&&bucket.id==='fixed'&&x.kind==='debt';
+   const key=debtInFixed?'DEBT_PAYMENTS':economicExpense?String(x.category||'OTHER'):'TRANSACTION_DETAILS';
+   const label=debtInFixed?'ローン・借入返済（消費外）':economicExpense?
      (defs[key]?.label||window.householdExpenseAnalyticsV106?.categoryLabel?.(key)||'その他'):'取引明細';
    let group=map.get(key);
    if(!group){group={key,label,amount:0,items:[],subcategories:[]};map.set(key,group)}
@@ -319,7 +319,7 @@ function render(){
  '<div class="hub-muted">'+(economic?'実際に購入・使用した金額と、消費ではないローン・投資拠出を分離':'銀行口座から実際に出金された金額。消費・生活費の統計ではありません')+'</div>'+
  '<div class="hub-totals"><span>確認済み収入</span><b>'+yen(income)+'</b></div>'+
  '<div class="hub-tablehead"><span>'+ (economic?'消費・資金用途':'銀行引落・資金移動') +'</span><span>金額</span></div>';
- if(economic)html+='<div class="hub-totals"><span>通常の消費・生活費（固定費＋変動費＋未確定）</span><b>'+yen(usage.ordinary)+'</b></div>';
+ if(economic)html+='<div class="hub-totals"><span>通常の消費・生活費（ローンを除く）</span><b>'+yen(usage.ordinary)+'</b></div>';
  for(const b of all){
    const expanded=openBucket===b.id;
    html+='<button type="button" class="hub-line" data-hub-bucket="'+esc(b.id)+'" aria-expanded="'+expanded+'">'+
@@ -375,7 +375,7 @@ function render(){
  html+='<details class="hub-card" id="hubBudgetV151"><summary style="cursor:pointer;font-size:16px;font-weight:750">'+
    '毎月の基本予算（参考）'+yen(budget.total)+'</summary>'+
    '<p class="hub-muted">マスターに登録された計画値です。実際の消費・資金用途へ加算しません。</p>'+
-   [['通常生活費（家族カード・現金等）',budget.living],['固定費（消費）',budget.fixed],['ローン返済（固定支払）',budget.loans],
+   [['通常生活費（家族カード・現金等）',budget.living],['固定費・ローン',budget.fixed+budget.loans],
     ['iDeCo',budget.ideco],['その他積立',budget.investment]].map(x=>
      '<div class="hub-totals"><span>'+x[0]+'</span><b>'+yen(x[1])+'</b></div>').join('')+
    '<details class="hub-fixed-ref"><summary style="cursor:pointer">固定支払マスター（ローン含む）の内訳（参考）</summary>'+

@@ -238,15 +238,16 @@ QA: `node tests/expense-unified-v148.test.js`、`node tests/continuous-transacti
 テスト：`node tests/structured-payment-and-pdf-v168.test.cjs`。
 
 
-## v169 — 全体UI刷新・旧支出コード整理・ローン固定支払・カード標準引落の再試算
+## v169–170: Modern UI and a household-budget-led card planning model
 
-- スマホ・デスクトップ共通の `ui-modern-v169.css` を新設。ナビゲーション、ヘッダー、入力フォーム、明細表、KPI、カード、Settings、Importのコントラスト・余白・丸み・見出しを統一。支出v148の階層UIおよび妻用の明色・閲覧専用ページは変更しない。データや保存ロジックは変えない。
-- 旧 `expense-tab-v130.js` はv161以降ロード対象外で、最新版は `expense-unified-v148.js` のみのため削除。旧 `expenseTabRootV129` の初期表示も現行ロード用プレースホルダに置換し、新支出hubの初期化時に除去。その他の互換・マイグレーション層は、実データ破損リスクがあるため盲目的に削除しない。
-- 既存マスターにはプラド車ローン48,000円／月、ラパン車ローン12,000円／月が `DEBT_PRINCIPAL` としてある。この**60,000円を固定支払マスターの参考予算に表示**する。さらにマスターに登録済みの7月・12月のボーナス返済は、それぞれ該当月のみ98,000円を追加表示する。消費の固定費集計には足さず、資金用途のローン欄は従来どおり。既存マスターに重複するローン項目を新設しない。
-- **推奨するカードの月次資金繰り標準額（暫定）**：
-  - 楽天 75,000円：確定9月124,012円と10月25,517円の単純平均74,764.5円。1月524,487円は2025年中の引越分割・タイヤ等を含むため将来の平常値にしない。
-  - JAL/DC 70,000円：リボ残高221,823円の一括完済は除外。9月・10月のJAL購入記録80,504円・78,441円、11月PDF63,736円を参考に70,000円を採用。10月の銀行引落10,846円は別利用月であり、標準値に使わない。
-  - dカード 20,000円：旧マスター標準50,000円に対し、11月の明示的な月別見込20,000円を採用。妻スマホ料金は14,000円→約3,000円へ低下予定。直近サイクル19,704円には都度航空券等が含まれ、一定の月額実績とは断定しない。
-- 合計の月次カード資金流出予測165,000円。**カード引落は購入日ベースの消費に再加算しない**。標準額は一括払いの将来CFの計画基準で、実請求・手動月別上書きが優先。
-- Settingsの「カード標準引落額の見直し」に根拠と現行マスター額を表示。1カードずつ／3枚一括の本人確認付き変更ボタンを設置。復旧履歴を保存しクラウド同期。リボ状態のカード、カード識別が不明・重複するカードは変更しない。**初期表示だけではマスターを自動上書きしない。**
-- 検証：`node tests/expense-unified-v148.test.js`（127 checks）、`node tests/card-baseline-review-v169.test.cjs` ほかPages CI。銀行・購入明細・資産・カード請求実績が無変更であることを確認。
+- v169 modernizes the main app UI and removes the retired expense renderer. Existing users' fixed-payment masters can display debt principal in the recurring outgoing budget without counting it again as economic consumption.
+- v170 replaces **historical-mean card baseline suggestions** with a budget-driven workflow: planned shared-family card purchases plus planned travel spending are allocated among cards, then recurring fixed charges actually assigned to each card are added. Card installments and settlements never become new consumption transactions.
+- The shared-family budget and three-card allocation are **editable projections, not a hard household spending cap**. Unknown distribution cannot be inferred from old billing history.
+- The public repository deliberately contains **no personal income figures, real card budget allocations, receipts or account details**. A per-user JSON file using the `HOUSEHOLD_TREASURY_CARD_BUDGET_PLAN_V170` format can be loaded from Settings. The file stays on the user's device; the resulting private master remains in local encrypted cloud sync.
+- Schema: `{format, family_daily_budget, homecoming_card_budget, by_card: {rakuten,jal,dcard}, fixed_projection_overrides?: {masterId: projectedAmount}, fixed_card_assignments?: {masterId: 'rakuten'|'jal'|'dcard'|'direct'}}`. `by_card` must sum to the two family reference budgets; this is a math integrity check, not a spending limit.
+- Each card forecast is **allocated family purchases + active monthly ordinary fixed expenses planned for that card**. Settings exposes a future payment-card selector and a projected amount for each recurring fixed master. A selection changes only the forecast (not the source fixed master). Annual expenses, non-consumption transfers and car loan principal are never counted as card consumption. `fixed_projection_overrides` adjust the *projection only*; the original fixed-expense master is unchanged.
+- An import/entry only previews the impact. Writing card monthly standard estimates requires explicit confirmation, a recovery snapshot, and usual local/cloud sync. Confirmed bills, explicit month overrides, underlying receipts, settlement history and account balances are preserved. Revolving card configurations and ambiguous card identities block applying recommendations.
+- Regression: `node tests/card-budget-allocation-v170.test.cjs`, `node tests/expense-unified-v148.test.js`, plus Pages CI. Settings has one budget-planning panel; outdated historic-mean UI and source removed.
+
+
+- v170 displays **「固定費・ローン」** as a single usage bucket with both regular fixed consumption and debt principal in its amount. Drilldown separates major categories of ordinary fixed bills from 「ローン・借入返済（消費外）」 and then individual loan lines; the economic consumption subtotal remains unchanged. The monthly reference-budget summary likewise combines the two in one fixed-commitments line, without adding principal twice.

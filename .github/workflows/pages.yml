@@ -88,16 +88,19 @@ jobs:
           assert.ok(html.includes('expense-unified-v148.css?v=162'));
           assert.ok(html.includes('sync-state-sanitizer-v22.js?v=161'));
           assert.ok(html.includes('treasury-ledger-v145.js?v=153'));
-          assert.ok(sw.includes('household-treasury-v163-family-nested-expenses'));
+          assert.ok(sw.includes('household-treasury-v164-light-family-and-snapshot-version'));
           assert.ok(html.includes('cycle-audit-reconciliation-v153.js?v=161'));
           assert.ok(html.includes('payment-reclass-patch-v159.js?v=161'));
-          assert.ok(html.includes('family-share-owner-v160.js?v=163'));
-          assert.ok(sw.includes('./family-share-owner-v160.js?v=163'));
+          assert.ok(html.includes('family-share-owner-v160.js?v=164'));
+          assert.ok(sw.includes('./family-share-owner-v160.js?v=164'));
           assert.ok(sw.includes('./family/index.html'));
-          assert.ok(sw.includes('./family/family.js?v=163'));
-          assert.ok(sw.includes('./family/family.css?v=163'));
-          assert.ok(fs.readFileSync('family/index.html','utf8').includes('family.js?v=163'));
-          assert.ok(fs.readFileSync('family/index.html','utf8').includes('family.css?v=163'));
+          assert.ok(sw.includes('./family/family.js?v=164'));
+          assert.ok(sw.includes('./family/family.css?v=164'));
+          assert.ok(fs.readFileSync('family/index.html','utf8').includes('family.js?v=164'));
+          assert.ok(fs.readFileSync('family/index.html','utf8').includes('family.css?v=164'));
+          assert.ok(fs.readFileSync('family/index.html','utf8').includes('id="legacyHint"'));
+          assert.ok(fs.readFileSync('family-share-owner-v160.js','utf8').includes('schema_version:2'));
+          assert.ok(fs.readFileSync('supabase/functions/family-variable-share/index.ts','utf8').includes("input?.snapshot?.schema_version!==2"));
           assert.ok(fs.readFileSync('family/family.js','utf8').includes('data.snapshot')||fs.readFileSync('family/family.js','utf8').includes('d.snapshot'));
 
           assert.ok(html.includes('sync-v26.js?v=160'));
@@ -155,7 +158,7 @@ jobs:
           assert.ok(!hub.includes('カード引落（用途未配分）'));
           assert.ok(hub.includes('要確認：'));
           assert.ok(hub.includes('毎月の基本予算（参考）'));
-          console.log('RELEASE_V163_FAMILY_NESTED_CATEGORIES_PASS');
+          console.log('RELEASE_V164_FAMILY_SHARING_SCHEMA_LIGHT_PASS');
           NODE
       - name: Bundle PDF.js parser for same-origin iPhone import
         shell: bash

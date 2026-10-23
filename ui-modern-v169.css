@@ -81,6 +81,10 @@ details>summary,
 #settings .btn{max-width:100%;white-space:normal;overflow-wrap:anywhere}
 #settings .field>.controls{min-width:0;width:100%;flex-wrap:wrap}
 #settings .field>.controls input[type=number]{flex:1 1 62px;width:0;min-width:0}
+.page .form>.field{min-width:0;max-width:100%}
+.page .form input,.page .form select,.page .form textarea{min-width:0;max-width:100%}
+.page .form>.field .controls{flex-wrap:wrap;min-width:0}
+.page .form>.field .controls input{flex:1 1 60px;min-width:0}
 #settings #v43FixedRows,
 #settings #unifiedCardRowsV77,
 #settings #householdMasterCardV1,
@@ -105,7 +109,7 @@ details>summary,
 @media(max-width:560px){
  #settings .v171-fixed-fields,
  #settings .v171-card-fields,
- #settings .form{grid-template-columns:minmax(0,1fr)}
+ .page .form{grid-template-columns:minmax(0,1fr)!important}
  #settings .row>.controls{flex:1 1 100%;justify-content:flex-start}
  #settings .field>.controls input[type=number]{flex:1 1 75px}
  .form{grid-template-columns:minmax(0,1fr)}

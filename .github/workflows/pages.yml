@@ -55,6 +55,7 @@ jobs:
           node tests/family-sync-v164.test.js
           node tests/unified-repair-v161.test.js
           node tests/mdc-cross-source-v166.test.cjs
+          node tests/structured-payment-and-pdf-v168.test.cjs
       - name: Check release links against actual app version
         shell: bash
         run: |
@@ -99,9 +100,9 @@ jobs:
 
           assert.ok(fs.readFileSync('family/family.js','utf8').includes('管理アプリの「支出」'));
 
-          assert.ok(html.includes('sync-state-sanitizer-v22.js?v=167'));
+          assert.ok(html.includes('sync-state-sanitizer-v22.js?v=168'));
           assert.ok(html.includes('treasury-ledger-v145.js?v=153'));
-          assert.ok(sw.includes('household-treasury-v167-continuous-expense-editor'));
+          assert.ok(sw.includes('household-treasury-v168-structured-payment-pdf-absorption'));
           assert.ok(html.includes('cycle-audit-reconciliation-v153.js?v=161'));
           assert.ok(html.includes('payment-reclass-patch-v159.js?v=161'));
           assert.ok(html.includes('family-share-owner-v160.js?v=164'));
@@ -139,7 +140,7 @@ jobs:
           assert.ok(html.includes('verified-correction-patch-v149.js?v=161'));
           assert.ok(correction.includes('treasuryRecoverySnapshot')&&correction.includes('replaceTreasuryState'));
           for(const path of [
-            'sync-state-sanitizer-v22.js?v=167',
+            'sync-state-sanitizer-v22.js?v=168',
             'expense-nature-rules-v152.js?v=159',
             'purchase-usage-ledger-v157.js?v=158',
             'expense-unified-v148.js?v=167',
@@ -148,11 +149,16 @@ jobs:
             'cycle-audit-reconciliation-v153.js?v=161',
             'card-cycle-v81.js?v=153',
             'treasury-ledger-v145.js?v=153',
-            'mdc-pdf-delta-v144.js?v=166'
+            'mdc-pdf-delta-v144.js?v=168'
           ])assert.ok(sw.includes('./'+path),'PWA cache missing '+path);
           assert.ok(sw.includes('./mdc-cross-source-reconcile-v166.js?v=166'));
           assert.ok(loader.includes('mdc-cross-source-reconcile-v166.js?v=166'));
-          assert.ok(loader.includes('mdc-pdf-import-v136.js?v=166'));
+          assert.ok(loader.includes('mdc-pdf-import-v136.js?v=168'));
+          assert.ok(loader.includes('structured-expense-import-v168.js?v=168'));
+          assert.ok(sw.includes('./structured-expense-import-v168.js?v=168'));
+          assert.ok(fs.readFileSync('mdc-pdf-delta-v144.js','utf8').includes('receiptAbsorbed'));
+          assert.ok(fs.readFileSync('structured-expense-import-v168.js','utf8').includes('payment_method'));
+
           assert.ok(fs.readFileSync('mdc-pdf-delta-v144.js','utf8').includes('householdJalCrossSourceV166'));
           assert.ok(fs.readFileSync('mdc-pdf-import-v136.js','utf8').includes('scanPdfPreview'));
           assert.ok(!loader.includes('mdc-pdf-record-manager-v146.js'),'retired old PDF UI is still injected');
@@ -176,7 +182,7 @@ jobs:
           assert.ok(!hub.includes('カード引落（用途未配分）'));
           assert.ok(hub.includes('要確認：'));
           assert.ok(hub.includes('毎月の基本予算（参考）'));
-          console.log('RELEASE_V167_CONTINUOUS_EXPENSE_EDITOR_PASS');
+          console.log('RELEASE_V168_STRUCTURED_QUICPAY_AND_PDF_PASS');
           NODE
       - name: Bundle PDF.js parser for same-origin iPhone import
         shell: bash

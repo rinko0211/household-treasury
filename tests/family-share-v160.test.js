@@ -21,8 +21,24 @@ const window={
     {kind:'investment',amount:5000,spendingClass:'NORMAL',costBucket:'VARIABLE',category:'OTHER'}
    ]})
  },
- householdExpenseUnifiedV148:{rowDetails:r=>r},
- householdExpenseAnalyticsV106:{categoryLabel:c=>({FOOD:'食費',CHILD:'子ども関連'}[c]||'その他')},
+ householdExpenseUnifiedV148:{
+  rowDetails:r=>r,
+  usageBuckets:()=>[{id:'variable',amount:1700,items:[]}],
+  categoryGroups:()=>[
+   {key:'CHILD',label:'子ども',amount:1200,subcategories:[
+    {key:'CHILD.OTHER',label:'その他',amount:1200,items:[
+     {amount:1200,subcategory:'OTHER',date:'2026-10-18',label:'PRIVATE MERCHANT2'}
+    ]}
+   ]},
+   {key:'FOOD',label:'食費',amount:500,subcategories:[
+    {key:'FOOD.GROCERIES',label:'食料品',amount:500,items:[
+     {amount:500,subcategory:'GROCERIES',date:'2026-10-17',label:'PRIVATE MERCHANT'}
+    ]}
+   ]}
+  ]
+ },
+ householdSemanticV47:{CATEGORY_DEFS:{CHILD:{label:'子ども'},FOOD:{label:'食費'},OTHER:{label:'その他'}}},
+ householdExpenseNatureV152:{subcategoryLabels:{'CHILD.OTHER':'その他','FOOD.GROCERIES':'食料品'}},
  addEventListener:()=>{}
 };
 const document={readyState:'loading',addEventListener:()=>{},getElementById:()=>null};
@@ -36,6 +52,9 @@ assert.equal(snapshot.review_count,2);
 assert.equal(snapshot.source_revision,17);
 assert.equal(snapshot.categories.reduce((sum,c)=>sum+c.amount,0),1700);
 assert.ok(!JSON.stringify(snapshot).includes('PRIVATE'));
+assert.equal(snapshot.categories.length,2);
+assert.equal(snapshot.categories[0].subcategories[0].days[0].amount,1200);
+assert.equal(snapshot.categories[1].subcategories[0].days[0].date,'2026-10-17');
 assert.ok(!JSON.stringify(snapshot).includes('5000'));
 assert.ok(!JSON.stringify(snapshot).includes('synthetic'));
 assert.ok(page.includes('閲覧専用'));

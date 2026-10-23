@@ -38,6 +38,16 @@ assert.equal(p.entries.map(x=>x.total).join(','),'98000,114000,23500');
 assert.equal(p.entries[2].fixed.items.find(x=>x.id==='fx-mobile').masterAmount,9000);
 assert.equal(p.entries[2].fixed.items.find(x=>x.id==='fx-mobile').amount,2000);
 assert.equal(st.masters.fixedExpenses.find(x=>x.id==='fx-mobile').amount,9000,'Forecast adjustment does not mutate master');
+// Future payment-card reassignment is a projection and must not mutate
+// the real source master or insert loan principal into any card settlement.
+const newCardRoute=structuredClone(plan);
+newCardRoute.fixed_card_assignments={'fx-electric':'rakuten','fx-loan':'jal'};
+const shifted=api.preview(st,newCardRoute);
+assert.equal(shifted.fixedTotal,27500,'Reassigned monthly utility adds 12k to Rakuten');
+assert.equal(shifted.entries[0].total,110000,'Rakuten receives utility projected charge');
+assert.equal(shifted.entries[1].total,114000,'Principal must never become a JAL charge');
+assert.equal(st.masters.fixedExpenses.find(x=>x.id==='fx-electric').paymentCard,'KABU&','Original master unmodified');
+assert.equal(api.fixedCandidates(st,newCardRoute).some(x=>x.id==='fx-loan'),false,'Loan principal excluded from card setup');
 const submitted=api.propose(st,plan);
 assert.equal(submitted.changes.length,3);
 assert.equal(submitted.next.masters.cards.slice(0,3).map(x=>x.monthlyBaselineAmount).join(','),'98000,114000,23500');

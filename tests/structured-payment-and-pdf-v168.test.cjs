@@ -61,6 +61,7 @@ const sum=st=>[...(st.cashExpenses||[]),...(st.purchaseEvents||[])].filter(x=>x.
  // Future JAL PDF received 1 day apart, with a short merchant alias.
  const pdf=ctx.window.householdStructuredExpenseV168;
  const pdfContext={
+  document:{readyState:'loading',addEventListener:()=>{},getElementById:()=>null},
   state,window:{getTreasuryStateRaw:()=>state},
   parseCsv:t=>String(t).split('\n').map(x=>x.split(',')),
   findHeader:(data,keys)=>data.findIndex(r=>keys.every(x=>r.includes(x))),

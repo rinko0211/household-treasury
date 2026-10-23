@@ -62,7 +62,7 @@ const sum=st=>[...(st.cashExpenses||[]),...(st.purchaseEvents||[])].filter(x=>x.
  const pdf=ctx.window.householdStructuredExpenseV168;
  const pdfContext={
   document:{readyState:'loading',addEventListener:()=>{},getElementById:()=>null},
-  state,window:{getTreasuryStateRaw:()=>state},
+  state,window:{getTreasuryStateRaw:()=>state,addEventListener:()=>{}} ,
   parseCsv:t=>String(t).split('\n').map(x=>x.split(',')),
   findHeader:(data,keys)=>data.findIndex(r=>keys.every(x=>r.includes(x))),
   parseDate:s=>s,number:s=>Number(s),hash32:s=>42,

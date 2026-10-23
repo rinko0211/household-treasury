@@ -347,4 +347,25 @@ ok(semanticEditorSource.includes('restoreTransactionEditContext(editContext)'),
    'Category save restores prior position rather than jumping back');
 ok(semanticEditorSource.includes("o.potential_prepaid_topup=false"),
    'Explicit confirmation can clear the topup warning');
+// v169: loan is fixed in the monthly PAYMENTS plan, not an ordinary
+// purchase/consumption expense (48k + 12k from existing master).
+{
+ const st=structuredClone(state);
+ const main=st.masters.fixedExpenses.find(x=>x.id==='car-loan');
+ main.amount=48000;main.name='車ローン（プラド）';main.economic_type='DEBT_PRINCIPAL';main.expense_scope='DEBT';
+ st.masters.fixedExpenses.push({id:'lapin',name:'車ローン（ラパン）',cadence:'MONTHLY',
+  economic_type:'DEBT_PRINCIPAL',expense_scope:'DEBT',amount:12000,active:true,forecastEnabled:true});
+ const loans=app.loanReference(st,'2026-10');
+ eq(loans.total,60000,'Two loans sum to 60,000 monthly fixed commitments');
+ ok(loans.items.some(x=>x.name.includes('プラド')&&x.amount===48000),'Prado installment preserved');
+ ok(loans.items.some(x=>x.name.includes('ラパン')&&x.amount===12000),'Lapin installment preserved');
+ eq(app.fixedReference(st,'2026-10').total,25000,'Loans not included again in fixed consumption');
+ const budget=app.budgetReference(st,'2026-10');
+ eq(budget.loans,60000,'Budget shows loans as fixed outgoings');
+ eq(budget.fixed,25000,'Budget shows only normal recurring consumption in fixed category');
+ eq(budget.total,budget.living+budget.fixed+budget.loans+budget.ideco+budget.investment,
+  'Monthly plan includes every commitment exactly once');
+ const usage=window.householdUsageLedgerV157.calculate(st,'2026-10','payday');
+ eq(usage.consumption,13800+2500+1800,'Source purchase consumption remains invariant');
+}
 console.log('PASS '+asserts+' expense unified v148 assertions');

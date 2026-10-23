@@ -64,7 +64,7 @@ function makeSnapshot(){
      for(const item of sub.items){
        const amount=Math.round(Number(item.amount)||0);
        if(amount<=0)continue;
-       const date=/^\\d{4}-\\d{2}-\\d{2}$/.test(String(item.date||''))?item.date:'undated';
+       const date=/^\d{4}-\d{2}-\d{2}$/.test(String(item.date||''))?item.date:'undated';
        const prior=days.get(date)||{date,amount:0,count:0};
        prior.amount+=amount;prior.count++;
        days.set(date,prior);

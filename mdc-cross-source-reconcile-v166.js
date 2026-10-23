@@ -17,11 +17,10 @@ const isCounted=x=>x?.count_in_spending!==false&&x?.reconciliation_status!=='ABS
 function sourceType(x,kind){
  if(!isCounted(x))return false;
  if(kind==='cash'){
-   const desc=String(x.description||x.description_raw||'');
-   const payment=String(x.payment_method||'').toUpperCase();
-   // Never suggest unannotated cash: equal date/amount can be a separate cash purchase.
-   return /クレジット|カード末尾|JALカード|DCカード|MUFG|［カード］|\[CREDIT\]/i.test(desc)||
-     ['CREDIT','CARD','JAL','MUFG/DC/JAL'].includes(payment);
+   // Include cash-coded rows as HUMAN-REVIEW-ONLY: legacy CSVs wrongly
+   // marked card purchases CASH, but same-day equal-amount cash purchases
+   // may also be entirely legitimate. Never auto-absorb either case.
+   return true;
  }
  if(isPdf(x))return false;
  const card=norm(x.card||'');
@@ -62,7 +61,10 @@ function scan(st=stateNow()){
      kind:src.kind,index:src.index,pdfIndex:pdf.index,date:src.date,amount:src.amount,
      sourceLabel:src.label,pdfLabel:pdf.row.merchant_raw||pdf.row.merchant_normalized||'',
      originalCard:src.card,pdfCard:pdf.row.pdf_card_identity||pdf.row.card||'',
-     identical,sourceFile:String(src.row.source_file||''),pdfFile:String(pdf.row.source_file||'')
+     identical,sourceMarkedCash:src.kind==='cash'&&
+       !/クレジット|カード末尾|JALカード|DCカード|MUFG|［カード］|\[CREDIT\]/i.test(String(src.label))&&
+       !['CREDIT','CARD','MUFG/DC/JAL'].includes(String(src.card).toUpperCase()),
+     sourceFile:String(src.row.source_file||''),pdfFile:String(pdf.row.source_file||'')
    });
  }
  return matches.sort((a,b)=>b.date.localeCompare(a.date)||Number(b.identical)-Number(a.identical)||b.amount-a.amount);
@@ -144,7 +146,8 @@ function mountInto(container){
       '<div class="tiny">元記録：'+esc(m.sourceLabel)+' ['+esc(m.originalCard)+']</div>'+
       '<div class="tiny">JAL PDF：'+esc(m.pdfLabel)+' ['+esc(m.pdfCard)+']</div>'+
       '<div class="tiny" style="color:'+(m.identical?'#85d4b3':'#f1c683')+'">'+
-      (m.identical?'購入先表記も一致':'利用日・金額のみ一致：購入先を必ず確認')+'</div></span></label>').join('')+'</div>'+
+      (m.sourceMarkedCash?'現金登録の明細：本当にJALカード払いなら選択。現金払いなら選ばない':
+       m.identical?'購入先表記も一致':'利用日・金額のみ一致：購入先を必ず確認')+'</div></span></label>').join('')+'</div>'+
     '<button type="button" class="btn secondary" id="mdcCrossApplyV166">選択した重複の計上を修正</button>'+
     '<div class="tiny" id="mdcCrossResultV166" role="status"></div>':
     '<p class="tiny">現在、支払方法から確認できるCSV・購入記録とJAL PDFの重複候補はありません。現金記録のままの支出は、支払方法を先に確認してください。</p>');

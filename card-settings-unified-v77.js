@@ -96,7 +96,7 @@
     const summary = [mode === 'REVOLVING' ? 'リボ' : '一括', day ? `引落 ${day}日` : inferred ? `引落 推定${inferred}日` : '引落日未設定', c.active === false ? '停止' : '有効'].join(' · ');
     return `<details class="card" style="padding:10px;margin-top:8px" data-v77-card="${esc(String(c.id))}">
       <summary style="cursor:pointer;display:flex;justify-content:space-between;gap:8px;align-items:flex-start"><div><b>${esc(c.name || 'カード')}</b><div class="tiny">${esc(summary)}</div></div><span class="tag">${mode === 'REVOLVING' ? 'リボ' : '一括'}</span></summary>
-      <div class="form" style="grid-template-columns:repeat(2,1fr);gap:8px;margin-top:10px">
+      <div class="form v171-card-fields" style="gap:8px;margin-top:10px">
         <div class="field"><label>カード名</label><input data-v77-name value="${esc(c.name || '')}"></div>
         <div class="field"><label>引落日</label><input data-v77-day type="number" min="1" max="31" inputmode="numeric" value="${day}" placeholder="1〜31"></div>
         <div class="field"><label>支払方式</label><select data-v77-mode><option value="FULL" ${mode==='FULL'?'selected':''}>一括</option><option value="REVOLVING" ${mode==='REVOLVING'?'selected':''}>リボ</option></select></div>

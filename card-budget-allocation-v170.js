@@ -10,6 +10,9 @@ const norm=s=>String(s||'').normalize('NFKC').replace(/[\s　()（）\[\]［］_
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const amount=(v,label)=>{const n=Number(v);if(!Number.isSafeInteger(n)||n<0||n>50000000)throw Error(label+'の金額が不正です');return n};
 const stateNow=()=>{try{return (window.getTreasuryStateRaw||window.getTreasuryState)?.()||{}}catch{return {}}};
+const isEnvelopeOrInvestment=name=>
+ /家族カード|家計カード|妻.*カード|生活費|家計費|現金配分|現金手渡|妻.*現金|妻.*送金|家族.*送金|仕送り|小遣い|NISA|証券|投資|積立|IDECO|イデコ/.test(String(name||'').normalize('NFKC').toUpperCase());
+
 let draft=null,loadedName='';
 function keyOf(card){
  const a=norm(typeof card==='string'?card:card?.name||card?.importLabel);
@@ -57,7 +60,7 @@ function fixedCandidates(st,settings){
   const id=String(x.id||''),mode=String(x.cadence||'MONTHLY').toUpperCase();
   const eco=String(x.economic_type||'EXPENSE').toUpperCase();
   const scope=String(x.expense_scope||x.ordinary_or_special||'NORMAL').toUpperCase();
-  if(!/^fx-[a-z0-9_-]+$/i.test(id)||x.active===false||x.forecastEnabled===false||
+  if(!/^fx-[a-z0-9_-]+$/i.test(id)||isEnvelopeOrInvestment(x.name)||x.active===false||x.forecastEnabled===false||
    mode!=='MONTHLY'||eco!=='EXPENSE'||!['NORMAL','ORDINARY'].includes(scope))continue;
   const route=String(x.paymentRoute||x.payment_route||'DIRECT').toUpperCase();
   const masterCard=route==='CARD'?keyOf(x.paymentCard||x.card):null;
@@ -77,7 +80,7 @@ function cardFixed(st,key,settings){
   const cadence=String(fx.cadence||'MONTHLY').toUpperCase();
   const eco=String(fx.economic_type||'EXPENSE').toUpperCase();
   const scope=String(fx.expense_scope||fx.ordinary_or_special||'NORMAL').toUpperCase();
-  if(fx.active===false||fx.forecastEnabled===false||cadence!=='MONTHLY'||
+  if(fx.active===false||fx.forecastEnabled===false||isEnvelopeOrInvestment(fx.name)||cadence!=='MONTHLY'||
     eco!=='EXPENSE'||!['NORMAL','ORDINARY'].includes(scope))continue;
   const id=String(fx.id||'');
   const planned=Object.hasOwn(assignments,id)?assignments[id]:(route==='CARD'?keyOf(fx.paymentCard||fx.card):null);

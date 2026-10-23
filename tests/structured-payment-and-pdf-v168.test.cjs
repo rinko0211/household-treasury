@@ -65,6 +65,7 @@ const sum=st=>[...(st.cashExpenses||[]),...(st.purchaseEvents||[])].filter(x=>x.
   state,window:{getTreasuryStateRaw:()=>state,addEventListener:()=>{}} ,
   parseCsv:t=>String(t).split('\n').map(x=>x.split(',')),
   findHeader:(data,keys)=>data.findIndex(r=>keys.every(x=>r.includes(x))),
+  rowObj:(h,r)=>Object.fromEntries(h.map((name,i)=>[name,r[i]||''])),
   parseDate:s=>s,number:s=>Number(s),hash32:s=>42,
   classifyMerchant:()=>({category:'FOOD',confidence:.9}),
   normalizeText:s=>s,addReview:()=>{},

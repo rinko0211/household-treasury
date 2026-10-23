@@ -71,7 +71,7 @@
 
   injectClassic('./storage-budget-v55.js?v=124', 'data-household-storage-budget-v55');
   injectClassic('./master-manager-v27.js?v=110', 'data-household-master-v27');
-  injectClassic('./card-settings-unified-v77.js?v=77', 'data-household-card-settings-unified-v77');
+  injectClassic('./card-settings-unified-v77.js?v=171', 'data-household-card-settings-unified-v77');
   injectClassic('./import-engine-v28.js?v=28', 'data-household-import-v28');
   injectClassic('./csv-parser-v73.js?v=73', 'data-household-csv-parser-v73');
   injectClassic('./asset-snapshot-v85.js?v=85', 'data-household-asset-snapshot-v85');
@@ -91,7 +91,7 @@
   // v40 review center retired in v65. Semantic v47/v48 own review rules and review UI.
   injectClassic('./cashflow-integration-v41.js?v=135', 'data-household-cashflow-integration-v41');
   injectClassic('./payment-routing-v42.js?v=42', 'data-household-payment-routing-v42');
-  injectClassic('./fixed-master-unified-v43.js?v=43', 'data-household-fixed-master-unified-v43');
+  injectClassic('./fixed-master-unified-v43.js?v=171', 'data-household-fixed-master-unified-v43');
   injectClassic('./kabu-card-v44.js?v=44', 'data-household-kabu-card-v44');
   injectClassic('./settings-ux-v45.js?v=45', 'data-household-settings-ux-v45');
   injectClassic('./card-autolink-v46.js?v=46', 'data-household-card-autolink-v46');

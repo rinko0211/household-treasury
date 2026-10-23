@@ -58,7 +58,7 @@ function fixedCandidates(st,settings){
   const eco=String(x.economic_type||'EXPENSE').toUpperCase();
   const scope=String(x.expense_scope||x.ordinary_or_special||'NORMAL').toUpperCase();
   if(!/^fx-[a-z0-9_-]+$/i.test(id)||x.active===false||x.forecastEnabled===false||
-   mode!=='MONTHLY'||eco!=='EXPENSE'||scope!=='NORMAL')continue;
+   mode!=='MONTHLY'||eco!=='EXPENSE'||!['NORMAL','ORDINARY'].includes(scope))continue;
   const route=String(x.paymentRoute||x.payment_route||'DIRECT').toUpperCase();
   const masterCard=route==='CARD'?keyOf(x.paymentCard||x.card):null;
   const assigned=Object.hasOwn(settings.fixed_card_assignments||{},id)?
@@ -78,7 +78,7 @@ function cardFixed(st,key,settings){
   const eco=String(fx.economic_type||'EXPENSE').toUpperCase();
   const scope=String(fx.expense_scope||fx.ordinary_or_special||'NORMAL').toUpperCase();
   if(fx.active===false||fx.forecastEnabled===false||cadence!=='MONTHLY'||
-    eco!=='EXPENSE'||scope!=='NORMAL')continue;
+    eco!=='EXPENSE'||!['NORMAL','ORDINARY'].includes(scope))continue;
   const id=String(fx.id||'');
   const planned=Object.hasOwn(assignments,id)?assignments[id]:(route==='CARD'?keyOf(fx.paymentCard||fx.card):null);
   if(planned!==key)continue;

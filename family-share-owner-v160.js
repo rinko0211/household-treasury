@@ -39,8 +39,10 @@ function monthCandidates(now){
 }
 function makeSnapshot(){
  const st=window.getTreasuryState?.(),ledger=window.householdUsageLedgerV157,
-  hub=window.householdExpenseUnifiedV148;
- if(!st||!ledger||!hub?.rowDetails)throw Error('支出分類の読み込みが完了していません。');
+  hub=window.householdExpenseUnifiedV148,sem=window.householdSemanticV47,
+  nature=window.householdExpenseNatureV152;
+ if(!st||!ledger||!hub?.usageBuckets||!hub?.categoryGroups||!sem?.CATEGORY_DEFS||!nature?.subcategoryLabels)
+   throw Error('最新の支出分類エンジンを読み込めません。アプリを再読み込みしてください。');
  const today=TODAY();
  let month=today.slice(0,7);
  for(const candidate of monthCandidates(today)){
@@ -48,22 +50,34 @@ function makeSnapshot(){
    if(p.start<=today&&today<=p.end){month=candidate;break}
  }
  const calc=ledger.calculate(st,month,'payday');
- const categories=new Map();
- let variable=0;
- for(const row of calc.usageRows||[]){
-   if(!['cash','purchase','bank'].includes(row.kind)||row.spendingClass==='SPECIAL'||row.costBucket!=='VARIABLE')continue;
-   const x=hub.rowDetails(row,st);
-   const cat=String(x.category||'OTHER');
-   const label=window.householdExpenseAnalyticsV106?.categoryLabel?.(cat)||({
-    FOOD:'食費',DINING:'外食',DAILY_GOODS:'日用品',CHILD:'子ども関連',CHILDCARE:'子ども関連',
-    TRANSPORT:'交通費',HEALTH:'医療・健康',LEISURE:'娯楽',CLOTHING:'衣服・美容',
-    HOUSEHOLD:'生活用品',OTHER:'その他'
-   }[cat])||'その他';
-   const amount=Math.round(Number(row.amount)||0);
-   if(amount<=0)continue;
-   variable+=amount;
-   categories.set(label,(categories.get(label)||0)+amount);
- }
+ const variableBucket=hub.usageBuckets(calc,st).find(b=>b.id==='variable');
+ if(!variableBucket)throw Error('変動費を集計できません。');
+ // Use the identical source rows and major/minor taxonomy as the owner's
+ // expense screen. No merchant, card, account, or transaction IDs leave device.
+ const categories=hub.categoryGroups(variableBucket,'economic').map(c=>{
+   const cat=String(c.key||'OTHER');
+   const label=sem.CATEGORY_DEFS[cat]?.label||sem.CATEGORY_DEFS.OTHER?.label||'その他';
+   const subcategories=c.subcategories.map(sub=>{
+     const subKey=String(sub.items[0]?.subcategory||'OTHER');
+     const label=nature.subcategoryLabels[cat+'.'+subKey]||'その他';
+     const days=new Map();
+     for(const item of sub.items){
+       const amount=Math.round(Number(item.amount)||0);
+       if(amount<=0)continue;
+       const date=/^\\d{4}-\\d{2}-\\d{2}$/.test(String(item.date||''))?item.date:'undated';
+       const prior=days.get(date)||{date,amount:0,count:0};
+       prior.amount+=amount;prior.count++;
+       days.set(date,prior);
+     }
+     return {key:subKey,label,amount:Math.round(sub.amount),days:[...days.values()].sort((a,b)=>b.date.localeCompare(a.date))};
+   });
+   return {key:cat,label,amount:Math.round(c.amount),subcategories};
+ });
+ const variable=Math.round(variableBucket.amount);
+ if(categories.reduce((sum,c)=>sum+c.amount,0)!==variable||
+    categories.some(c=>c.subcategories.reduce((sum,s)=>sum+s.amount,0)!==c.amount||
+      c.subcategories.some(s=>s.days.reduce((sum,d)=>sum+d.amount,0)!==s.amount)))
+   throw Error('共有するカテゴリ内訳の金額が一致しません。');
  const ctx=context();
  const revision=Number(ctx.revision);
  if(!Number.isSafeInteger(revision)||revision<1)throw Error('クラウド同期のrevisionを確認できません。');
@@ -71,7 +85,7 @@ function makeSnapshot(){
   period_start:calc.start,period_end:calc.end,source_revision:revision,variable,
   undetermined:Math.round(Number(calc.normalUndetermined)||0),
   review_count:Math.max(0,Math.round(Number(calc.reviewCount)||0)),
-  categories:[...categories].sort((a,b)=>b[1]-a[1]).map(([label,amount])=>({label,amount}))
+  categories
  };
 }
 async function refreshStatus(silent=false){

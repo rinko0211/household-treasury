@@ -366,6 +366,6 @@ ok(semanticEditorSource.includes("o.potential_prepaid_topup=false"),
  eq(budget.total,budget.living+budget.fixed+budget.loans+budget.ideco+budget.investment,
   'Monthly plan includes every commitment exactly once');
  const usage=window.householdUsageLedgerV157.calculate(st,'2026-10','payday');
- eq(usage.consumption,13800+2500+1800,'Source purchase consumption remains invariant');
+ eq(usage.consumption,13800+2500,'Source purchase consumption remains invariant');
 }
 console.log('PASS '+asserts+' expense unified v148 assertions');

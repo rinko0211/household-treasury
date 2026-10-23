@@ -55,7 +55,10 @@ function loanReference(st,viewMonth){
  for(const x of st?.masters?.fixedExpenses||[]){
   const eco=String(x.economic_type||'').toUpperCase(),scope=String(x.expense_scope||'').toUpperCase();
   if(x.active===false||x.forecastEnabled===false||
-     (eco!=='DEBT_PRINCIPAL'&&scope!=='DEBT')||String(x.cadence||'MONTHLY').toUpperCase()!=='MONTHLY')continue;
+     (eco!=='DEBT_PRINCIPAL'&&scope!=='DEBT'))continue;
+  const cadence=String(x.cadence||'MONTHLY').toUpperCase();
+  if(!['MONTHLY','SEMI_FIXED'].includes(cadence))continue;
+  if(cadence==='SEMI_FIXED'&&!(x.activeMonths||x.months||[]).map(v=>String(v).padStart(2,'0')).includes(String(viewMonth||'').slice(5,7)))continue;
   const name=String(x.name||'').trim(),amount=Math.abs(n(x.amount)),key=String(x.id||name);
   if(!amount||!name||seen.has(key))continue;seen.add(key);items.push({name,amount,route:'DIRECT'});
  }

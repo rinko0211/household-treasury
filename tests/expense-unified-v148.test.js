@@ -201,7 +201,7 @@ ok(root.innerHTML.includes('毎月の基本予算（参考）'),'Plan shown sepa
 ok(root.innerHTML.includes('電気'),'Fixed reference contains electricity');
 ok(root.innerHTML.includes('カード払い'),'Card-route reference labeled');
 ok(!fs.readFileSync('index.html','utf8').includes('id="monthlyTreasuryTabV142"'),'Redundant monthly tab removed');
-ok(fs.readFileSync('index.html','utf8').includes('expense-unified-v148.js?v=165'),'Unified hub loaded');
+ok(fs.readFileSync('index.html','utf8').includes('expense-unified-v148.js?v=167'),'Unified hub loaded');
 // v158: fixed and variable are PRESENTATION cost-behavior within economic NORMAL;
 // source category overrides and review badges do not change booked consumption.
 {
@@ -307,9 +307,44 @@ ok(fs.readFileSync('index.html','utf8').includes('expense-unified-v148.js?v=165'
  state.purchaseEvents.pop();
  app.render();
 }
+// v167: save/re-render must leave the user inside the selected drilldown
+// and preserve the scroll origin so multiple entries can be edited in place.
+{
+ expense.classList.add('active');
+ const followup={purchase_id:'second-cafe',card:'Rakuten',purchase_date:'2026-10-20',
+   merchant_raw:'次のカフェ',original_amount:800,category:'FOOD',subcategory:'CAFE',
+   economic_type:'EXPENSE',spending_class:'NORMAL',billing_month:'2026-12'};
+ state.purchaseEvents.push(followup);
+ const sel=app.getSelection();
+ if(sel.openBucket!=='variable')btn('bucket','variable');
+ if(app.getSelection().openCategory!=='FOOD')btn('category','FOOD');
+ if(app.getSelection().openSubcategory!=='FOOD.CAFE')btn('subcategory','FOOD.CAFE');
+ window.scrollY=730;let restored=null;window.scrollTo=(x,y)=>{restored=y};
+ const edits=root.querySelectorAll('[data-hub-edit]');
+ ok(edits.length>=2,'Two visible edit actions in same subcategory');
+ const first=edits[0],second=edits[1],context=app.captureEditContext(first.dataset.hubEdit,first.dataset.hubEditid);
+ ok(!!context,'Captured active expense editing context');
+ eq(context.next.id,second.dataset.hubEditid,'Next row captured before category regrouping');
+ eq(context.openCategory,'FOOD','Major category preserved');
+ eq(context.openSubcategory,'FOOD.CAFE','Minor category preserved');
+ app.render();
+ app.restoreEditContext(context);
+ eq(restored,730,'Scroll position restored after saving the edited record');
+ eq(app.getSelection().openBucket,'variable','Variable section remains expanded');
+ eq(app.getSelection().openSubcategory,'FOOD.CAFE','Minor category remains expanded after save');
+ const staleReview=dom.get('hubReviewV157');
+ if(staleReview){staleReview.open=true;app.render();ok(root.innerHTML.includes('id="hubReviewV157" open'),
+   'Review disclosure remains expanded across a re-render');}
+ state.purchaseEvents.pop();app.render();expense.classList.remove('active');
+}
 const semanticEditorSource=fs.readFileSync('semantic-ui-v48.js','utf8');
 ok(semanticEditorSource.includes('transactionEditorTopupV165'),
    'Semantic editor gives explicit prepaid purchase-versus-transfer decision');
+ok(semanticEditorSource.includes('data-v108-tx-next')&&
+   semanticEditorSource.includes('openTransactionEditor(nextRecord.kind,nextRecord.id)'),
+   'Save-and-next action opens next original transaction without revisiting list');
+ok(semanticEditorSource.includes('restoreTransactionEditContext(editContext)'),
+   'Category save restores prior position rather than jumping back');
 ok(semanticEditorSource.includes("o.potential_prepaid_topup=false"),
    'Explicit confirmation can clear the topup warning');
 console.log('PASS '+asserts+' expense unified v148 assertions');

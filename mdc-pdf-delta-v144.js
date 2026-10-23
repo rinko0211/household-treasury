@@ -100,7 +100,7 @@
     for(const [key,group] of grouped){
       const r=group[0];
       const candidates=existing.map((x,i)=>({x,i})).filter(({x})=>isMdcCard(x)&&rowSig(x)===key&&
-        String(x.payment_method||'').toUpperCase()!=='QUICPAY');
+        (String(x.payment_method||'').toUpperCase()!=='QUICPAY'||!!x.mdc_pdf_signature_v168));
       const scoped=candidates.filter(({x})=>cardId(x)===identity);
       const legacy=candidates.filter(({x})=>!cardId(x) && (
         String(x.source_file||'')===r.oldFilename||

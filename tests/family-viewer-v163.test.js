@@ -10,7 +10,7 @@ class Node {
  addEventListener(k,cb){this.events[k]=cb}
  click(){this.events.click?.()}
 }
-const ids=Object.fromEntries(['status','period','spent','budgetSection','budgetEmpty','budget','remaining','remainLabel','progressFill','budgetMeter','budgetRatio','calendarMeter','calendarFill','elapsedRatio','paceEvaluation','paceTitle','paceDetail','categories','caution','cautionText','updated','refresh','legacyHint'].map(id=>[id,new Node()]));
+const ids=Object.fromEntries(['status','period','spent','budgetSection','budgetEmpty','budget','remaining','remainLabel','progressFill','budgetMeter','budgetRatio','calendarMeter','calendarFill','elapsedRatio','paceEvaluation','paceTitle','paceDetail','dailyGuide','dailyPace','categories','caution','cautionText','updated','refresh','legacyHint'].map(id=>[id,new Node()]));
 const document={getElementById:id=>ids[id],createElement:tag=>new Node(tag),addEventListener:()=>{},hidden:false};
 const snapshot={
  schema_version:2,

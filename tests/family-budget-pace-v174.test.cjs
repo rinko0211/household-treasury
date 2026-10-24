@@ -10,8 +10,9 @@ for(const id of ['budgetMeter','progressFill','budgetRatio','calendarMeter','cal
  assert.ok(html.includes('id="'+id+'"'),'Missing pace control: '+id);
 }
 assert.ok(html.indexOf('id="budgetMeter"')<html.indexOf('id="calendarMeter"'),'Spending bar must be above day bar');
-assert.ok(html.includes('family.js?v=174')&&html.includes('family.css?v=174'));
-assert.ok(sw.includes('./family/family.js?v=174')&&sw.includes('./family/family.css?v=174'));
+assert.ok(html.indexOf('id="spent"')<html.indexOf('id="budget"'),'Spending amount must be primary');
+assert.ok(html.includes('family.js?v=175')&&html.includes('family.css?v=175'));
+assert.ok(sw.includes('./family/family.js?v=175')&&sw.includes('./family/family.css?v=175'));
 assert.ok(css.includes('.pace-evaluation.is-behind')&&css.includes('.pace-evaluation.is-balanced')&&css.includes('.pace-evaluation.is-ahead'));
 assert.ok(css.includes('.calendar-progress>div{background:#8999a9}'),'Calendar bar must have a consistent neutral color');
 class Node{
@@ -29,7 +30,7 @@ class Node{
 const ids=Object.fromEntries([
  'status','period','spent','budgetSection','budgetEmpty','budget','remaining','remainLabel',
  'progressFill','budgetMeter','budgetRatio','remainingRatio','calendarMeter','calendarFill',
- 'elapsedRatio','paceEvaluation','paceTitle','paceDetail','daysLeft','dailyPace',
+ 'elapsedRatio','paceEvaluation','paceTitle','paceDetail','dailyGuide','dailyPace',
  'categories','caution','cautionText','updated','refresh','legacyHint'
 ].map(id=>[id,new Node()]));
 const document={getElementById:id=>ids[id]||null,createElement:()=>new Node(),addEventListener:()=>{},hidden:false};
@@ -54,7 +55,9 @@ async function show(value,day='2026-10-10',limit=100000){
  for(let i=0;i<10;i++)await Promise.resolve();
  return {status:ids.paceTitle.textContent,detail:ids.paceDetail.textContent,
   className:ids.paceEvaluation.className,calendar:ids.calendarFill.style.width,
-  spending:ids.progressFill.style.width,elapsed:ids.elapsedRatio.textContent};
+  spending:ids.progressFill.style.width,elapsed:ids.elapsedRatio.textContent,
+  spent:ids.spent.textContent,dailyPace:ids.dailyPace.textContent,
+  remaining:ids.remaining.textContent};
 }
 async function test(){
  let x=await show(21000);
@@ -83,6 +86,11 @@ async function test(){
  x=await show(21000,'2026-10-24');
  assert.ok(x.elapsed.includes('9日 / 33日'),'Inclusive cycle day count must use full actual period');
  assert.equal(x.calendar,'27%');
+ assert.equal(x.spent,'￥21,000');
+ assert.equal(x.remaining,'￥79,000');
+ assert.equal(x.dailyPace,'1日あたり約￥3,160');
+ assert.ok(!html.includes('id="daysLeft"')&&!html.includes('上：使ったお金'));
+ assert.ok(!html.includes('id="remainingRatio"'));
  assert.ok(!src.includes("location.hash =")&&!src.includes("localStorage.setItem("),'Viewer must remain read-only');
  console.log('FAMILY_BUDGET_PACE_V174_PASS');
 }

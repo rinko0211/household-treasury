@@ -96,12 +96,11 @@ function render(d){
    const left=budget-spend,ratio=Math.round(spend/budget*100);
    $('budget').textContent=money(budget);
    $('remaining').textContent=money(Math.abs(left));
-   $('remainLabel').textContent=left<0?'今月の予算オーバー額':'今月、あと使えるお金';
+   $('remainLabel').textContent=left<0?'予算オーバー額':'あと使える金額';
    $('remaining').classList.toggle('negative',left<0);
    $('progressFill').style.width=Math.max(0,Math.min(100,ratio))+'%';
    $('budgetMeter').setAttribute('aria-valuenow',String(Math.max(0,Math.min(100,ratio))));
    $('budgetRatio').textContent='予算の'+ratio+'%';
-   if($('remainingRatio'))$('remainingRatio').textContent=left<0?'予算を超過':'残り'+Math.max(0,100-ratio)+'%';
    const today=new Intl.DateTimeFormat('sv-SE',{timeZone:'Asia/Tokyo',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
    const pace=budgetPace(v.period_start,v.period_end,today,spend,budget);
    const elapsedPercent=pace.total?Math.round(pace.elapsed/pace.total*100):0;
@@ -112,22 +111,9 @@ function render(d){
    $('paceTitle').textContent=pace.label;
    $('paceDetail').textContent=pace.detail;
    const days=Math.round((Date.parse(v.period_end+'T00:00:00Z')-Date.parse(today+'T00:00:00Z'))/86400000)+1;
-   if($('daysLeft')&&$('dailyPace')){
-     if(today<v.period_start){
-       $('daysLeft').textContent='次の給与サイクルの予算です';
-       $('dailyPace').textContent='';
-     }else if(days<=0){
-       $('daysLeft').textContent='この給与サイクルは終了しました';
-       $('dailyPace').textContent='';
-     }else{
-       $('daysLeft').textContent=days===1?'締め日は今日です':'残り'+days+'日（今日を含む）';
-       $('dailyPace').textContent=left>=0?'1日あたり約'+money(Math.floor(left/days)):'残り予算はありません';
-     }
-   }
- }else{
-   $('remaining').textContent=money(spend);
-   $('remainLabel').textContent='今月使った金額';
-   $('remaining').classList.toggle('negative',false);
+   const canShowDaily=today>=v.period_start&&days>0;
+   $('dailyGuide').hidden=!canShowDaily;
+   $('dailyPace').textContent=canShowDaily?'1日あたり約'+money(Math.floor(Math.max(0,left)/days)):'';
  }
  showBreakdown(v);
  const undetermined=Number(v.undetermined)||0,review=Number(v.review_count)||0;

@@ -7,7 +7,7 @@ header{display:flex;align-items:center;justify-content:space-between;gap:12px;ma
 .hero{border-radius:20px;background:#fff;border:1px solid #e1e8e9;box-shadow:0 6px 25px rgba(29,71,68,.045);padding:24px 21px}
 .eyebrow{font-size:12px;font-weight:650;color:#637c82;margin:0 0 12px;line-height:1.5}
 h1{font-size:16px;margin:0;font-weight:700;color:#334952}.balance-amount{font-size:clamp(38px,10vw,50px);font-weight:830;line-height:1.27;color:#117c6f;letter-spacing:-.05em;margin:8px 0 22px;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
-.balance-amount.negative{color:#ba4e43}
+.budget-numbers strong.negative{color:#ba4e43}
 .budget-numbers{display:grid;grid-template-columns:1fr 1fr;gap:14px}
 .budget-numbers>div{border-top:1px solid #e0e7e7;padding-top:14px;min-width:0}
 .budget-numbers span{display:block;color:#617780;font-size:12px;margin-bottom:7px}
@@ -25,13 +25,10 @@ h1{font-size:16px;margin:0;font-weight:700;color:#334952}.balance-amount{font-si
 .pace-evaluation.is-balanced{color:#228a61}
 .pace-evaluation.is-behind{color:#247dce}
 .pace-evaluation.is-neutral{color:#667b84}
-.usage-caption{display:flex;justify-content:space-between;gap:10px;align-items:center;color:#687d82;font-size:12px;margin:9px 0 0}
-.usage-caption strong{color:#167c6f;font-size:13px}
-.daily-guide{margin-top:21px;padding:15px 14px 13px;border-radius:13px;background:#eff8f5;display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:7px;color:#3e6c67}
-.daily-guide span{font-size:12px;font-weight:650}
+.daily-guide{margin-top:21px;padding:15px 14px;border-radius:13px;background:#eff8f5;text-align:center}
+.daily-guide[hidden]{display:none}
 .daily-guide strong{font-size:clamp(15px,4vw,18px);color:#1a7469;font-variant-numeric:tabular-nums}
-.daily-guide:has(strong:empty){background:#f1f5f5}
-.daily-footnote{font-size:11px;color:#7a8b90;line-height:1.55;margin:8px 0 0}.muted{color:#788b90;font-size:13px}
+.muted{color:#788b90;font-size:13px}
 .section{margin-top:22px;padding:17px 18px 10px;border:1px solid #e1e8e9;background:#fff;box-shadow:0 5px 22px rgba(29,71,68,.035);border-radius:20px}
 .section-head{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:8px}.section-head h2{font-size:18px;margin:0;font-weight:770;color:#283f48}.section-head span{font-size:11px;color:#7b9194;line-height:1.5;text-align:right}
 .categories{width:100%}.category{border-bottom:1px solid #e4ebeb}.category:last-child{border-bottom:0}

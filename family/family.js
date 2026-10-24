@@ -98,7 +98,7 @@ function render(d){
        $('daysLeft').textContent='この給与サイクルは終了しました';
        $('dailyPace').textContent='';
      }else{
-       $('daysLeft').textContent=days===1?'締め日は今日です':'締め日まであと'+days+'日';
+       $('daysLeft').textContent=days===1?'締め日は今日です':'残り'+days+'日（今日を含む）';
        $('dailyPace').textContent=left>=0?'1日あたり約'+money(Math.floor(left/days)):'残り予算はありません';
      }
    }

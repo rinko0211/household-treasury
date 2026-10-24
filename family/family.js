@@ -75,17 +75,37 @@ function render(d){
  $('legacyHint').hidden=Number(v.schema_version||1)>=2&&Array.isArray(v.categories)&&v.categories.every(c=>Array.isArray(c.subcategories));
  $('period').textContent=v.period_start.replaceAll('-','/')+' 〜 '+v.period_end.replaceAll('-','/');
  $('spent').textContent=money(spend);
- $('budgetSection').hidden=budget===0;
- $('budgetEmpty').hidden=budget!==0;
+ $('budgetSection').hidden=budget<=0;
+ $('budgetEmpty').hidden=budget>0;
  if(budget>0){
    const left=budget-spend,ratio=Math.round(spend/budget*100);
-   $('budget').textContent=money(budget);$('remaining').textContent=money(left);
-   $('remainLabel').textContent=left<0?'予算超過額':'あと使える金額';
+   $('budget').textContent=money(budget);
+   $('remaining').textContent=money(Math.abs(left));
+   $('remainLabel').textContent=left<0?'今月の予算オーバー額':'今月、あと使えるお金';
    $('remaining').classList.toggle('negative',left<0);
    $('progressFill').style.width=Math.max(0,Math.min(100,ratio))+'%';
    $('progressFill').classList.toggle('over',ratio>100);
    $('budgetMeter').setAttribute('aria-valuenow',String(Math.max(0,Math.min(100,ratio))));
-   $('budgetRatio').textContent=ratio+'% 使用';
+   $('budgetRatio').textContent='予算の'+ratio+'%を使いました';
+   if($('remainingRatio'))$('remainingRatio').textContent=left<0?'予算を超過':'残り'+Math.max(0,100-ratio)+'%';
+   const today=new Intl.DateTimeFormat('sv-SE',{timeZone:'Asia/Tokyo',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
+   const days=Math.round((Date.parse(v.period_end+'T00:00:00Z')-Date.parse(today+'T00:00:00Z'))/86400000)+1;
+   if($('daysLeft')&&$('dailyPace')){
+     if(today<v.period_start){
+       $('daysLeft').textContent='次の給与サイクルの予算です';
+       $('dailyPace').textContent='';
+     }else if(days<=0){
+       $('daysLeft').textContent='この給与サイクルは終了しました';
+       $('dailyPace').textContent='';
+     }else{
+       $('daysLeft').textContent=days===1?'締め日は今日です':'締め日まであと'+days+'日';
+       $('dailyPace').textContent=left>=0?'1日あたり約'+money(Math.floor(left/days)):'残り予算はありません';
+     }
+   }
+ }else{
+   $('remaining').textContent=money(spend);
+   $('remainLabel').textContent='今月使った金額';
+   $('remaining').classList.toggle('negative',false);
  }
  showBreakdown(v);
  const undetermined=Number(v.undetermined)||0,review=Number(v.review_count)||0;

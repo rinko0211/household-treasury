@@ -5,18 +5,23 @@
 <title>わが家の生活費｜変動費メーター</title>
 <meta name="apple-mobile-web-app-title" content="わが家の生活費">
 <link rel="apple-touch-icon" sizes="180x180" href="./kokeshi-home-v172.png">
-<link rel="icon" type="image/png" sizes="180x180" href="./kokeshi-home-v172.png"><link rel="stylesheet" href="./family.css?v=164">
+<link rel="icon" type="image/png" sizes="180x180" href="./kokeshi-home-v172.png"><link rel="stylesheet" href="./family.css?v=173">
 </head><body>
 <main class="wrap">
  <header><div class="brand"><span class="mark" aria-hidden="true">⌂</span><span>わが家の生活費</span></div><span class="tag">閲覧専用</span></header>
- <section class="hero" aria-labelledby="spentTitle">
+ <section class="hero" aria-labelledby="remainLabel">
   <p class="eyebrow" id="period">給与サイクルの変動費</p>
-  <h1 id="spentTitle">今月使った金額</h1>
-  <p class="spent" id="spent" aria-live="polite">—</p>
+  <h1 id="remainLabel">今月、あと使えるお金</h1>
+  <p class="balance-amount" id="remaining" aria-live="polite">—</p>
   <div id="budgetSection" hidden>
-   <div class="remaining"><div><span>今月の予算</span><strong id="budget">—</strong></div><div><span id="remainLabel">あと使える金額</span><strong id="remaining">—</strong></div></div>
+   <div class="budget-numbers">
+    <div><span>これまで使った金額</span><strong id="spent">—</strong></div>
+    <div><span>今月の予算</span><strong id="budget">—</strong></div>
+   </div>
    <div class="progress" role="meter" aria-label="変動費の予算使用率" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" id="budgetMeter"><div id="progressFill"></div></div>
-   <p id="budgetRatio" class="progress-note"></p>
+   <div class="usage-caption"><span id="budgetRatio">使用率を確認中</span><strong id="remainingRatio"></strong></div>
+   <div class="daily-guide"><span id="daysLeft"></span><strong id="dailyPace"></strong></div>
+   <p class="daily-footnote">1日あたりの金額は、残り予算を残り日数で割った目安です。</p>
   </div>
   <p id="budgetEmpty" class="muted">予算はまだ設定されていません</p>
  </section>
@@ -26,5 +31,5 @@
  <p id="status" role="status" aria-live="polite" class="status"></p>
  <p class="privacy">現金・カードなどは利用日基準で集計。カード引落を二重計上しません。店舗名・カード番号・給与・預金・投資情報は共有しません。</p>
 </main>
-<script src="./family.js?v=165" defer></script>
+<script src="./family.js?v=173" defer></script>
 </body></html>

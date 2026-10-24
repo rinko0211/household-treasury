@@ -11,8 +11,8 @@ assert.ok(js.includes("timeZone:'Asia/Tokyo'"),'days must use Japanese local dat
 assert.ok(js.includes("left<0?'今月の予算オーバー額'"),'negative balance should have an explicit label');
 assert.ok(js.includes("$('budgetSection').hidden=budget<=0"),'zero budget must not be treated as remaining');
 assert.ok(!html.includes('id="balanceEdit"')&&!html.includes('id="budgetEdit"'),'family view must stay readonly');
-assert.ok(html.includes('family.css?v=173')&&html.includes('family.js?v=173'));
-assert.ok(sw.includes('./family/family.css?v=173')&&sw.includes('./family/family.js?v=173'));
-assert.ok(sw.includes('household-treasury-v173-family-budget-clarity'));
+assert.ok(html.includes('family.css?v=174')&&html.includes('family.js?v=174'));
+assert.ok(sw.includes('./family/family.css?v=174')&&sw.includes('./family/family.js?v=174'));
+assert.ok(sw.includes('household-treasury-v174-family-budget-pace'));
 assert.ok(css.includes('.balance-amount'));
 console.log('FAMILY_BUDGET_CLARITY_V173_PASS');

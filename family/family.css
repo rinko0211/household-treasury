@@ -12,8 +12,19 @@ h1{font-size:16px;margin:0;font-weight:700;color:#334952}.balance-amount{font-si
 .budget-numbers>div{border-top:1px solid #e0e7e7;padding-top:14px;min-width:0}
 .budget-numbers span{display:block;color:#617780;font-size:12px;margin-bottom:7px}
 .budget-numbers strong{display:block;font-size:clamp(18px,5vw,22px);font-weight:750;letter-spacing:-.04em;color:#203f42;overflow-wrap:anywhere;font-variant-numeric:tabular-nums}
-.progress{width:100%;height:9px;background:#e5edec;border-radius:20px;overflow:hidden;margin-top:22px}
-.progress>div{height:100%;background:#4dbaa8;border-radius:20px;transition:width .35s ease}.progress>div.over{background:#dd906f}
+.pace-bars{margin-top:21px}
+.pace-heading{display:flex;justify-content:space-between;align-items:baseline;gap:10px;color:#405d64;font-size:13px;font-weight:650}
+.pace-heading strong{font-size:13px;color:#405d64;font-weight:700;font-variant-numeric:tabular-nums;text-align:right}
+.progress{width:100%;height:11px;background:#e5edec;border-radius:20px;overflow:hidden;margin:9px 0 17px}
+.progress>div{height:100%;background:#4dbaa8;border-radius:20px;transition:width .35s ease}
+.calendar-progress{margin-bottom:13px}
+.calendar-progress>div{background:#8999a9}
+.pace-evaluation{display:flex;flex-direction:column;gap:4px;font-size:12px;line-height:1.55;margin:0;padding:0}
+.pace-evaluation strong{font-size:14px}
+.pace-evaluation.is-ahead{color:#dc8328}
+.pace-evaluation.is-balanced{color:#228a61}
+.pace-evaluation.is-behind{color:#247dce}
+.pace-evaluation.is-neutral{color:#667b84}
 .usage-caption{display:flex;justify-content:space-between;gap:10px;align-items:center;color:#687d82;font-size:12px;margin:9px 0 0}
 .usage-caption strong{color:#167c6f;font-size:13px}
 .daily-guide{margin-top:21px;padding:15px 14px 13px;border-radius:13px;background:#eff8f5;display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:7px;color:#3e6c67}

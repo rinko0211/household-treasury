@@ -70,6 +70,21 @@ function showBreakdown(v){
    parent.append(box);
  }
 }
+// Compare budget-equivalent days to elapsed calendar days, inclusive of today.
+// The same percentage gap represents a different number of days in each pay cycle.
+function budgetPace(start,end,today,spend,budget){
+ const day=x=>Date.parse(x+'T00:00:00Z')/86400000;
+ const first=day(start),last=day(end),now=day(today);
+ if(![first,last,now].every(Number.isFinite)||last<first)return {state:'neutral',label:'日数を確認できません',detail:'給与サイクルの日付を確認してください',elapsed:0,total:0};
+ const total=last-first+1,elapsed=Math.max(0,Math.min(total,now-first+1));
+ if(now<first)return {state:'neutral',label:'サイクル開始前です',detail:'開始日から日数のバーが進みます',elapsed:0,total};
+ if(now>last)return {state:'neutral',label:'このサイクルは終了しました',detail:'次の給与サイクルの更新を確認してください',elapsed:total,total};
+ const usedDays=Math.round(total*spend/budget),difference=usedDays-elapsed;
+ if(spend>budget)return {state:'ahead',label:'ちょい多めかも',detail:'今月の予算を超えています',elapsed,total,difference};
+ if(difference<=-3)return {state:'behind',label:'余裕あり！',detail:Math.abs(difference)+'日分ゆっくり使えています',elapsed,total,difference};
+ if(difference>=3)return {state:'ahead',label:'ちょい多めかも',detail:difference+'日分早いペースです',elapsed,total,difference};
+ return {state:'balanced',label:'ちょうどいい感じ！',detail:'日数とほぼ同じペースです（±2日以内）',elapsed,total,difference};
+}
 function render(d){
  const v=d.snapshot,spend=Number(v.variable)||0,budget=Number(d.budget)||0;
  $('legacyHint').hidden=Number(v.schema_version||1)>=2&&Array.isArray(v.categories)&&v.categories.every(c=>Array.isArray(c.subcategories));
@@ -84,11 +99,18 @@ function render(d){
    $('remainLabel').textContent=left<0?'今月の予算オーバー額':'今月、あと使えるお金';
    $('remaining').classList.toggle('negative',left<0);
    $('progressFill').style.width=Math.max(0,Math.min(100,ratio))+'%';
-   $('progressFill').classList.toggle('over',ratio>100);
    $('budgetMeter').setAttribute('aria-valuenow',String(Math.max(0,Math.min(100,ratio))));
-   $('budgetRatio').textContent='予算の'+ratio+'%を使いました';
+   $('budgetRatio').textContent='予算の'+ratio+'%';
    if($('remainingRatio'))$('remainingRatio').textContent=left<0?'予算を超過':'残り'+Math.max(0,100-ratio)+'%';
    const today=new Intl.DateTimeFormat('sv-SE',{timeZone:'Asia/Tokyo',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
+   const pace=budgetPace(v.period_start,v.period_end,today,spend,budget);
+   const elapsedPercent=pace.total?Math.round(pace.elapsed/pace.total*100):0;
+   $('elapsedRatio').textContent=pace.total?pace.elapsed+'日 / '+pace.total+'日（'+elapsedPercent+'%）':'日付未確定';
+   $('calendarFill').style.width=elapsedPercent+'%';
+   $('calendarMeter').setAttribute('aria-valuenow',String(elapsedPercent));
+   $('paceEvaluation').className='pace-evaluation is-'+pace.state;
+   $('paceTitle').textContent=pace.label;
+   $('paceDetail').textContent=pace.detail;
    const days=Math.round((Date.parse(v.period_end+'T00:00:00Z')-Date.parse(today+'T00:00:00Z'))/86400000)+1;
    if($('daysLeft')&&$('dailyPace')){
      if(today<v.period_start){

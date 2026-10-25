@@ -86,14 +86,19 @@
     }
     return byYm;
   }
-  function knownForCard(st,card,ym){return (st.purchaseEvents||[]).filter(p=>cardMatches(st,p.card,card.name)&&String(p.billing_month||'')===ym&&!p.is_refinance_adjustment)}
+  function purchaseMatchesCard(st,p,card){
+    // A deliberate master ID beats legacy or ambiguous CSV/PDF card labels.
+    if(p.card_master_id)return String(p.card_master_id)===String(card.id);
+    return cardMatches(st,p.card,card.name);
+  }
+  function knownForCard(st,card,ym){return (st.purchaseEvents||[]).filter(p=>purchaseMatchesCard(st,p,card)&&String(p.billing_month||'')===ym&&!p.is_refinance_adjustment)}
 
   function buildPlan(days=180){
     const st=stateNow(),range=rangeFor(days),rows=[],warnings=[];
     for(const card of activeCards(st)){
       if(paymentMode(card)!=='FULL')continue;const settleDay=settlementDayValue(card);if(!settleDay){warnings.push({card:card.name,reason:'引落日未設定'});continue}
       const scheduled=scheduledForCard(st,card,range),months=new Set([...scheduled.keys()]);
-      for(const p of st.purchaseEvents||[]){if(cardMatches(st,p.card,card.name)&&/^\d{4}-\d{2}$/.test(String(p.billing_month||'')))months.add(String(p.billing_month))}
+      for(const p of st.purchaseEvents||[]){if(purchaseMatchesCard(st,p,card)&&/^\d{4}-\d{2}$/.test(String(p.billing_month||'')))months.add(String(p.billing_month))}
       const base=baselineOf(card),useBaseline=forecastMode(card)==='BASELINE'&&base>0;
       if(useBaseline)for(let ym=range.from.slice(0,7);ym<=range.to.slice(0,7);ym=addMonths(ym,1))months.add(ym);
       for(const ym of [...months].sort()){

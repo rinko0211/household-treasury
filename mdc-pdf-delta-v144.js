@@ -57,7 +57,9 @@
     const rows=(st.purchaseEvents||[]).map((x,i)=>({x,i})).filter(({x,i})=>{
       if(used.has(i)||pdfSource(x)||x.count_in_spending===false||
         x.reconciliation_status==='ABSORBED_DUPLICATE')return false;
-      if(String(x.card||'')!=='MUFG/DC/JAL'||String(x.payment_method||'').toUpperCase()!=='QUICPAY')return false;
+      const master=(st.masters?.cards||[]).find(c=>x.card_master_id&&String(c.id)===String(x.card_master_id));
+      const linkedJal=Boolean(master&&window.householdCardCycleV81?.canonicalCard?.(master.name)==='JAL');
+      if((String(x.card||'')!=='MUFG/DC/JAL'&&!linkedJal)||String(x.payment_method||'').toUpperCase()!=='QUICPAY')return false;
       if(Math.abs(Number(x.original_amount)||0)!==r.amount)return false;
       if(!Number.isFinite(day)||!Number.isFinite(Date.parse(x.purchase_date+'T00:00:00Z'))||
          Math.abs(Date.parse(x.purchase_date+'T00:00:00Z')-day)>3*86400000)return false;

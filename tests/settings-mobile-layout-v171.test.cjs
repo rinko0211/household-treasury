@@ -26,5 +26,5 @@ assert.ok(!cards.includes('grid-template-columns:repeat(2,1fr)'),'Remove inline 
 assert.ok(html.includes('ui-modern-v169.css?v=171'),'Browser receives updated stylesheet');
 assert.ok(loader.includes('fixed-master-unified-v43.js?v=171'));
 assert.ok(loader.includes('card-settings-unified-v77.js?v=171'));
-assert.ok(sw.includes('household-treasury-v175-family-spending-first'),'PWA version bumped while keeping v171 responsive settings');
+assert.ok(sw.includes('household-treasury-v176-card-master-link'),'PWA version bumped while keeping v171 responsive settings');
 console.log('SETTINGS_MOBILE_LAYOUT_V171_PASS');

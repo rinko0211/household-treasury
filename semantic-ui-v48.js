@@ -136,12 +136,62 @@
     o.card_master_linked_at=new Date().toISOString();
   }
 
+
+  // A verified statement month takes precedence over the forecast cycle.
+  function isConfirmedMonth(kind,o){
+    return kind==='billing'||Boolean(o?.mdc_import_v144||o?.pdf_card_identity||
+      /^MDC_PDF_/i.test(String(o?.source_file||''))||
+      ['STATEMENT','CONFIRMED','PDF'].includes(String(o?.billing_month_source||'').toUpperCase()));
+  }
+  function chooseBillingMonth(kind,o,master,date,manual=''){
+    const original=String(o?.billing_month||'');
+    if(isConfirmedMonth(kind,o)&&/^\d{4}-\d{2}$/.test(original))
+      return {mode:'confirmed',month:original};
+    const cycle=window.householdCardCycleV81;
+    const closing=master?cycle?.closingDayValue?.(master):null;
+    if(master&&Number.isInteger(closing)&&closing>=1&&closing<=31){
+      const month=cycle?.billingMonthForDate?.(date,closing,1)||'';
+      if(/^\d{4}-\d{2}$/.test(month))return {mode:'automatic',month};
+    }
+    return {mode:master?'missing-closing-day':'manual',month:String(manual||original)};
+  }
+  function updateAutoMonth(row,choice,master,date){
+    if(!master||choice.mode!=='automatic')return;
+    row.billing_month=choice.month;
+    row.billing_month_source='CARD_MASTER_AUTO';
+    if(row.expected_settlement_status==='UNCONFIRMED'&&!row.card_settlement_id){
+      const due=window.householdCardCycleV81?.paymentDateForSpend?.(master,date)||'';
+      if(/^\d{4}-\d{2}-\d{2}$/.test(due)){
+        row.expected_settlement_date=due;
+        row.settlement_due_date=due;
+      }
+    }
+  }
+  function refreshCardBillingHint(){
+    const modal=$('transactionCardEditorV114'),kind=modal?.dataset.kind;
+    if(kind!=='purchase'&&kind!=='billing')return;
+    const st=stateNow(),record=kind==='purchase'?findRecord(st,'purchase',modal.dataset.id):findBillingRecord(st,modal.dataset.id);
+    const input=$('v114Month'),field=$('v114MonthField'),hint=$('v114MonthHint');
+    if(!record||!input||!field||!hint)return;
+    const masterId=$('v114Card')?.value||'',master=(st.masters?.cards||[]).find(c=>String(c.id)===String(masterId))||null;
+    const choice=chooseBillingMonth(kind,record,master,$('v114Date')?.value||'',input.value);
+    const hide=choice.mode==='automatic'||choice.mode==='confirmed';
+    field.style.display=hide?'none':'';
+    if(hide){
+      input.value=choice.month;
+      hint.textContent='請求月：'+choice.month+(choice.mode==='automatic'?'（利用日・締め日から自動計算）':'（取込明細の確定値）');
+    }else{
+      hint.textContent=master?'締め日が未設定です。Settingsのカードマスターに締め日を設定すると、自動計算できます。':'';
+    }
+  }
+
   function ensureIntegratedCardEditor(){
     let m=$('transactionCardEditorV114');if(m)return m;
     m=document.createElement('div');m.id='transactionCardEditorV114';m.style.cssText='display:none;position:fixed;inset:0;z-index:13100;background:rgba(3,8,20,.72);padding:14px;overflow:auto';
     m.innerHTML=`<div class="card" style="max-width:700px;margin:5vh auto"><div style="display:flex;justify-content:space-between;gap:10px"><div><div class="title" id="transactionCardEditorTitleV114">カード明細を編集</div><div class="tiny" id="transactionCardEditorMetaV114"></div></div><button class="btn secondary" data-v114-card-close>閉じる</button></div><div id="transactionCardEditorBodyV114" style="margin-top:12px"></div><div class="controls" style="margin-top:12px"><button class="btn" data-v114-card-save>保存</button><button class="btn secondary" data-v114-card-close>キャンセル</button></div></div>`;
     document.body.appendChild(m);
     m.addEventListener('click',e=>{if(e.target===m||e.target.closest?.('[data-v114-card-close]'))m.style.display='none';if(e.target.closest?.('[data-v114-card-save]'))saveIntegratedCardEditor()});
+    m.addEventListener('change',e=>{if(e.target?.id==='v114Card'||e.target?.id==='v114Date')refreshCardBillingHint()});
     return m
   }
   function openIntegratedCardEditor(kind,id){
@@ -150,17 +200,17 @@
       const p=findRecord(st,'purchase',id);if(!p)return alert('カード利用明細が見つかりません。');
       const lines=linkedBillingLines(st,p),line=lines.length===1?lines[0]:null;
       $('transactionCardEditorTitleV114').textContent='カード利用明細を編集';$('transactionCardEditorMetaV114').textContent=p.source_file||'';
-      $('transactionCardEditorBodyV114').innerHTML=`<div class="form" style="grid-template-columns:1fr 1fr">${masterPickerHtml(st,p,'v114Card')}<div class="field"><label>利用日</label><input id="v114Date" type="date" value="${esc(p.purchase_date||'')}"></div><div class="field" style="grid-column:1/-1"><label>利用先</label><input id="v114Merchant" value="${esc(p.merchant_raw||p.merchant_normalized||'')}"></div><div class="field"><label>利用額</label><input id="v114Amount" type="number" min="0" value="${Math.abs(Number(p.original_amount)||0)}"></div><div class="field"><label>請求月</label><input id="v114Month" type="month" value="${esc(p.billing_month||'')}"></div>${line?`<div class="field"><label>当月請求額</label><input id="v114Billed" type="number" min="0" value="${Math.abs(Number(line.billed_amount)||0)}"></div>`:''}</div>`;
+      $('transactionCardEditorBodyV114').innerHTML=`<div class="form" style="grid-template-columns:1fr 1fr">${masterPickerHtml(st,p,'v114Card')}<div class="field"><label>利用日</label><input id="v114Date" type="date" value="${esc(p.purchase_date||'')}"></div><div class="field" style="grid-column:1/-1"><label>利用先</label><input id="v114Merchant" value="${esc(p.merchant_raw||p.merchant_normalized||'')}"></div><div class="field"><label>利用額</label><input id="v114Amount" type="number" min="0" value="${Math.abs(Number(p.original_amount)||0)}"></div><div class="field" id="v114MonthField"><label>請求月（締め日未設定の場合のみ）</label><input id="v114Month" type="month" value="${esc(p.billing_month||'')}"></div><div class="tiny" id="v114MonthHint" style="grid-column:1/-1"></div>${line?`<div class="field"><label>当月請求額</label><input id="v114Billed" type="number" min="0" value="${Math.abs(Number(line.billed_amount)||0)}"></div>`:''}</div>`;
     }else if(kind==='billing'){
       const line=findBillingRecord(st,id);if(!line)return alert('カード請求明細が見つかりません。');
       $('transactionCardEditorTitleV114').textContent='カード請求明細を編集';$('transactionCardEditorMetaV114').textContent=line.source_file||'';
-      $('transactionCardEditorBodyV114').innerHTML=`<div class="form" style="grid-template-columns:1fr 1fr">${masterPickerHtml(st,line,'v114Card')}<div class="field"><label>利用日</label><input id="v114Date" type="date" value="${esc(line.purchase_date||'')}"></div><div class="field" style="grid-column:1/-1"><label>利用先</label><input id="v114Merchant" value="${esc(line.merchant_raw||line.merchant_normalized||'')}"></div><div class="field"><label>利用額</label><input id="v114Amount" type="number" min="0" value="${Math.abs(Number(line.original_amount)||0)}"></div><div class="field"><label>請求月</label><input id="v114Month" type="month" value="${esc(line.billing_month||'')}"></div><div class="field"><label>当月請求額</label><input id="v114Billed" type="number" min="0" value="${Math.abs(Number(line.billed_amount)||0)}"></div></div>`;
+      $('transactionCardEditorBodyV114').innerHTML=`<div class="form" style="grid-template-columns:1fr 1fr">${masterPickerHtml(st,line,'v114Card')}<div class="field"><label>利用日</label><input id="v114Date" type="date" value="${esc(line.purchase_date||'')}"></div><div class="field" style="grid-column:1/-1"><label>利用先</label><input id="v114Merchant" value="${esc(line.merchant_raw||line.merchant_normalized||'')}"></div><div class="field"><label>利用額</label><input id="v114Amount" type="number" min="0" value="${Math.abs(Number(line.original_amount)||0)}"></div><div class="field" id="v114MonthField"><label>請求月（締め日未設定の場合のみ）</label><input id="v114Month" type="month" value="${esc(line.billing_month||'')}"></div><div class="tiny" id="v114MonthHint" style="grid-column:1/-1"></div><div class="field"><label>当月請求額</label><input id="v114Billed" type="number" min="0" value="${Math.abs(Number(line.billed_amount)||0)}"></div></div>`;
     }else if(kind==='settlement'){
       const x=findSettlementRecord(st,id);if(!x)return alert('カード請求が見つかりません。');
       $('transactionCardEditorTitleV114').textContent='カード請求を編集';$('transactionCardEditorMetaV114').textContent=x.source_file||'';
       $('transactionCardEditorBodyV114').innerHTML=`<div class="form">${masterPickerHtml(st,x,'v114Card')}<div class="field"><label>引落日</label><input id="v114Date" type="date" value="${esc(x.due_date||'')}"></div><div class="field"><label>請求額</label><input id="v114Amount" type="number" min="0" value="${Math.abs(Number(x.amount)||0)}"></div></div>`;
     }else return;
-    m.style.display='block'
+    m.style.display='block';refreshCardBillingHint()
   }
   function saveIntegratedCardEditor(){
     const m=$('transactionCardEditorV114'),kind=m?.dataset.kind,id=m?.dataset.id,st=stateNow(),now=new Date().toISOString();if(!kind||!id)return;
@@ -171,14 +221,14 @@
     const card=selectedMaster?.name||sourceCardLabel(existing);
     if(!card||card==='未特定'||!date||!Number.isFinite(amount)||amount<0)return alert('カード・日付・金額を確認してください。');
     if(kind==='purchase'){
-      const p=findRecord(st,'purchase',id);if(!p)return;const merchant=$('v114Merchant')?.value.trim()||'',month=$('v114Month')?.value||'';if(!merchant||!/^\d{4}-\d{2}$/.test(month))return alert('利用先・請求月を確認してください。');
+      const p=findRecord(st,'purchase',id);if(!p)return;const merchant=$('v114Merchant')?.value.trim()||'';const choice=chooseBillingMonth('purchase',p,selectedMaster,date,$('v114Month')?.value||'');const month=choice.month;if(!merchant||!/^\d{4}-\d{2}$/.test(month))return alert('利用先・請求月を確認してください。');
       const lines=linkedBillingLines(st,p);applyCardMasterChoice(p,selectedMaster);
-      Object.assign(p,{purchase_date:date,merchant_raw:merchant,merchant_normalized:norm(merchant),original_amount:Math.abs(amount),billing_month:month,confidence:1,manual_corrected:true,manual_corrected_at:now});
-      for(const l of lines){applyCardMasterChoice(l,selectedMaster);Object.assign(l,{purchase_date:date,merchant_raw:merchant,merchant_normalized:norm(merchant),original_amount:Math.abs(amount),billing_month:month,manual_corrected:true,manual_corrected_at:now})}
+      Object.assign(p,{purchase_date:date,merchant_raw:merchant,merchant_normalized:norm(merchant),original_amount:Math.abs(amount),billing_month:month,confidence:1,manual_corrected:true,manual_corrected_at:now});updateAutoMonth(p,choice,selectedMaster,date);
+      for(const l of lines){applyCardMasterChoice(l,selectedMaster);Object.assign(l,{purchase_date:date,merchant_raw:merchant,merchant_normalized:norm(merchant),original_amount:Math.abs(amount),billing_month:chooseBillingMonth('billing',l,selectedMaster,date,l.billing_month||'').month,manual_corrected:true,manual_corrected_at:now})}
       if(lines.length===1&&$('v114Billed')){const billed=Number($('v114Billed').value);if(Number.isFinite(billed)&&billed>=0)lines[0].billed_amount=Math.abs(billed)}
     }else if(kind==='billing'){
-      const l=findBillingRecord(st,id);if(!l)return;const merchant=$('v114Merchant')?.value.trim()||'',month=$('v114Month')?.value||'',billed=Number($('v114Billed')?.value);if(!merchant||!/^\d{4}-\d{2}$/.test(month)||!Number.isFinite(billed)||billed<0)return alert('利用先・請求月・当月請求額を確認してください。');
-      applyCardMasterChoice(l,selectedMaster);Object.assign(l,{purchase_date:date,merchant_raw:merchant,merchant_normalized:norm(merchant),original_amount:Math.abs(amount),billing_month:month,billed_amount:Math.abs(billed),manual_corrected:true,manual_corrected_at:now})
+      const l=findBillingRecord(st,id);if(!l)return;const merchant=$('v114Merchant')?.value.trim()||'',billed=Number($('v114Billed')?.value);const choice=chooseBillingMonth('billing',l,selectedMaster,date,$('v114Month')?.value||'');const month=choice.month;if(!merchant||!/^\d{4}-\d{2}$/.test(month)||!Number.isFinite(billed)||billed<0)return alert('利用先・請求月・当月請求額を確認してください。');
+      applyCardMasterChoice(l,selectedMaster);Object.assign(l,{purchase_date:date,merchant_raw:merchant,merchant_normalized:norm(merchant),original_amount:Math.abs(amount),billing_month:month,billed_amount:Math.abs(billed),manual_corrected:true,manual_corrected_at:now});updateAutoMonth(l,choice,selectedMaster,date)
     }else if(kind==='settlement'){
       const x=findSettlementRecord(st,id);if(!x)return;applyCardMasterChoice(x,selectedMaster);Object.assign(x,{due_date:date,amount:Math.abs(amount),manual_corrected:true,manual_corrected_at:now,due_date_source:'MANUAL'})
     }
@@ -261,8 +311,10 @@
     delete o.cost_behavior;delete o.fixed_variable_class;
     if(kind==='cash')o.is_transfer=econ==='TRANSFER';
     if(kind==='purchase'){
+      const choice=chooseBillingMonth('purchase',o,chosenCardMaster,o.purchase_date,o.billing_month||'');
+      if(chosenCardMaster&&choice.mode==='missing-closing-day')return alert('カードマスターの締め日が未設定です。Settings → カードで締め日を設定してください。');
       const lines=linkedBillingLines(st,o);
-      applyCardMasterChoice(o,chosenCardMaster);
+      applyCardMasterChoice(o,chosenCardMaster);updateAutoMonth(o,choice,chosenCardMaster,o.purchase_date);
       for(const l of lines)applyCardMasterChoice(l,chosenCardMaster);
     }
     if(kind!=='cash_expense'){if(remember)setRememberRule(st,kind,o,name,actions);else disableConflictingRules(st,kind,o,name,actions)}

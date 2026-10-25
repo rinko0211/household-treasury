@@ -101,7 +101,7 @@
   injectClassic('./cash-expense-analytics-v106.js?v=159', 'data-household-cash-expense-analytics-v106');
   injectClassic('./mufg-card-semantics-v75.js?v=75', 'data-household-mufg-card-semantics-v75');
   injectClassic('./semantic-observer-guard-v71.js?v=71', 'data-household-semantic-observer-guard-v71');
-  injectClassic('./semantic-ui-v48.js?v=176', 'data-household-semantic-ui-v48');
+  injectClassic('./semantic-ui-v48.js?v=177', 'data-household-semantic-ui-v48');
   injectClassic('./semantic-review-stability-v76.js?v=76', 'data-household-semantic-review-stability-v76');
   injectClassic('./card-identity-v51.js?v=51', 'data-household-card-identity-v51');
   injectClassic('./card-forecast-v49.js?v=49', 'data-household-card-forecast-v49');

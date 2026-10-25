@@ -143,7 +143,7 @@ assert.equal(calls[0].purchaseCount,1,'Backup must capture original purchase cou
 assert.equal(calls.filter(x=>x.type==='save').length,1,'Conversion persists exactly once');
 const spend=(state.cashExpenses||[]).filter(x=>x.count_in_spending!==false).reduce((a,x)=>a+x.amount,0)+
  state.purchaseEvents.filter(x=>x.count_in_spending!==false).reduce((a,x)=>a+x.original_amount,0);
-assert.equal(spend,800+500+2207,'Moving cash -> card must preserve combined spending total');
+assert.equal(spend,800+500+2207+2207,'Moving cash -> card must preserve the existing combined spending total, even if unrelated data already contains a duplicate');
 const forecast=window.householdCardCycleV81.buildPlan(400);
 assert.ok(forecast.rows.some(x=>x.card==='JALカード'&&x.billing_month==='2026-12'&&x.known_purchase_total===3007),
  'Converted 800 yen must join JAL December purchase forecast');

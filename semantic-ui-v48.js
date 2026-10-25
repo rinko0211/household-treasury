@@ -55,7 +55,7 @@
     return(st.cardBillingLines||[]).filter(x=>norm(x.card)===norm(p.card)&&String(x.purchase_date||'')===String(p.purchase_date||'')&&norm(x.merchant_raw||x.merchant_normalized||'')===norm(p.merchant_raw||p.merchant_normalized||'')&&Math.abs(Number(x.original_amount)||0)===Math.abs(Number(p.original_amount)||0)&&Number(x.occurrence_index||1)===Number(p.occurrence_index||1))
   }
   function persist(st,msg){
-    if(busy)return;busy=true;try{sem()?.migrateState?.(st);sem()?.applyAutomationRules?.(st);window.treasuryRecoverySnapshot?.(`${msg}直前`);window.replaceTreasuryState?.(st);window.repairTreasuryBankBalances?.();window.setTreasurySaveStatus?.(`${msg}・同期中`);window.cloudSyncOnLocalSave?.()}finally{setTimeout(()=>busy=false,0)}
+    if(busy)return;busy=true;try{sem()?.migrateState?.(st);sem()?.applyAutomationRules?.(st);window.treasuryRecoverySnapshot?.(`${msg}直前`);const saved=window.replaceTreasuryState?.(st);if(saved===false)throw Error('台帳への保存に失敗しました');window.repairTreasuryBankBalances?.();window.setTreasurySaveStatus?.(`${msg}・同期中`);window.cloudSyncOnLocalSave?.()}finally{setTimeout(()=>busy=false,0)}
     setTimeout(renderAll,0);
   }
 
@@ -76,7 +76,7 @@
     const out=[],settlements=st.cardSettlements||[],linkedBankIds=new Set(settlements.map(x=>String(x.bank_transaction_id||'')).filter(Boolean));
     (st.purchaseEvents||[]).forEach((o,i)=>out.push({kind:'purchase',o,id:recordId('purchase',o,i),date:recordDate('purchase',o),name:recordName('purchase',o),source:recordSource('purchase',o),amount:recordAmount('purchase',o),economic:String(o.economic_type||'EXPENSE'),category:o.category||''}));
     (st.cashTransactions||[]).forEach((o,i)=>{if(linkedBankIds.has(String(o.id||'')))return;out.push({kind:'cash',o,id:recordId('cash',o,i),date:recordDate('cash',o),name:recordName('cash',o),source:recordSource('cash',o),amount:recordAmount('cash',o),economic:String(o.economic_type||'UNKNOWN'),category:o.category||''})});
-    (st.cashExpenses||[]).forEach((o,i)=>out.push({kind:'cash_expense',o,id:recordId('cash_expense',o,i),date:recordDate('cash_expense',o),name:recordName('cash_expense',o),source:'現金',amount:recordAmount('cash_expense',o),economic:String(o.economic_type||'EXPENSE'),category:o.category||''}));
+    (st.cashExpenses||[]).forEach((o,i)=>{if(o.count_in_spending===false||o.reconciliation_status==='ABSORBED_DUPLICATE'||o.reconciliation_status==='RECLASSIFIED_CARD_PAYMENT')return;out.push({kind:'cash_expense',o,id:recordId('cash_expense',o,i),date:recordDate('cash_expense',o),name:recordName('cash_expense',o),source:'現金',amount:recordAmount('cash_expense',o),economic:String(o.economic_type||'EXPENSE'),category:o.category||''})});
     (st.cardBillingLines||[]).forEach((o,i)=>{if(billingLinked(st,o))return;out.push({kind:'billing',o,id:recordId('billing',o,i),date:recordDate('billing',o),name:recordName('billing',o),source:recordSource('billing',o),amount:recordAmount('billing',o),economic:'EXPENSE',category:o.category||'',note:'未紐付け請求行'})});
     settlements.forEach((o,i)=>{const bank=(st.cashTransactions||[]).find(t=>String(t.id||'')===String(o.bank_transaction_id||''));out.push({kind:'settlement',o,id:recordId('settlement',o,i),date:bank?.date||recordDate('settlement',o),name:recordName('settlement',o),source:bank?.source||recordSource('settlement',o),amount:recordAmount('settlement',o),economic:'TRANSFER',category:'',note:o.detail_reconciled?'内訳一致':Number.isFinite(Number(o.detail_difference))?`内訳差 ${yen(o.detail_difference)}`:''})});
     return out.sort((a,b)=>String(b.date).localeCompare(String(a.date))||String(a.name).localeCompare(String(b.name),'ja'));
@@ -246,10 +246,36 @@
   }
   function disableConflictingRules(st,kind,o,name,actions){const now=new Date().toISOString();for(const r of matchingRules(st,kind,o,name)){if(r.active===false||sameActions(r.actions,actions))continue;r.active=false;r.disabled_reason='manual_transaction_override_v108';r.disabledAt=now}}
 
+
+  function cashCardPickerHtml(st){
+    return `<div class="field" style="margin-top:12px;min-width:0">
+      <label>支払方法（現金からカード払いに変更）</label>
+      <select id="transactionCashCardMasterV178" style="width:100%;max-width:100%">
+        <option value="">現金のまま</option>
+        ${activeCardMasters(st).map(c=>`<option value="${esc(c.id)}">${esc(c.name)}</option>`).join('')}
+      </select>
+      <div id="transactionCashCardHintV178" class="tiny" style="margin-top:6px">
+        カードを選ぶと現金支出からカード購入に移し、締め日から請求月を自動計算します。</div>
+    </div>`;
+  }
+  function refreshCashCardHint(){
+    const id=$('transactionCashCardMasterV178')?.value||'',
+      date=$('transactionRawDateV110')?.value||'',
+      hint=$('transactionCashCardHintV178');
+    if(!hint)return;
+    if(!id){hint.textContent='現金のまま登録します。';return}
+    const st=stateNow(),master=masterById(st,id);
+    if(!master){hint.textContent='カードマスターが見つかりません。';return}
+    const choice=chooseBillingMonth('purchase',{},master,date);
+    if(choice.mode!=='automatic'){hint.textContent='締め日が未設定です。Settings → カードマスターから設定してください。';return}
+    const due=window.householdCardCycleV81?.paymentDateForSpend?.(master,date)||'';
+    hint.textContent='カード払いへ変更：'+choice.month+'請求'+(due?'（引落予定 '+due+'）':'')+'。元の現金記録は二重計上しません。';
+  }
+
   function ensureTransactionEditor(){
     let m=$('transactionEditorV108');if(m)return m;m=document.createElement('div');m.id='transactionEditorV108';m.style.cssText='display:none;position:fixed;inset:0;z-index:13000;background:rgba(3,8,20,.72);padding:14px;overflow:auto';
     m.innerHTML=`<div class="card" style="max-width:720px;margin:5vh auto"><div style="display:flex;justify-content:space-between;gap:10px;align-items:flex-start"><div><div class="title" id="transactionEditorTitleV108" style="margin:0"></div><div class="tiny" id="transactionEditorMetaV108"></div></div><button type="button" class="btn secondary" data-v108-tx-close>閉じる</button></div><div id="transactionEditorRawV110"></div><div class="form" style="grid-template-columns:repeat(4,1fr);gap:8px;margin-top:12px"><div class="field"><label>お金の性質</label><select id="transactionEditorEconV108">${ECON.map(x=>`<option value="${x}">${ECON_LABEL[x]}</option>`).join('')}</select></div><div class="field"><label>通常 / 特別</label><select id="transactionEditorSpendV108"><option value="NORMAL">通常費</option><option value="SPECIAL">特別費</option></select></div><div class="field"><label>固定費 / 変動費（個別指定）</label><select id="transactionEditorNatureV159"><option value="AUTO">分類ルールに従う</option><option value="FIXED">固定費</option><option value="VARIABLE">変動費</option><option value="REVIEW">未確定・要確認</option></select></div><div class="field"><label>カテゴリ</label><select id="transactionEditorCatV108"></select></div><div class="field"><label>サブカテゴリ</label><select id="transactionEditorSubV108"></select></div><div class="field" id="transactionEditorTopupFieldV165" style="display:none"><label>チャージ・資金移動の確認</label><select id="transactionEditorTopupV165"><option value="PENDING">保留（要確認のまま）</option><option value="EXPENSE">買い物・支出と確認</option><option value="TRANSFER">チャージ・資金移動と確認（支出から除外）</option></select></div></div><div class="note" style="margin-top:10px">自分の口座間移動やカード支払用の資金移動は「資金移動」にすると、支出集計から除外されます。</div><div class="controls" style="margin-top:12px"><button type="button" class="btn" data-v108-tx-save>保存</button><button type="button" class="btn secondary" data-v108-tx-next>保存して次へ</button><button type="button" class="btn secondary" data-v108-tx-remember>保存して記憶</button></div></div>`;
-    document.body.appendChild(m);m.addEventListener('click',e=>{if(e.target===m||e.target.closest?.('[data-v108-tx-close]'))closeTransactionEditor();if(e.target.closest?.('[data-v108-tx-save]'))saveTransactionEditor(false,false);if(e.target.closest?.('[data-v108-tx-next]'))saveTransactionEditor(false,true);if(e.target.closest?.('[data-v108-tx-remember]'))saveTransactionEditor(true,false)});$('transactionEditorEconV108').addEventListener('change',syncTransactionEditor);$('transactionEditorCatV108').addEventListener('change',()=>{$('transactionEditorSubV108').innerHTML=subOptions($('transactionEditorCatV108').value,$('transactionEditorSubV108').value)});$('transactionEditorTopupV165').addEventListener('change',()=>{
+    document.body.appendChild(m);m.addEventListener('click',e=>{if(e.target===m||e.target.closest?.('[data-v108-tx-close]'))closeTransactionEditor();if(e.target.closest?.('[data-v108-tx-save]'))saveTransactionEditor(false,false);if(e.target.closest?.('[data-v108-tx-next]'))saveTransactionEditor(false,true);if(e.target.closest?.('[data-v108-tx-remember]'))saveTransactionEditor(true,false)});$('transactionEditorRawV110').addEventListener('change',e=>{if(['transactionCashCardMasterV178','transactionRawDateV110'].includes(e.target?.id))refreshCashCardHint()});$('transactionEditorEconV108').addEventListener('change',syncTransactionEditor);$('transactionEditorCatV108').addEventListener('change',()=>{$('transactionEditorSubV108').innerHTML=subOptions($('transactionEditorCatV108').value,$('transactionEditorSubV108').value)});$('transactionEditorTopupV165').addEventListener('change',()=>{
     const choice=$('transactionEditorTopupV165').value;
     if(choice==='EXPENSE'||choice==='TRANSFER'){$('transactionEditorEconV108').value=choice;syncTransactionEditor()}
   });return m
@@ -281,12 +307,12 @@
     const next=$('transactionEditorV108')?.querySelector('[data-v108-tx-next]');
     if(next)next.style.display=m._editContext?.next?'':'none';
     m.scrollTop=0;$('transactionEditorTitleV108').textContent=recordName(kind,o);$('transactionEditorMetaV108').textContent=`${recordDate(kind,o)} · ${recordSource(kind,o)} · ${yen(Math.abs(recordAmount(kind,o)))}`;
-    const raw=$('transactionEditorRawV110');if(raw)raw.innerHTML=kind==='purchase'?masterPickerHtml(st,o,'transactionCardMasterV176'):kind==='cash_expense'?`<div class="form" style="grid-template-columns:1fr 2fr 1fr;margin-top:12px"><div class="field"><label>日付</label><input id="transactionRawDateV110" type="date" value="${esc(o.date||'')}"></div><div class="field"><label>内容</label><input id="transactionRawNameV110" value="${esc(o.description||'')}"></div><div class="field"><label>金額</label><input id="transactionRawAmountV110" type="number" min="0" value="${Math.abs(Number(o.amount)||0)}"></div></div>`:'';
+    const raw=$('transactionEditorRawV110');if(raw)raw.innerHTML=kind==='purchase'?masterPickerHtml(st,o,'transactionCardMasterV176'):kind==='cash_expense'?`<div class="form" style="grid-template-columns:1fr 2fr 1fr;margin-top:12px"><div class="field"><label>日付</label><input id="transactionRawDateV110" type="date" value="${esc(o.date||'')}"></div><div class="field"><label>内容</label><input id="transactionRawNameV110" value="${esc(o.description||'')}"></div><div class="field"><label>金額</label><input id="transactionRawAmountV110" type="number" min="0" value="${Math.abs(Number(o.amount)||0)}"></div></div>${cashCardPickerHtml(st)}`:'';
     const remember=m.querySelector('[data-v108-tx-remember]');if(remember)remember.style.display=kind==='cash_expense'?'none':'';
     const topup=$('transactionEditorTopupFieldV165');
     if(topup)topup.style.display=o.potential_prepaid_topup===true?'':'none';
     if($('transactionEditorTopupV165'))$('transactionEditorTopupV165').value='PENDING';
-    $('transactionEditorEconV108').value=ECON.includes(econ)?econ:'EXPENSE';$('transactionEditorSpendV108').value=sp==='SPECIAL'?'SPECIAL':'NORMAL';$('transactionEditorNatureV159').value=['FIXED','VARIABLE','REVIEW'].includes(String(o.cost_nature||o.cost_behavior||o.fixed_variable_class||'').toUpperCase())?String(o.cost_nature||o.cost_behavior||o.fixed_variable_class).toUpperCase():'AUTO';$('transactionEditorCatV108').innerHTML=catOptions(cat);$('transactionEditorCatV108').value=cat;$('transactionEditorSubV108').innerHTML=subOptions(cat,sub);syncTransactionEditor();m.style.display='block'
+    $('transactionEditorEconV108').value=ECON.includes(econ)?econ:'EXPENSE';$('transactionEditorSpendV108').value=sp==='SPECIAL'?'SPECIAL':'NORMAL';$('transactionEditorNatureV159').value=['FIXED','VARIABLE','REVIEW'].includes(String(o.cost_nature||o.cost_behavior||o.fixed_variable_class||'').toUpperCase())?String(o.cost_nature||o.cost_behavior||o.fixed_variable_class).toUpperCase():'AUTO';$('transactionEditorCatV108').innerHTML=catOptions(cat);$('transactionEditorCatV108').value=cat;$('transactionEditorSubV108').innerHTML=subOptions(cat,sub);syncTransactionEditor();m.style.display='block';if(kind==='cash_expense')refreshCashCardHint()
   }
   function closeTransactionEditor(){const m=$('transactionEditorV108');if(m)m.style.display='none'}
   function saveTransactionEditor(remember,advance=false){
@@ -295,6 +321,40 @@
     const topupDecision=pendingTopup?($('transactionEditorTopupV165')?.value||'PENDING'):'NONE';
     if(topupDecision==='EXPENSE'||topupDecision==='TRANSFER')econ=topupDecision;
     if(econ==='EXPENSE'&&!cat)return alert('支出の場合はカテゴリを選択してください。');
+
+    // A cashExpense belongs to a different collection from a card purchase.
+    // Use an immutable migration so the backup precedes the ledger transition.
+    const cashCardId=kind==='cash_expense'?String($('transactionCashCardMasterV178')?.value||''):'';
+    if(cashCardId){
+      const engine=window.householdCashCardReclassV178;
+      if(!engine?.plan)return alert('現金→カード修正機能を読み込めません。再読み込みしてください。');
+      let planned;
+      try{
+        planned=engine.plan(st,{
+          id,cardMasterId:cashCardId,
+          date:$('transactionRawDateV110')?.value||'',
+          description:$('transactionRawNameV110')?.value||'',
+          amount:Number($('transactionRawAmountV110')?.value),
+          economicType:econ,spendingClass:spend,category:cat,
+          subcategory:sub,costNature:$('transactionEditorNatureV159')?.value||'AUTO'
+        });
+      }catch(e){return alert('変更できません：'+String(e.message||e))}
+      if(typeof window.treasuryRecoverySnapshot!=='function'||typeof window.replaceTreasuryState!=='function')
+        return alert('復旧履歴が利用できないため変更しませんでした。');
+      if(!window.confirm('この現金支出 '+yen(planned.amount)+' を '+planned.cardName+
+        ' の '+planned.billingMonth+'請求に変更します。\n元の現金支出は履歴として残し、支出には重複計上しません。実行しますか？'))return;
+      const editContext=m._editContext,nextRecord=advance?editContext?.next:null;
+      try{persist(planned.next,'現金支出からカード購入へ変更')}
+      catch(e){return alert('変更を保存できませんでした：'+String(e.message||e))}
+      closeTransactionEditor();window.householdExpenseUnifiedV148?.render?.();
+      restoreTransactionEditContext(editContext);
+      if(typeof window.requestAnimationFrame==='function')
+        window.requestAnimationFrame(()=>restoreTransactionEditContext(editContext));
+      if(nextRecord&&findRecord(stateNow(),nextRecord.kind,nextRecord.id))
+        openTransactionEditor(nextRecord.kind,nextRecord.id);
+      setTimeout(()=>{window.renderDashboardV39?.();window.householdPlanningUiV79?.renderDashboard79?.()},0);
+      return;
+    }
     let chosenCardMaster=null;
     if(kind==='purchase'){
       try{chosenCardMaster=validateCardMasterChoice(st,o,$('transactionCardMasterV176')?.value||'')}catch(e){return alert(e.message)}

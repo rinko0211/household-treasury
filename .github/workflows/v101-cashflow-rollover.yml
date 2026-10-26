@@ -121,7 +121,8 @@ jobs:
           if(state.events.some(x=>x.id==='payoff'))throw new Error('settled one-off event must leave active events');
           const archivedPayoff=(state.eventArchiveV104||[]).find(x=>x.source_event_id==='payoff');
           if(!archivedPayoff||archivedPayoff.reconciliation_status!=='MATCHED_ACTUAL'||archivedPayoff.actual_transaction_id!=='b3')throw new Error('settled event archive missing actual link: '+JSON.stringify(archivedPayoff));
-          const sep=state.history.find(x=>x.month==='2026-09');
+          const monthNow=new Intl.DateTimeFormat('sv-SE',{timeZone:'Asia/Tokyo',year:'numeric',month:'2-digit'}).format(new Date());
+          const sep=state.history.find(x=>x.month===monthNow);
           if(!sep||sep.bank!==777777)throw new Error('current month history must align with Dashboard current balance: '+JSON.stringify(sep));
           console.log('V105_MODEL_PASS',JSON.stringify({anchor,actual,planning,rec,archivedPayoff,sep}));
           NODE

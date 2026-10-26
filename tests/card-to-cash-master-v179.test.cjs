@@ -156,8 +156,10 @@ assert.equal(calls[0].type,'backup');
 assert.equal(calls[0].snapshot.purchaseEvents[0].count_in_spending,true,'Recovery snapshot before any replacement');
 assert.equal(calls.filter(x=>x.type==='save').length,1);
 assert.equal(semanticModal.style.display,'none');
-// Allow the editor's first save cycle to exit its busy state before the next user edit.
-tasks.shift()?.();
+// Advance exactly the scheduled callback that releases the editor busy flag.
+const releaseIndex=tasks.findIndex(f=>String(f).includes('busy=false'));
+assert.ok(releaseIndex>=0,'Expected a delayed busy-state release');
+tasks.splice(releaseIndex,1)[0]();
 const after=window.householdCardCycleV81.buildPlan(400);
 assert.ok(after.rows.some(x=>x.card==='JALカード'&&x.billing_month==='2026-12'&&x.known_purchase_total===800),
  'Card forecast excludes archived 500 purchase but keeps remaining 800');

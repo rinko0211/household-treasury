@@ -106,9 +106,9 @@ jobs:
 
           const f=context.forecast(30);
           if(f.actualBalanceV102!==777777)throw new Error('forecast must expose Dashboard current balance');
-          if(f.planningStartBalanceV102!==777777)throw new Error('forecast planning start mismatch: '+JSON.stringify(f));
-          if(f.rows[0].balance!==767777)throw new Error('future row must remain based on Dashboard current balance: '+JSON.stringify(f.rows[0]));
-          if(f.unverifiedElapsedImpactV102!==0)throw new Error('elapsed unverified rows must not alter current start balance');
+          if(f.planningStartBalanceV102!==767777)throw new Error('forecast planning start mismatch: '+JSON.stringify(f));
+          if(f.rows[0].balance!==757777)throw new Error('future row must remain based on Dashboard current balance: '+JSON.stringify(f.rows[0]));
+          if(f.unverifiedElapsedImpactV102!==-10000)throw new Error('elapsed unverified fixed cost must reduce the planning balance, not actual current cash');
 
           state.cashflowReconciliationV102.history.push({key:'STALE|2026-09-20',date:'2026-09-20',name:'旧バックアップの未照合予定',amount:-99999,type:'OTHER',status:'AWAITING_IMPORT'});
           state.cashflowReconciliationV102.pending.push({key:'STALE-PENDING',date:'2026-09-20',name:'旧pending',amount:-88888,type:'OTHER'});
@@ -117,7 +117,7 @@ jobs:
           if(state.cashflowReconciliationV102.history.some(x=>String(x.key).startsWith('STALE')))throw new Error('external load must discard stale derived rows inside imported coverage');
           if(state.cashflowReconciliationV102.pending.some(x=>String(x.key).startsWith('STALE')))throw new Error('external load must rebuild pending rows');
           if(Number(state.cashflowReconciliationV102.loadRebuildVersion)!==105)throw new Error('v105 load migration marker missing');
-          if(rebuilt.planningStart!==777777)throw new Error('rebuilt planning balance mismatch: '+JSON.stringify(rebuilt));
+          if(rebuilt.planningStart!==767777)throw new Error('rebuilt planning balance mismatch: '+JSON.stringify(rebuilt));
           if(state.events.some(x=>x.id==='payoff'))throw new Error('settled one-off event must leave active events');
           const archivedPayoff=(state.eventArchiveV104||[]).find(x=>x.source_event_id==='payoff');
           if(!archivedPayoff||archivedPayoff.reconciliation_status!=='MATCHED_ACTUAL'||archivedPayoff.actual_transaction_id!=='b3')throw new Error('settled event archive missing actual link: '+JSON.stringify(archivedPayoff));

@@ -194,6 +194,7 @@
 
 
   function commitCardToCash(st,request,onSaved){
+    if(busy)return alert('直前の保存処理を反映中です。再度お試しください。');
     const engine=window.householdCardCashReclassV179;
     if(!engine?.plan)return alert('カード→現金修正機能を読み込めません。再読み込みしてください。');
     let planned;

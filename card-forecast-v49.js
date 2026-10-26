@@ -20,14 +20,19 @@
     return{day:null,source:null};
   }
   function actualSettlement(st,card,ym){return (st.cardSettlements||[]).find(s=>sameCard(s.card,card)&&String(s.due_date||'').slice(0,7)===ym)}
-  function knownPurchases(st,card,ym){return (st.purchaseEvents||[]).filter(p=>sameCard(p.card,card)&&String(p.billing_month||'')===ym&&!p.is_refinance_adjustment)}
+  function countedPurchase(p){
+    return p?.count_in_spending!==false &&
+      !['ABSORBED_DUPLICATE','RECLASSIFIED_CASH_PAYMENT'].includes(String(p?.reconciliation_status||'')) &&
+      !p?.is_refinance_adjustment&&!p?.is_refinanced;
+  }
+  function knownPurchases(st,card,ym){return (st.purchaseEvents||[]).filter(p=>countedPurchase(p)&&sameCard(p.card,card)&&String(p.billing_month||'')===ym)}
   function cardMasters(st,card,ym){return (st.masters?.fixedExpenses||[]).filter(m=>m.active!==false&&m.forecastEnabled!==false&&routeOf(m)==='CARD'&&m.paymentCard&&sameCard(m.paymentCard,card)&&occurrence(m,ym))}
   function estimateFor(st,card,ym){
     const purchases=knownPurchases(st,card,ym),known=purchases.reduce((a,p)=>a+purchaseAmount(p),0),masters=cardMasters(st,card,ym);let scheduledMissing=0;const missing=[];
     for(const m of masters){const represented=purchases.some(p=>String(p.fixed_expense_master_id||'')===String(m.id));if(!represented){const a=Math.abs(Number(m.amount)||0);scheduledMissing+=a;missing.push({name:m.name||'固定費',amount:a,id:m.id})}}
     return{known,scheduledMissing,total:known+scheduledMissing,purchases,masters,missing};
   }
-  function activeCards(st){const names=new Set();for(const m of st.masters?.fixedExpenses||[])if(m.active!==false&&routeOf(m)==='CARD'&&m.paymentCard)names.add(String(m.paymentCard));for(const p of st.purchaseEvents||[])if(p.card)names.add(String(p.card));return[...names]}
+  function activeCards(st){const names=new Set();for(const m of st.masters?.fixedExpenses||[])if(m.active!==false&&routeOf(m)==='CARD'&&m.paymentCard)names.add(String(m.paymentCard));for(const p of st.purchaseEvents||[])if(countedPurchase(p)&&p.card)names.add(String(p.card));return[...names]}
   function plan(st,days=180){
     const from=iso(new Date()),start=from.slice(0,7),months=Math.max(1,Math.ceil((Number(days)||180)/28)+1),rows=[],warnings=[];
     for(const card of activeCards(st)){

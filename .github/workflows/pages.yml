@@ -48,6 +48,7 @@ jobs:
           node tests/transaction-card-master-v176.test.cjs
           node tests/card-billing-month-auto-v177.test.cjs
           node tests/cash-to-card-master-v178.test.cjs
+          node tests/card-to-cash-master-v179.test.cjs
           node tests/expense-nature-rules-v152.test.js
           node tests/verified-correction-v149.test.js
           node tests/cycle-audit-reconciliation-v153.test.js
@@ -113,7 +114,7 @@ jobs:
 
           assert.ok(hub.includes('この明細を確認・編集'));
           assert.ok(hub.includes('チャージ・資金移動の疑い'));
-          assert.ok(loader.includes('semantic-ui-v48.js?v=178'));
+          assert.ok(loader.includes('semantic-ui-v48.js?v=179'));
           assert.ok(fs.readFileSync('semantic-ui-v48.js','utf8').includes('transactionEditorTopupV165'));
           assert.ok(fs.readFileSync('semantic-ui-v48.js','utf8').includes('data-v108-tx-next'));
           assert.ok(hub.includes('captureEditContext')&&hub.includes('restoreEditContext'));
@@ -123,9 +124,13 @@ jobs:
 
           assert.ok(html.includes('sync-state-sanitizer-v22.js?v=171'));
           assert.ok(html.includes('treasury-ledger-v145.js?v=153'));
-          assert.ok(sw.includes('household-treasury-v178-cash-to-card-edit'));
+          assert.ok(sw.includes('household-treasury-v179-bidirectional-payment-edit'));
           assert.ok(loader.includes('cash-card-reclass-v178.js?v=178'));
           assert.ok(sw.includes('./cash-card-reclass-v178.js?v=178'));
+          assert.ok(loader.includes('card-cash-reclass-v179.js?v=179'));
+          assert.ok(sw.includes('./card-cash-reclass-v179.js?v=179'));
+          assert.ok(sw.includes('./card-cycle-v81.js?v=179'));
+          assert.ok(sw.includes('./card-forecast-v49.js?v=179'));
           assert.ok(sw.includes('./cash-expense-analytics-v106.js?v=178'));
           assert.ok(html.includes('cycle-audit-reconciliation-v153.js?v=161'));
           assert.ok(html.includes('payment-reclass-patch-v159.js?v=161'));
@@ -154,13 +159,13 @@ jobs:
           assert.ok(!loader.includes("injectClassic('./expense-tab-v130.js"), 'old expense renderer was not retired');
           assert.ok(!sw.includes('./expense-tab-v130.js?v=130'), 'old expense renderer remains precached');
           assert.ok(loader.includes('cash-expense-analytics-v106.js?v=178'));
-          assert.ok(loader.includes('semantic-ui-v48.js?v=178'));
-          assert.ok(!html.includes('<script src="./semantic-ui-v48.js?v=178"'), 'duplicate legacy editor loader');
+          assert.ok(loader.includes('semantic-ui-v48.js?v=179'));
+          assert.ok(!html.includes('<script src="./semantic-ui-v48.js?v=179"'), 'duplicate legacy editor loader');
           assert.ok(audit.includes('planPatch')&&audit.includes('reallocateResidual'));
           assert.ok(audit.includes('元明細の項目が第三の値に変更されています'));
           assert.ok(audit.includes('guardIsOld'));
           assert.ok(audit.includes('verifySameBankSettlement'));
-          assert.ok(loader.includes('card-cycle-v81.js?v=176'));
+          assert.ok(loader.includes('card-cycle-v81.js?v=179'));
           assert.ok(html.includes('verified-correction-patch-v149.js?v=161'));
           assert.ok(correction.includes('treasuryRecoverySnapshot')&&correction.includes('replaceTreasuryState'));
           for(const path of [
@@ -171,7 +176,7 @@ jobs:
             'expense-unified-v148.css?v=169',
             'verified-correction-patch-v149.js?v=161',
             'cycle-audit-reconciliation-v153.js?v=161',
-            'card-cycle-v81.js?v=176',
+            'card-cycle-v81.js?v=179',
             'treasury-ledger-v145.js?v=153',
             'mdc-pdf-delta-v144.js?v=176'
           ])assert.ok(sw.includes('./'+path),'PWA cache missing '+path);

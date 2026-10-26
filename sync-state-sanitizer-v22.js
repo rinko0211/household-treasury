@@ -102,10 +102,11 @@
   injectClassic('./mufg-card-semantics-v75.js?v=75', 'data-household-mufg-card-semantics-v75');
   injectClassic('./semantic-observer-guard-v71.js?v=71', 'data-household-semantic-observer-guard-v71');
   injectClassic('./cash-card-reclass-v178.js?v=178', 'data-household-cash-card-reclass-v178');
-  injectClassic('./semantic-ui-v48.js?v=178', 'data-household-semantic-ui-v48');
+  injectClassic('./card-cash-reclass-v179.js?v=179', 'data-household-card-cash-reclass-v179');
+  injectClassic('./semantic-ui-v48.js?v=179', 'data-household-semantic-ui-v48');
   injectClassic('./semantic-review-stability-v76.js?v=76', 'data-household-semantic-review-stability-v76');
   injectClassic('./card-identity-v51.js?v=51', 'data-household-card-identity-v51');
-  injectClassic('./card-forecast-v49.js?v=49', 'data-household-card-forecast-v49');
+  injectClassic('./card-forecast-v49.js?v=179', 'data-household-card-forecast-v49');
   // v52 card settings UI retired in v77. Phase 1 household master is the sole card settings owner.
   injectClassic('./settings-reactive-v53.js?v=53', 'data-household-settings-reactive-v53');
   injectClassic('./settings-list-integrity-v54.js?v=54', 'data-household-settings-list-integrity-v54');
@@ -135,7 +136,7 @@
   injectClassic('./planning-model-v80.js?v=91', 'data-household-planning-model-v80');
   injectClassic('./planning-ui-v80.js?v=80', 'data-household-planning-ui-v80');
   // v81 is the card-cycle authority and restores bank balances to the planning dashboard.
-  injectClassic('./card-cycle-v81.js?v=176', 'data-household-card-cycle-v81');
+  injectClassic('./card-cycle-v81.js?v=179', 'data-household-card-cycle-v81');
   // v97 preserves unsaved draft card selections in annual/fixed editors.
   injectClassic('./card-cycle-ui-v81.js?v=97', 'data-household-card-cycle-ui-v81');
   injectClassic('./dashboard-bank-v81.js?v=81', 'data-household-dashboard-bank-v81');

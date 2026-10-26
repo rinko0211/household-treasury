@@ -10,7 +10,37 @@ const $=s=>document.getElementById(s);
 const TODAY=()=>new Intl.DateTimeFormat('sv-SE',{timeZone:'Asia/Tokyo',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
 let shareExists=false,enabled=false,budget=0,busy=false,autoTimer=null,lastPublishedRevision=-1,initialAutoScheduled=false,lastPublishedVersion=0;
 const context=()=>window.householdShareSyncContext?.()||{};
-function setNote(msg,warning=false){const el=$('familyShareNoteV160');if(el){el.textContent=msg;el.style.color=warning?'#f8b66d':'#bcd2e7'}}
+function setNote(msg,warning=false){
+ const el=$('familyShareNoteV160');
+ if(el){el.textContent=msg;el.style.color=warning?'#f8b66d':'#bcd2e7'}
+ const header=$('treasuryHeaderShareNoteV180');
+ if(header){header.textContent=msg;header.title=msg;header.style.color=warning?'#f8b66d':''}
+}
+function movePublishToHeader(){
+ const top=document.querySelector('main.app .top');
+ if(!top)return;
+ let actions=$('treasuryHeaderActionsV180');
+ if(!actions){
+   actions=document.createElement('div');actions.id='treasuryHeaderActionsV180';
+   actions.setAttribute('role','group');actions.setAttribute('aria-label','同期と家族共有');
+   top.insertBefore(actions,$('saveStatus')||null);
+ }
+ const publish=$('familySharePublishV160');if(!publish)return;
+ publish.textContent='妻へ反映';
+ publish.title='最新の変動費を奥さん用の閲覧画面に反映';
+ publish.setAttribute('aria-label','妻の画面へ最新の変動費を反映');
+ publish.classList.add('header-share-v180');
+ if(publish.parentElement!==actions)actions.appendChild(publish);
+ let status=$('treasuryHeaderShareNoteV180');
+ if(!status){
+   status=document.createElement('span');
+   status.id='treasuryHeaderShareNoteV180';
+   status.className='tiny';
+   status.setAttribute('role','status');
+   status.setAttribute('aria-live','polite');
+   actions.appendChild(status);
+ }
+}
 function storeToken(token){if(/^[a-f0-9]{64}$/.test(token))localStorage.setItem(STORAGE,token)}
 function link(){const token=localStorage.getItem(STORAGE)||'';return /^[a-f0-9]{64}$/.test(token)?LINK_BASE+token:''}
 function showLink(){
@@ -166,6 +196,7 @@ function mount(){
   const val=link();if(!val||!enabled)return;
   try{await navigator.clipboard.writeText(val);setNote('URLをコピーしました。')}catch{const inp=$('familyShareLinkV160');inp.select();document.execCommand('copy');setNote('URLをコピーしました。')}
  };
+ movePublishToHeader();
  refreshStatus(false);
  setTimeout(()=>refreshStatus(true),1800);
  setTimeout(()=>refreshStatus(true),5500);

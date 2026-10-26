@@ -89,10 +89,28 @@
     button?.classList.add('active');$(page)?.classList.add('active');
     try{window.render?.()}catch{}
   }
+  function ensureHeaderActions(){
+    const top=document.querySelector('main.app .top');
+    if(!top)return null;
+    let actions=$('treasuryHeaderActionsV180');
+    if(!actions){
+      actions=document.createElement('div');
+      actions.id='treasuryHeaderActionsV180';
+      actions.setAttribute('role','group');
+      actions.setAttribute('aria-label','同期と家族共有');
+      top.insertBefore(actions,$('saveStatus')||null);
+    }
+    return actions;
+  }
   function ensureSyncPage(){
     const nav=document.querySelector('nav.tabs');if(!nav)return;
     let page=$('sync');if(!page){page=document.createElement('section');page.id='sync';page.className='page';page.innerHTML='<div class="grid" id="syncGridV45"></div>';document.querySelector('main.app')?.appendChild(page)}
-    let btn=nav.querySelector('[data-page="sync"]');if(!btn){btn=document.createElement('button');btn.className='tab';btn.dataset.page='sync';btn.textContent='Sync';nav.appendChild(btn)}
+    const actions=ensureHeaderActions();
+    let btn=actions?.querySelector('[data-page="sync"]')||nav.querySelector('[data-page="sync"]');
+    if(!btn){btn=document.createElement('button');btn.className='tab';btn.type='button';btn.dataset.page='sync';btn.textContent='Sync'}
+    btn.classList.add('header-sync-v180');
+    if(actions&&btn.parentElement!==actions)actions.prepend(btn);
+    else if(!btn.parentElement)nav.appendChild(btn);
     if(!btn.dataset.v45Bound){btn.dataset.v45Bound='1';btn.onclick=()=>activatePage('sync',btn)}
     const syncCard=$('cloudStatusTag')?.closest('.card'),grid=$('syncGridV45');if(syncCard&&grid&&syncCard.parentElement!==grid)grid.appendChild(syncCard);
     if(grid&&!grid.querySelector('[data-v45-sync-head]')){const head=document.createElement('div');head.dataset.v45SyncHead='1';head.className='card full';head.innerHTML='<div class="title">同期・アカウント</div><div class="tiny">サインイン、暗号化パスフレーズ、端末同期の状態をここで管理します。日常の家計設定とは分離しました。</div>';grid.prepend(head)}

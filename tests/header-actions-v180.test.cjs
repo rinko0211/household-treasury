@@ -1,0 +1,28 @@
+'use strict';
+const fs=require('node:fs'),assert=require('node:assert/strict');
+const settings=fs.readFileSync('settings-ux-v45.js','utf8');
+const family=fs.readFileSync('family-share-owner-v160.js','utf8');
+const css=fs.readFileSync('ui-modern-v169.css','utf8');
+const html=fs.readFileSync('index.html','utf8');
+const sw=fs.readFileSync('sw.js','utf8');
+assert.ok(settings.includes("function ensureHeaderActions()"),'Header must have one stable actions host');
+assert.ok(settings.includes("top.insertBefore(actions,$('saveStatus')||null)"),'Actions must be in header');
+assert.ok(settings.includes("actions?.querySelector('[data-page=\"sync\"]')"),'Find existing header Sync first, no duplicate creation');
+assert.ok(settings.includes("if(actions&&btn.parentElement!==actions)actions.prepend(btn)"),'Move existing Sync tab; preserve handler');
+assert.ok(settings.includes("btn.onclick=()=>activatePage('sync',btn)"),'Header Sync navigates to the existing Sync panel');
+assert.ok(settings.includes("document.querySelector('nav.tabs')"),'Original app navigation remains');
+assert.ok(family.includes("function movePublishToHeader()"),'Family publish must move into header');
+assert.ok(family.includes("publish.parentElement!==actions"),'Avoid duplicate publish buttons');
+assert.ok(family.includes("familySharePublishV160"),'Preserve the original publish button ID');
+assert.ok(family.includes("if(!shareExists)throw Error('先に共有リンクを作成してください。');await publish()"),
+ 'Moving the button must not bypass authentication or publishing guards');
+assert.ok(family.includes("role','status'"),'Publish result must be perceivable from any page');
+assert.ok(family.includes("aria-live','polite'"),'Publish status accessible');
+assert.ok(css.includes('#treasuryHeaderActionsV180'),'Responsive header styles must exist');
+assert.ok(css.includes('@media(max-width:420px)'),'Narrow mobile layout must remain safe');
+assert.ok(html.includes('family-share-owner-v160.js?v=180'));
+assert.ok(html.includes('ui-modern-v169.css?v=180'));
+assert.ok(sw.includes('./family-share-owner-v160.js?v=180'));
+assert.ok(sw.includes('./settings-ux-v45.js?v=180'));
+assert.ok(sw.includes('./ui-modern-v169.css?v=180'));
+console.log('HEADER_ACTIONS_V180_PASS');

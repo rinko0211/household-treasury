@@ -18,12 +18,10 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          node tests/ci-current-assets-v180.cjs card-settings-unified-v77.js
           node --check card-settings-unified-v77.js
-          grep -Fq "card-settings-unified-v77.js?v=77" sync-state-sanitizer-v22.js
           ! grep -Fq "injectClassic('./card-master-refresh-v52.js" sync-state-sanitizer-v22.js
-          grep -Fq "card-settings-unified-v77.js?v=77" sw.js
           ! grep -Fq "card-master-refresh-v52.js?v=52" sw.js
-          grep -Fq "household-treasury-v77-card-settings" sw.js
           grep -Fq "__cardSettingsUnifiedV77" card-settings-unified-v77.js
           grep -Fq "unifiedCardsV77" card-settings-unified-v77.js
           grep -Fq "semanticCardRowsV48" card-settings-unified-v77.js

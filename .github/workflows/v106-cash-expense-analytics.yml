@@ -20,42 +20,28 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          node tests/ci-current-assets-v180.cjs semantic-model-v47.js cash-expense-analytics-v106.js semantic-ui-v48.js card-import-corrections-v73.js dashboard-v39.js planning-ui-v79.js app.js sync-state-sanitizer-v22.js
           node --check cash-expense-analytics-v106.js
           node --check semantic-ui-v48.js
           node --check semantic-model-v47.js
-          grep -Fq "semantic-model-v47.js?v=109" sync-state-sanitizer-v22.js
-          grep -Fq "semantic-model-v47.js?v=109" sw.js
           grep -Fq "GIFTS_EVENTS" semantic-model-v47.js
-          grep -Fq "cash-expense-analytics-v106.js?v=110" sync-state-sanitizer-v22.js
-          grep -Fq "semantic-ui-v48.js?v=114" sync-state-sanitizer-v22.js
-          grep -Fq "semantic-ui-v48.js?v=114" sw.js
           grep -Fq "data-v110-tx-detail" semantic-ui-v48.js
           grep -Fq "transactionDetailV110" semantic-ui-v48.js
           grep -Fq "cash_expense" semantic-ui-v48.js
           ! grep -Fq "Import Summary" app.js
           grep -Fq "openSemanticTransactionEditorV108" semantic-ui-v48.js
           grep -Fq "manual_transaction_override_v108" semantic-ui-v48.js
-          grep -Fq "card-import-corrections-v73.js?v=114" sync-state-sanitizer-v22.js
-          grep -Fq "card-import-corrections-v73.js?v=114" sw.js
           grep -Fq "transactionCardEditorV114" semantic-ui-v48.js
           grep -Fq "openIntegratedCardEditorV114" semantic-ui-v48.js
           grep -Fq "data-v110-card-edit" semantic-ui-v48.js
           grep -Fq "reconcileRakutenBillingV56" rakuten-billing-v56.js
-          grep -Fq "cash-expense-analytics-v106.js?v=110" sw.js
           grep -Fq 'data-page="transactions"' index.html
           ! grep -Fq "cashExpenseCsvHelpV106" cash-expense-analytics-v106.js
           ! grep -Fq "link-audit-v33.js" sync-state-sanitizer-v22.js
           ! grep -Fq "link-audit-v33.js" sw.js
-          grep -Fq "dashboard-v39.js?v=107" sync-state-sanitizer-v22.js
-          grep -Fq "planning-ui-v79.js?v=107" sync-state-sanitizer-v22.js
-          grep -Fq "planning-ui-v79.js?v=107" sw.js
           grep -Fq "householdExpenseAnalyticsV106" planning-ui-v79.js
           grep -Fq "householdExpenseAnalyticsV106" dashboard-v39.js
           grep -Fq "cashExpenses" app.js
-          grep -Fq "app.js?v=116" index.html
-          grep -Fq "sync-state-sanitizer-v22.js?v=116" index.html
-          grep -Fq "household-treasury-v116-realized-bonus-reserve" sw.js
-          grep -Fq "__householdRuntimeRelease = 'v116'" sync-state-sanitizer-v22.js
       - name: Setup Node
         uses: actions/setup-node@v4
         with:

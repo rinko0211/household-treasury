@@ -33,6 +33,9 @@ jobs:
           (async()=>{
             const browser=await chromium.launch({headless:true});
             const page=await browser.newPage({viewport:{width:390,height:844},deviceScaleFactor:1});
+            // This regression is about the Sep-Dec billing cycle, not today's clock.
+            // Pin the page clock so October cannot disappear from a future 90-day window.
+            await page.clock.install({time:new Date('2026-09-20T12:00:00+09:00')});
             let release='';
             for(let i=0;i<40;i++){
               await page.goto(`https://rinko0211.github.io/household-treasury/?v95e2e=${Date.now()}-${i}`,{waitUntil:'domcontentloaded',timeout:30000});

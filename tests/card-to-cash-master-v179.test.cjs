@@ -173,7 +173,7 @@ assert.ok(fields.get('v114MonthHint').textContent.includes('現金支出へ移�
 cardModal.click('[data-v114-card-save]');
 assert.equal(st.cashExpenses.length,2,'Cash -> card -> cash reuses prior original');
 assert.equal(st.cashExpenses[0].id,'old-cash');
-assert.equal(st.cashExpenses[0].count_in_spending,true);
+assert.equal(st.cashExpenses[0].count_in_spending,true,'restore details: '+JSON.stringify({alerts,confirmations:confirmations.length,cash:st.cashExpenses[0],purchase:st.purchaseEvents[1]}));
 assert.equal(st.purchaseEvents[1].count_in_spending,false);
 assert.equal(amountTotal(st),total);
 assert.equal(calls.filter(x=>x.type==='save').length,2);

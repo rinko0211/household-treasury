@@ -251,7 +251,12 @@ function mergeRecordScore(x){
 function evidenceKey(kind,x){
   if(!x||typeof x!=='object')return JSON.stringify(x);
   if(kind==='cashTransactions')return [x.source||'',x.account||'',x.date||'',Number(x.amount)||0,normalizeText(x.description_raw||x.description||'')].join('|');
-  if(kind==='cashExpenses')return [x.date||'',normalizeText(x.description||x.description_raw||''),Number(x.amount)||0,x.category||'',x.spending_class||x.expense_scope||''].join('|');
+  if(kind==='cashExpenses'){
+    // CSV-issued IDs survive edits to amount/name/date/category. Keying by those
+    // mutable fields creates a second cash expense when an old backup is merged.
+    if(String(x.id||'').trim())return 'cash-expense-id:'+String(x.id).trim();
+    return [x.date||'',normalizeText(x.description||x.description_raw||''),Number(x.amount)||0,x.category||'',x.spending_class||x.expense_scope||''].join('|');
+  }
   if(kind==='purchaseEvents')return [x.card||'',x.purchase_date||'',normalizeText(x.merchant_raw||''),Number(x.original_amount)||0,Number(x.occurrence_index)||1,x.billing_month||'',Number(x.installment_number)||0].join('|');
   if(kind==='cardSettlements')return String(x.settlement_id||x.id||[x.card||'',x.due_date||'',Number(x.amount)||0].join('|'));
   if(kind==='investmentEvents')return [x.date||'',x.asset_type||'',x.security_name||'',x.side||'',Number(x.amount)||0,Number(x.quantity)||0,x.account_type||''].join('|');
@@ -261,8 +266,20 @@ function evidenceKey(kind,x){
 }
 function mergeEvidenceArray(kind,localRows,incomingRows){
   const map=new Map();
-  for(const row of [...(Array.isArray(localRows)?localRows:[]),...(Array.isArray(incomingRows)?incomingRows:[])]){
+  const local=Array.isArray(localRows)?localRows:[];
+  const incoming=Array.isArray(incomingRows)?incomingRows:[];
+  for(const row of local){
     const key=evidenceKey(kind,row),old=map.get(key);
+    if(!old||mergeRecordScore(row)>mergeRecordScore(old))map.set(key,structuredClone(row));
+  }
+  for(const row of incoming){
+    const key=evidenceKey(kind,row),old=map.get(key);
+    if(kind==='cashExpenses'&&old&&String(row.id||'')&&String(old.id||'')===String(row.id)
+        &&(old.semantic_manual_override===true||Number(old.semantic_transaction_edit_version||0)>=108)){
+      // Preserve the current user's reviewed/editable cash record when restoring
+      // an older backup with the same immutable receipt ID.
+      continue;
+    }
     if(!old||mergeRecordScore(row)>mergeRecordScore(old))map.set(key,structuredClone(row));
   }
   return [...map.values()];

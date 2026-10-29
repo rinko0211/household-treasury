@@ -11,8 +11,8 @@ for(const id of ['budgetMeter','progressFill','budgetRatio','calendarMeter','cal
 }
 assert.ok(html.indexOf('id="budgetMeter"')<html.indexOf('id="calendarMeter"'),'Spending bar must be above day bar');
 assert.ok(html.indexOf('id="spent"')<html.indexOf('id="budget"'),'Spending amount must be primary');
-assert.ok(html.includes('family.js?v=175')&&html.includes('family.css?v=175'));
-assert.ok(sw.includes('./family/family.js?v=175')&&sw.includes('./family/family.css?v=175'));
+assert.ok(html.includes('family.js?v=183')&&html.includes('family.css?v=183'));
+assert.ok(sw.includes('./family/family.js?v=183')&&sw.includes('./family/family.css?v=183'));
 assert.ok(css.includes('.pace-evaluation.is-behind')&&css.includes('.pace-evaluation.is-balanced')&&css.includes('.pace-evaluation.is-ahead'));
 assert.ok(css.includes('.calendar-progress>div{background:#8999a9}'),'Calendar bar must have a consistent neutral color');
 class Node{
@@ -31,7 +31,8 @@ const ids=Object.fromEntries([
  'status','period','spent','budgetSection','budgetEmpty','budget','remaining','remainLabel',
  'progressFill','budgetMeter','budgetRatio','remainingRatio','calendarMeter','calendarFill',
  'elapsedRatio','paceEvaluation','paceTitle','paceDetail','dailyGuide','dailyPace',
- 'categories','caution','cautionText','updated','refresh','legacyHint'
+ 'categories','caution','cautionText','updated','refresh','legacyHint',
+ 'publishedBadgeV183','publishedTimeV183','publishedStaleV183'
 ].map(id=>[id,new Node()]));
 const document={getElementById:id=>ids[id]||null,createElement:()=>new Node(),addEventListener:()=>{},hidden:false};
 let current='2026-10-10T06:00:00Z';

@@ -50,3 +50,17 @@ button#refresh{font:inherit;border:1px solid #bddbd5;background:#eaf6f2;color:#1
 .status{font-size:12px;color:#9b652c;min-height:18px;margin:8px 0}.privacy{font-size:11px;line-height:1.65;color:#7d8f93;margin-top:12px}
 @media(max-width:380px){.wrap{padding-left:13px;padding-right:13px}.section{padding-left:12px;padding-right:12px}.hero{padding-left:15px;padding-right:15px}.balance-amount{font-size:38px}.row-right{gap:5px}}
 @media(prefers-reduced-motion:reduce){.progress>div{transition:none}}
+
+/* v183: show last published household data clearly without changing the budget layout */
+.hero-top-v183{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;min-width:0;margin-bottom:13px}
+.hero-top-v183 .eyebrow{margin:1px 0 0;min-width:0;flex:1 1 auto}
+.published-chip-v183{flex:0 0 auto;max-width:146px;min-width:106px;text-align:right;
+ padding:8px 10px;background:#eaf7f3;border:1px solid #bce8dd;border-radius:12px;
+ color:#1b766c;line-height:1.3}
+.published-label-v183{font-size:10px;font-weight:650;display:block;letter-spacing:.02em}
+.published-chip-v183 strong{display:block;font-size:15px;font-weight:800;white-space:nowrap;
+ font-variant-numeric:tabular-nums;letter-spacing:-.02em;margin-top:3px}
+#publishedStaleV183:not([hidden]){display:block;font-size:10px;font-weight:680;margin-top:3px}
+.published-chip-v183.is-stale{background:#fff3e7;border-color:#f0d9af;color:#9a5727}
+@media(max-width:380px){.hero-top-v183{gap:6px}.published-chip-v183{padding:7px 8px;min-width:97px}
+ .published-chip-v183 strong{font-size:13px}}

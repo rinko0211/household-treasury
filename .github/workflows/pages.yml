@@ -50,6 +50,8 @@ jobs:
           node tests/cash-to-card-master-v178.test.cjs
           node tests/card-to-cash-master-v179.test.cjs
           node tests/cash-edit-persistence-v181.test.cjs
+          node tests/cash-merge-stable-v184.test.cjs
+          node tests/family-published-stamp-v183.test.cjs
           node tests/header-actions-v180.test.cjs
           node tests/ci-current-assets-v180.cjs settings-ux-v45.js family-share-owner-v160.js
           node tests/expense-nature-rules-v152.test.js
@@ -117,7 +119,7 @@ jobs:
 
           assert.ok(hub.includes('この明細を確認・編集'));
           assert.ok(hub.includes('チャージ・資金移動の疑い'));
-          assert.ok(loader.includes('semantic-ui-v48.js?v=181'));
+          assert.ok(loader.includes('semantic-ui-v48.js?v=184'));
           assert.ok(fs.readFileSync('semantic-ui-v48.js','utf8').includes('transactionEditorTopupV165'));
           assert.ok(fs.readFileSync('semantic-ui-v48.js','utf8').includes('data-v108-tx-next'));
           assert.ok(hub.includes('captureEditContext')&&hub.includes('restoreEditContext'));
@@ -127,12 +129,16 @@ jobs:
 
           assert.ok(html.includes('sync-state-sanitizer-v22.js?v=171'));
           assert.ok(html.includes('treasury-ledger-v145.js?v=153'));
-          assert.ok(sw.includes('household-treasury-v181-cash-edit-save'));
-          assert.ok(sw.includes('./semantic-ui-v48.js?v=181'));
-          assert.ok(sw.includes('./app.js?v=181'));
-          assert.ok(html.includes('./app.js?v=181'));
+          assert.ok(sw.includes('household-treasury-v184-cash-durable-family-stamp'));
+          assert.ok(sw.includes('./semantic-ui-v48.js?v=184'));
+          assert.ok(sw.includes('./app.js?v=184'));
+          assert.ok(html.includes('./app.js?v=184'));
           assert.ok(fs.readFileSync('semantic-ui-v48.js','utf8').includes('直前の保存を処理中です'));
           assert.ok(fs.readFileSync('app.js','utf8').includes('state=previous'));
+          assert.ok(fs.readFileSync('semantic-ui-v48.js','utf8').includes('assertCashExpenseSaved'));
+          assert.ok(fs.readFileSync('app.js','utf8').includes('cash-expense-id:'));
+          assert.ok(fs.readFileSync('family/index.html','utf8').includes('publishedTimeV183'));
+          assert.ok(fs.readFileSync('family/family.js','utf8').includes('published_at'));
           assert.ok(loader.includes('cash-card-reclass-v178.js?v=178'));
           assert.ok(sw.includes('./cash-card-reclass-v178.js?v=178'));
           assert.ok(loader.includes('card-cash-reclass-v179.js?v=179'));
@@ -149,10 +155,10 @@ jobs:
           assert.ok(fs.readFileSync('settings-ux-v45.js','utf8').includes('treasuryHeaderActionsV180'));
           assert.ok(fs.readFileSync('family-share-owner-v160.js','utf8').includes('movePublishToHeader'));
           assert.ok(sw.includes('./family/index.html'));
-          assert.ok(sw.includes('./family/family.js?v=175'));
-          assert.ok(sw.includes('./family/family.css?v=175'));
-          assert.ok(fs.readFileSync('family/index.html','utf8').includes('family.js?v=175'));
-          assert.ok(fs.readFileSync('family/index.html','utf8').includes('family.css?v=175'));
+          assert.ok(sw.includes('./family/family.js?v=183'));
+          assert.ok(sw.includes('./family/family.css?v=183'));
+          assert.ok(fs.readFileSync('family/index.html','utf8').includes('family.js?v=183'));
+          assert.ok(fs.readFileSync('family/index.html','utf8').includes('family.css?v=183'));
           assert.ok(fs.readFileSync('family/index.html','utf8').includes('id="legacyHint"'));
           assert.ok(fs.readFileSync('family-share-owner-v160.js','utf8').includes('schema_version:2'));
           assert.ok(fs.readFileSync('supabase/functions/family-variable-share/index.ts','utf8').includes("input?.snapshot?.schema_version!==2"));
@@ -171,8 +177,8 @@ jobs:
           assert.ok(!loader.includes("injectClassic('./expense-tab-v130.js"), 'old expense renderer was not retired');
           assert.ok(!sw.includes('./expense-tab-v130.js?v=130'), 'old expense renderer remains precached');
           assert.ok(loader.includes('cash-expense-analytics-v106.js?v=178'));
-          assert.ok(loader.includes('semantic-ui-v48.js?v=181'));
-          assert.ok(!html.includes('<script src="./semantic-ui-v48.js?v=181"'), 'duplicate legacy editor loader');
+          assert.ok(loader.includes('semantic-ui-v48.js?v=184'));
+          assert.ok(!html.includes('<script src="./semantic-ui-v48.js?v=184"'), 'duplicate legacy editor loader');
           assert.ok(audit.includes('planPatch')&&audit.includes('reallocateResidual'));
           assert.ok(audit.includes('元明細の項目が第三の値に変更されています'));
           assert.ok(audit.includes('guardIsOld'));

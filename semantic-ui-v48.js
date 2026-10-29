@@ -336,7 +336,7 @@
 
   function ensureTransactionEditor(){
     let m=$('transactionEditorV108');if(m)return m;m=document.createElement('div');m.id='transactionEditorV108';m.style.cssText='display:none;position:fixed;inset:0;z-index:13000;background:rgba(3,8,20,.72);padding:14px;overflow:auto';
-    m.innerHTML=`<div class="card" style="max-width:720px;margin:5vh auto"><div style="display:flex;justify-content:space-between;gap:10px;align-items:flex-start"><div><div class="title" id="transactionEditorTitleV108" style="margin:0"></div><div class="tiny" id="transactionEditorMetaV108"></div></div><button type="button" class="btn secondary" data-v108-tx-close>閉じる</button></div><div id="transactionEditorRawV110"></div><div class="form" style="grid-template-columns:repeat(4,1fr);gap:8px;margin-top:12px"><div class="field"><label>お金の性質</label><select id="transactionEditorEconV108">${ECON.map(x=>`<option value="${x}">${ECON_LABEL[x]}</option>`).join('')}</select></div><div class="field"><label>通常 / 特別</label><select id="transactionEditorSpendV108"><option value="NORMAL">通常費</option><option value="SPECIAL">特別費</option></select></div><div class="field"><label>固定費 / 変動費（個別指定）</label><select id="transactionEditorNatureV159"><option value="AUTO">分類ルールに従う</option><option value="FIXED">固定費</option><option value="VARIABLE">変動費</option><option value="REVIEW">未確定・要確認</option></select></div><div class="field"><label>カテゴリ</label><select id="transactionEditorCatV108"></select></div><div class="field"><label>サブカテゴリ</label><select id="transactionEditorSubV108"></select></div><div class="field" id="transactionEditorTopupFieldV165" style="display:none"><label>チャージ・資金移動の確認</label><select id="transactionEditorTopupV165"><option value="PENDING">保留（要確認のまま）</option><option value="EXPENSE">買い物・支出と確認</option><option value="TRANSFER">チャージ・資金移動と確認（支出から除外）</option></select></div></div><div class="note" style="margin-top:10px">自分の口座間移動やカード支払用の資金移動は「資金移動」にすると、支出集計から除外されます。</div><div class="controls" style="margin-top:12px"><button type="button" class="btn" data-v108-tx-save>保存</button><button type="button" class="btn secondary" data-v108-tx-next>保存して次へ</button><button type="button" class="btn secondary" data-v108-tx-remember>保存して記憶</button></div></div>`;
+    m.innerHTML=`<div class="card" style="max-width:720px;margin:5vh auto"><div style="display:flex;justify-content:space-between;gap:10px;align-items:flex-start"><div><div class="title" id="transactionEditorTitleV108" style="margin:0"></div><div class="tiny" id="transactionEditorMetaV108"></div></div><button type="button" class="btn secondary" data-v108-tx-close>閉じる</button></div><div id="transactionEditorRawV110"></div><div class="form" style="grid-template-columns:repeat(4,1fr);gap:8px;margin-top:12px"><div class="field"><label>お金の性質</label><select id="transactionEditorEconV108">${ECON.map(x=>`<option value="${x}">${ECON_LABEL[x]}</option>`).join('')}</select></div><div class="field"><label>通常 / 特別</label><select id="transactionEditorSpendV108"><option value="NORMAL">通常費</option><option value="SPECIAL">特別費</option></select></div><div class="field"><label>固定費 / 変動費（個別指定）</label><select id="transactionEditorNatureV159"><option value="AUTO">分類ルールに従う</option><option value="FIXED">固定費</option><option value="VARIABLE">変動費</option><option value="REVIEW">未確定・要確認</option></select></div><div class="field"><label>カテゴリ</label><select id="transactionEditorCatV108"></select></div><div class="field"><label>サブカテゴリ</label><select id="transactionEditorSubV108"></select></div><div class="field" id="transactionEditorTopupFieldV165" style="display:none"><label>チャージ・資金移動の確認</label><select id="transactionEditorTopupV165"><option value="PENDING">保留（要確認のまま）</option><option value="EXPENSE">買い物・支出と確認</option><option value="TRANSFER">チャージ・資金移動と確認（支出から除外）</option></select></div></div><div class="note" style="margin-top:10px">自分の口座間移動やカード支払用の資金移動は「資金移動」にすると、支出集計から除外されます。</div><p id="transactionSaveFeedbackV184" role="alert" class="note" style="margin-top:10px" hidden></p><div class="controls" style="margin-top:12px"><button type="button" class="btn" data-v108-tx-save>保存</button><button type="button" class="btn secondary" data-v108-tx-next>保存して次へ</button><button type="button" class="btn secondary" data-v108-tx-remember>保存して記憶</button></div></div>`;
     document.body.appendChild(m);m.addEventListener('click',e=>{if(e.target===m||e.target.closest?.('[data-v108-tx-close]'))closeTransactionEditor();if(e.target.closest?.('[data-v108-tx-save]'))saveTransactionEditor(false,false);if(e.target.closest?.('[data-v108-tx-next]'))saveTransactionEditor(false,true);if(e.target.closest?.('[data-v108-tx-remember]'))saveTransactionEditor(true,false)});$('transactionEditorRawV110').addEventListener('change',e=>{if(['transactionCashCardMasterV178','transactionRawDateV110'].includes(e.target?.id))refreshCashCardHint()});$('transactionEditorEconV108').addEventListener('change',syncTransactionEditor);$('transactionEditorCatV108').addEventListener('change',()=>{$('transactionEditorSubV108').innerHTML=subOptions($('transactionEditorCatV108').value,$('transactionEditorSubV108').value)});$('transactionEditorTopupV165').addEventListener('change',()=>{
     const choice=$('transactionEditorTopupV165').value;
     if(choice==='EXPENSE'||choice==='TRANSFER'){$('transactionEditorEconV108').value=choice;syncTransactionEditor()}
@@ -368,7 +368,7 @@
     m._editContext=captureTransactionEditContext(kind,id);
     const next=$('transactionEditorV108')?.querySelector('[data-v108-tx-next]');
     if(next)next.style.display=m._editContext?.next?'':'none';
-    m.scrollTop=0;$('transactionEditorTitleV108').textContent=recordName(kind,o);$('transactionEditorMetaV108').textContent=`${recordDate(kind,o)} · ${recordSource(kind,o)} · ${yen(Math.abs(recordAmount(kind,o)))}`;
+    m.scrollTop=0;if($('transactionSaveFeedbackV184')){$('transactionSaveFeedbackV184').hidden=true;$('transactionSaveFeedbackV184').textContent=''}$('transactionEditorTitleV108').textContent=recordName(kind,o);$('transactionEditorMetaV108').textContent=`${recordDate(kind,o)} · ${recordSource(kind,o)} · ${yen(Math.abs(recordAmount(kind,o)))}`;
     const raw=$('transactionEditorRawV110');if(raw)raw.innerHTML=kind==='purchase'?masterPickerHtml(st,o,'transactionCardMasterV176',true):kind==='cash_expense'?`<div class="form" style="grid-template-columns:1fr 2fr 1fr;margin-top:12px"><div class="field"><label>日付</label><input id="transactionRawDateV110" type="date" value="${esc(o.date||'')}"></div><div class="field"><label>内容</label><input id="transactionRawNameV110" value="${esc(o.description||'')}"></div><div class="field"><label>金額</label><input id="transactionRawAmountV110" type="number" min="0" value="${Math.abs(Number(o.amount)||0)}"></div></div>${cashCardPickerHtml(st)}`:'';
     const remember=m.querySelector('[data-v108-tx-remember]');if(remember)remember.style.display=kind==='cash_expense'?'none':'';
     const topup=$('transactionEditorTopupFieldV165');
@@ -377,6 +377,35 @@
     $('transactionEditorEconV108').value=ECON.includes(econ)?econ:'EXPENSE';$('transactionEditorSpendV108').value=sp==='SPECIAL'?'SPECIAL':'NORMAL';$('transactionEditorNatureV159').value=['FIXED','VARIABLE','REVIEW'].includes(String(o.cost_nature||o.cost_behavior||o.fixed_variable_class||'').toUpperCase())?String(o.cost_nature||o.cost_behavior||o.fixed_variable_class).toUpperCase():'AUTO';$('transactionEditorCatV108').innerHTML=catOptions(cat);$('transactionEditorCatV108').value=cat;$('transactionEditorSubV108').innerHTML=subOptions(cat,sub);syncTransactionEditor();m.style.display='block';if(kind==='cash_expense')refreshCashCardHint()
   }
   function closeTransactionEditor(){const m=$('transactionEditorV108');if(m)m.style.display='none'}
+
+  function assertCashExpenseSaved(id,expected){
+    const live=findRecord(stateNow(),'cash_expense',id);
+    let stored;
+    // In a browser verify the durable localStorage copy as well as the live model.
+    // Unit-test environments without browser storage can verify the live model.
+    if(typeof window.localStorage?.getItem!=='function')stored=live;
+    else try{
+      const raw=window.localStorage.getItem('householdTreasuryMVP');
+      if(!raw)throw Error('保存データがありません');
+      const disk=JSON.parse(raw);
+      const items=Array.isArray(disk.cashExpenses)?disk.cashExpenses:[];
+      const index=items.findIndex((r,i)=>recordId('cash_expense',r,i)===String(id));
+      if(index<0)throw Error('保存先に現金明細がありません');
+      stored=items[index];
+    }catch(e){throw Error('端末の保存データを確認できません：'+String(e?.message||e))}
+    if(!live)throw Error('現金明細が保存後の一覧から消えました');
+    const fields=['date','description','amount','category','subcategory','economic_type','spending_class','cost_nature'];
+    const same=(a,b,key)=>key==='amount'?Number(a?.[key])===Number(b?.[key]):
+      String(a?.[key]??'')===String(b?.[key]??'');
+    const wrong=fields.filter(key=>!same(live,expected,key)||!same(stored,expected,key));
+    if(wrong.length)throw Error('保存確認に失敗しました（'+wrong.join('・')+'）。端末のデータを確認してください');
+  }
+  function cashSaveError(e){
+    const message='現金明細を保存できませんでした：'+String(e?.message||e);
+    const el=$('transactionSaveFeedbackV184');
+    if(el){el.hidden=false;el.textContent=message}
+    window.alert?.(message);
+  }
   function saveTransactionEditor(remember,advance=false){
     const m=$('transactionEditorV108'),st=stateNow(),kind=m?.dataset.kind,id=m?.dataset.id,o=findRecord(st,kind,id);if(!o)return;let econ=$('transactionEditorEconV108').value;const spend=$('transactionEditorSpendV108').value,cat=$('transactionEditorCatV108').value||null,sub=$('transactionEditorSubV108').value||null;
     const pendingTopup=o.potential_prepaid_topup===true;
@@ -460,7 +489,13 @@
     const editContext=m._editContext;
     const nextRecord=advance?editContext?.next:null;
     st.reviewQueue=(st.reviewQueue||[]).filter(q=>norm(q.merchant||q.description||'')!==norm(name));
-    try{persist(st,remember?'取引分類ルール保存済み':'取引分類保存済み')}catch(e){window.alert?.('保存できませんでした：'+String(e?.message||e));return}
+    try{
+      const saved=persist(st,remember?'取引分類ルール保存済み':'取引分類保存済み');
+      // A no-op is only safe when the resulting cash row is already present.
+      if(kind==='cash_expense')assertCashExpenseSaved(id,o);
+      if(saved===false&&kind!=='cash_expense')
+        window.setTreasurySaveStatus?.('変更なし・保存済み');
+    }catch(e){if(kind==='cash_expense')cashSaveError(e);else window.alert?.('保存できませんでした：'+String(e?.message||e));return}
     closeTransactionEditor();
     window.householdExpenseUnifiedV148?.render?.();
     restoreTransactionEditContext(editContext);

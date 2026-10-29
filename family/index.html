@@ -5,12 +5,19 @@
 <title>わが家の生活費｜変動費メーター</title>
 <meta name="apple-mobile-web-app-title" content="わが家の生活費">
 <link rel="apple-touch-icon" sizes="180x180" href="./kokeshi-home-v172.png">
-<link rel="icon" type="image/png" sizes="180x180" href="./kokeshi-home-v172.png"><link rel="stylesheet" href="./family.css?v=175">
+<link rel="icon" type="image/png" sizes="180x180" href="./kokeshi-home-v172.png"><link rel="stylesheet" href="./family.css?v=183">
 </head><body>
 <main class="wrap">
  <header><div class="brand"><span class="mark" aria-hidden="true">⌂</span><span>わが家の生活費</span></div><span class="tag">閲覧専用</span></header>
  <section class="hero" aria-labelledby="spentTitle">
-  <p class="eyebrow" id="period">給与サイクルの変動費</p>
+  <div class="hero-top-v183">
+   <p class="eyebrow" id="period">給与サイクルの変動費</p>
+   <div class="published-chip-v183" id="publishedBadgeV183" role="status" aria-live="polite" aria-label="共有データの最終反映日時">
+    <span class="published-label-v183">最終反映</span>
+    <strong id="publishedTimeV183">確認中</strong>
+    <span id="publishedStaleV183" hidden>更新が古い可能性</span>
+   </div>
+  </div>
   <h1 id="spentTitle">今月使った金額</h1>
   <p class="balance-amount" id="spent" aria-live="polite">—</p>
   <div id="budgetSection" hidden>
@@ -35,5 +42,5 @@
  <p id="status" role="status" aria-live="polite" class="status"></p>
  <p class="privacy">現金・カードなどは利用日基準で集計。カード引落を二重計上しません。店舗名・カード番号・給与・預金・投資情報は共有しません。</p>
 </main>
-<script src="./family.js?v=175" defer></script>
+<script src="./family.js?v=183" defer></script>
 </body></html>

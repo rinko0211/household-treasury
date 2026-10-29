@@ -51,6 +51,7 @@ jobs:
           node tests/card-to-cash-master-v179.test.cjs
           node tests/cash-edit-persistence-v181.test.cjs
           node tests/cash-merge-stable-v184.test.cjs
+          node tests/observer-proxy-no-recursion-v185.test.cjs
           node tests/family-published-stamp-v183.test.cjs
           node tests/header-actions-v180.test.cjs
           node tests/ci-current-assets-v180.cjs settings-ux-v45.js family-share-owner-v160.js
@@ -129,13 +130,15 @@ jobs:
 
           assert.ok(html.includes('sync-state-sanitizer-v22.js?v=171'));
           assert.ok(html.includes('treasury-ledger-v145.js?v=153'));
-          assert.ok(sw.includes('household-treasury-v184-cash-durable-family-stamp'));
+          assert.ok(sw.includes('household-treasury-v185-observer-stack-fix'));
           assert.ok(sw.includes('./semantic-ui-v48.js?v=184'));
           assert.ok(sw.includes('./app.js?v=184'));
           assert.ok(html.includes('./app.js?v=184'));
           assert.ok(fs.readFileSync('semantic-ui-v48.js','utf8').includes('直前の保存を処理中です'));
           assert.ok(fs.readFileSync('app.js','utf8').includes('state=previous'));
           assert.ok(fs.readFileSync('semantic-ui-v48.js','utf8').includes('assertCashExpenseSaved'));
+          assert.ok(loader.includes('semantic-observer-guard-v71.js?v=185'));
+          assert.ok(sw.includes('./semantic-observer-guard-v71.js?v=185'));
           assert.ok(fs.readFileSync('app.js','utf8').includes('cash-expense-id:'));
           assert.ok(fs.readFileSync('family/index.html','utf8').includes('publishedTimeV183'));
           assert.ok(fs.readFileSync('family/family.js','utf8').includes('published_at'));

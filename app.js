@@ -325,7 +325,13 @@ window.replaceTreasuryState=n=>{
     window.__treasuryNoopReplaceCount=(window.__treasuryNoopReplaceCount||0)+1;
     return false;
   }
-  state=next;normalize();localStorage.setItem(KEY,JSON.stringify(state));injectUi();render();return true
+  // Never leave an in-memory-only state behind if Safari storage is full.
+  // A rejected write must keep the previous live and persisted ledger intact.
+  const previous=state;
+  state=next;
+  try{normalize();localStorage.setItem(KEY,JSON.stringify(state))}
+  catch(e){state=previous;window.setTreasurySaveStatus?.('端末保存失敗：容量・ストレージ設定を確認してください');throw e}
+  injectUi();render();return true
 };
 window.setTreasurySaveStatus=t=>$('saveStatus').textContent=t;
 load();render();

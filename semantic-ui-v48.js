@@ -55,8 +55,31 @@
     return(st.cardBillingLines||[]).filter(x=>norm(x.card)===norm(p.card)&&String(x.purchase_date||'')===String(p.purchase_date||'')&&norm(x.merchant_raw||x.merchant_normalized||'')===norm(p.merchant_raw||p.merchant_normalized||'')&&Math.abs(Number(x.original_amount)||0)===Math.abs(Number(p.original_amount)||0)&&Number(x.occurrence_index||1)===Number(p.occurrence_index||1))
   }
   function persist(st,msg){
-    if(busy)return;busy=true;try{sem()?.migrateState?.(st);sem()?.applyAutomationRules?.(st);window.treasuryRecoverySnapshot?.(`${msg}直前`);const saved=window.replaceTreasuryState?.(st);if(saved===false)throw Error('台帳への保存に失敗しました');window.repairTreasuryBankBalances?.();window.setTreasurySaveStatus?.(`${msg}・同期中`);window.cloudSyncOnLocalSave?.()}finally{setTimeout(()=>busy=false,0)}
-    setTimeout(renderAll,0);
+    // An editor used to close even when another save was in progress, silently
+    // dropping the second edit. Never report success until local persistence has run.
+    if(busy)throw Error('直前の保存を処理中です。数秒後にもう一度保存してください。');
+    if(typeof window.replaceTreasuryState!=='function')throw Error('台帳保存機能を読み込めません。再読み込みしてください。');
+    busy=true;
+    try{
+      sem()?.migrateState?.(st);
+      sem()?.applyAutomationRules?.(st);
+      window.treasuryRecoverySnapshot?.(`${msg}直前`);
+      const saved=window.replaceTreasuryState(st);
+      if(saved===false){
+        // replaceTreasuryState returns false for a genuine no-change edit.
+        window.setTreasurySaveStatus?.('変更なし・保存済み');
+        return false;
+      }
+      // Confirm this is not a silent no-op before dismissing the editor.
+      if(saved!==true)throw Error('保存の完了を確認できません。');
+      window.repairTreasuryBankBalances?.();
+      window.setTreasurySaveStatus?.(`${msg}・同期中`);
+      window.cloudSyncOnLocalSave?.();
+      return true;
+    }finally{
+      setTimeout(()=>{busy=false},0);
+      setTimeout(renderAll,0);
+    }
   }
 
   function prepareTransactionsPage(){
@@ -271,7 +294,7 @@
     }else if(kind==='settlement'){
       const x=findSettlementRecord(st,id);if(!x)return;applyCardMasterChoice(x,selectedMaster);Object.assign(x,{due_date:date,amount:Math.abs(amount),manual_corrected:true,manual_corrected_at:now,due_date_source:'MANUAL'})
     }
-    window.reconcileRakutenBillingV56?.(st);persist(st,'カード明細編集');m.style.display='none';setTimeout(()=>renderTransactions(),0)
+    window.reconcileRakutenBillingV56?.(st);try{persist(st,'カード明細編集')}catch(e){window.alert?.('保存できませんでした：'+String(e?.message||e));return}m.style.display='none';setTimeout(()=>renderTransactions(),0)
   }
   window.openIntegratedCardEditorV114=openIntegratedCardEditor;
 
@@ -437,7 +460,7 @@
     const editContext=m._editContext;
     const nextRecord=advance?editContext?.next:null;
     st.reviewQueue=(st.reviewQueue||[]).filter(q=>norm(q.merchant||q.description||'')!==norm(name));
-    persist(st,remember?'取引分類ルール保存済み':'取引分類保存済み');
+    try{persist(st,remember?'取引分類ルール保存済み':'取引分類保存済み')}catch(e){window.alert?.('保存できませんでした：'+String(e?.message||e));return}
     closeTransactionEditor();
     window.householdExpenseUnifiedV148?.render?.();
     restoreTransactionEditContext(editContext);

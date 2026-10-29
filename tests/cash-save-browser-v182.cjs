@@ -8,7 +8,7 @@ const fs=require('node:fs');
  const browser=await chromium.launch({headless:true});
  const page=await browser.newPage({viewport:{width:390,height:844},deviceScaleFactor:1});
  const errors=[];
- page.on('pageerror',e=>errors.push(String(e)));
+ page.on('pageerror',e=>{const stack=String(e?.stack||e);errors.push(stack);console.error('CASH_V182_PAGEERROR',stack.slice(0,3400))});
  try{
   await page.goto('http://127.0.0.1:4173/?cashSaveE2e=182',{waitUntil:'domcontentloaded'});
   await page.waitForFunction(()=>!!window.householdExpenseAnalyticsV106&&

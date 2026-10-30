@@ -17,6 +17,10 @@ const samePersonal=(r,owner,amount,label)=>r?.owner===owner&&
   (owner==='wife'||(r?.date==='2026-10-30'&&/飲み会/.test(String(r?.description||label))));
 function ensure(input){
   if(!input||input.privatePersonalSeedV186===true||typeof window.replaceTreasuryState!=='function')return input;
+  const sync=window.householdShareSyncContext?.();
+  // Never mutate a still-loading encrypted cloud state; it can cause an
+  // artificial sync conflict. Defer migration until the remote revision is ready.
+  if(sync?.token&&!sync.ready)return input;
   const st=structuredClone(input);
   st.personalExpenses=Array.isArray(st.personalExpenses)?st.personalExpenses:[];
   st.personalExpenseBudgets={...st.personalExpenseBudgets,wife:40000,self:20000};
@@ -143,4 +147,11 @@ function bind(){
   }));
 }
 window.householdPersonalLedgerV186={ensure,recordsFor,summary,html,bind};
+window.addEventListener?.('householdShareCloudSyncedV160',()=>{
+  // An older cloud revision may have replaced local state during startup.
+  // The migration is idempotent and runs only after successful sync.
+  ensure(window.getTreasuryState?.());
+  if($('expenses')?.classList?.contains('active'))
+    window.householdExpenseUnifiedV148?.render?.();
+});
 })();

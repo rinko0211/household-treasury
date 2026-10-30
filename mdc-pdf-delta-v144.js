@@ -172,7 +172,35 @@
           if(!cardId(match.x)){updates.push({index:match.i,identity});upgraded++}
           continue;
         }
-        const receipts=receiptMatch(st,r,used);
+        // Resolve a candidate CSV purchase before adding any new PDF
+        // spending. A same-date, same-amount match alone is not proof.
+        const token=rowToken(occurrenceRow),choice=String(approvals[token]||'');
+        const possibilities=crossCandidates(st,occurrenceRow).filter(x=>!crossUsed.has(x.ref));
+        if(possibilities.length && choice!=='separate'){
+          const selected=possibilities.find(x=>x.ref===choice);
+          if(!selected){
+            pending.push({token,date:r.date,merchant:r.merchant,amount:r.amount,
+              candidates:possibilities});
+            issues.push('MDC-X30: CSV等との照合が必要 '+r.date+' '+r.merchant+' '+r.amount+
+              '円。旧明細との対応か別取引か選択してください。');
+            continue;
+          }
+          crossUsed.add(selected.ref);
+          if(selected.kind==='purchase'){
+            used.add(selected.index);
+            updates.push({index:selected.index,identity,receiptPdf:{
+              key:r.key,date:r.date,merchant:r.merchant,amount:r.amount,
+              billing:r.billing,payDate:r.payDate,inst:r.inst,count:r.count,
+              occurrence:occurrenceRow.occurrence,sourceFile:fileName}});
+            duplicate++;receiptAbsorbed++;
+            continue;
+          }
+          cashLinked.push({index:selected.index,token,identity});
+        }else if(choice && choice!=='separate'){
+          issues.push('MDC-X31: CSV照合先が見つかりません。選択内容を見直してください。');
+          continue;
+        }
+        const receipts=cashLinked.some(x=>x.token===token)?[]:receiptMatch(st,r,used);
         if(receipts.length>1){
           issues.push('MDC-R18: '+r.date+' '+r.merchant+' '+r.amount+
             '円の領収書が複数一致します。自動吸収を中止し、元明細を確認してください。');
@@ -200,7 +228,10 @@
           continue;
         }
         const id=hash32(['MDC-PDF-ROW-V144',identity,key,occurrenceRow.occurrence].join('|'));
-        const c=classifyMerchant(r.merchant),special=String(c.ordinary_or_special||'').toUpperCase()==='SPECIAL';
+        const c=classifyMerchant(r.merchant),linked=cashLinked.find(x=>x.token===token);
+        const prior=linked?(st.cashExpenses||[])[linked.index]:null;
+        const special=prior?String(prior.spending_class||prior.expense_scope||prior.ordinary_or_special||'').toUpperCase()==='SPECIAL':
+          String(c.ordinary_or_special||'').toUpperCase()==='SPECIAL';
         additions.push({
           purchase_id:'mdc:'+id,occurrence_index:occurrenceRow.occurrence,
           card:'MUFG/DC/JAL',pdf_card_identity:identity,source_file:fileName,
@@ -209,12 +240,14 @@
           installment_number:r.inst,payment_method:String(r.count)+(r.inst?' '+r.inst:''),
           record_kind:'CARD_PURCHASE',economic_type:'EXPENSE',ordinary_or_special:special?'SPECIAL':'ORDINARY',
           expense_scope:special?'SPECIAL':'NORMAL',spending_class:special?'SPECIAL':'NORMAL',
-          category:c.category||'UNKNOWN',subcategory:null,confidence:Number(c.confidence)||.4,
+          category:prior?.category||c.category||'UNKNOWN',subcategory:prior?.subcategory||null,
+          cost_nature:prior?.cost_nature||undefined,confidence:Number(c.confidence)||.4,
           mdc_import_v144:true
         });
       }
     }
-    return {read:entries.length,added:additions.length,duplicates:duplicate,upgraded,issues:[...new Set(issues)],additions,updates,
+    return {read:entries.length,added:additions.length-cashLinked.length,duplicates:duplicate,upgraded,
+      issues:[...new Set(issues)],additions,updates,pending,cashLinked,migratedCash:cashLinked.length,
       billing_month:entries[0].billing,identity,conflicts,
       importedMonths:[...new Set(entries.map(x=>x.date.slice(0,7)))].sort(),receiptAbsorbed};
   }

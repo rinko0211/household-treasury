@@ -140,7 +140,7 @@
     return [...matching].map(([identity,set])=>({identity,count:set.size})).sort((a,b)=>b.count-a.count);
   }
   function plan(st,entries,fileName='',approvals={}){
-    const existing=st.purchaseEvents||[],updates=[],additions=[],issues=[],pending=[],cashLinked=[];
+    const existing=st.purchaseEvents||[],updates=[],additions=[],issues=[],pending=[],overlaps=[],cashLinked=[];
     const crossUsed=new Set();
     const conflicts=identityConflicts(st,entries),identity=String(entries[0].identity||'').normalize('NFKC').trim();
     const direct=entries.filter(r=>existing.some(x=>cardId(x)===identity&&rowSig(x)===r.key)).length;
@@ -176,6 +176,8 @@
         // spending. A same-date, same-amount match alone is not proof.
         const token=rowToken(occurrenceRow),choice=String(approvals[token]||'');
         const possibilities=crossCandidates(st,occurrenceRow).filter(x=>!crossUsed.has(x.ref));
+        if(possibilities.length)overlaps.push({token,date:r.date,merchant:r.merchant,
+          amount:r.amount,candidates:possibilities});
         if(possibilities.length && choice!=='separate'){
           const selected=possibilities.find(x=>x.ref===choice);
           if(!selected){
@@ -247,7 +249,7 @@
       }
     }
     return {read:entries.length,added:additions.length-cashLinked.length,duplicates:duplicate,upgraded,
-      issues:[...new Set(issues)],additions,updates,pending,cashLinked,migratedCash:cashLinked.length,
+      issues:[...new Set(issues)],additions,updates,pending,overlaps,cashLinked,migratedCash:cashLinked.length,
       billing_month:entries[0].billing,identity,conflicts,
       importedMonths:[...new Set(entries.map(x=>x.date.slice(0,7)))].sort(),receiptAbsorbed};
   }

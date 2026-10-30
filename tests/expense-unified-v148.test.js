@@ -98,6 +98,7 @@ vm.createContext(context);
 vm.runInContext(fs.readFileSync('treasury-ledger-v145.js','utf8'),context);
 vm.runInContext(fs.readFileSync('expense-nature-rules-v152.js','utf8'),context);
 vm.runInContext(fs.readFileSync('purchase-usage-ledger-v157.js','utf8'),context);
+vm.runInContext(fs.readFileSync('personal-ledger-v186.js','utf8'),context);
 vm.runInContext(fs.readFileSync('expense-unified-v148.js','utf8'),context);
 const app=window.householdExpenseUnifiedV148;
 ok(!!app,'Unified expense API mounted');
@@ -204,7 +205,7 @@ ok(root.innerHTML.includes('毎月の基本予算（参考）'),'Plan shown sepa
 ok(root.innerHTML.includes('電気'),'Fixed reference contains electricity');
 ok(root.innerHTML.includes('カード払い'),'Card-route reference labeled');
 ok(!fs.readFileSync('index.html','utf8').includes('id="monthlyTreasuryTabV142"'),'Redundant monthly tab removed');
-ok(fs.readFileSync('index.html','utf8').includes('expense-unified-v148.js?v=186'),'Unified hub loaded');
+ok(fs.readFileSync('index.html','utf8').includes('expense-unified-v148.js?v=187'),'Unified hub loaded');
 // v158: fixed and variable are PRESENTATION cost-behavior within economic NORMAL;
 // source category overrides and review badges do not change booked consumption.
 {
@@ -371,5 +372,61 @@ ok(semanticEditorSource.includes("o.potential_prepaid_topup=false"),
   'Monthly plan includes every commitment exactly once');
  const usage=window.householdUsageLedgerV157.calculate(st,'2026-10','payday');
  eq(usage.consumption,window.householdUsageLedgerV157.calculate(state,'2026-10','payday').consumption,'Source purchase consumption remains invariant');
+}
+// v187: the personal allowance is a native economic bucket, not a card.
+{
+ const personal=window.householdPersonalLedgerV186;
+ const st=structuredClone(state);
+ st.privatePersonalSeedV186=true;
+ st.personalExpenseBudgets={wife:40000,self:20000};
+ st.personalExpenses=[
+  {id:'wife',owner:'wife',amount:40000,date:'',description:'妻に渡した個人費（消費済み）',cycle_start:'2026-10-16'},
+  {id:'self',owner:'self',amount:6000,date:'2026-10-30',description:'飲み会',cycle_start:'2026-10-16'}
+ ];
+ const original=window.householdUsageLedgerV157.calculate(st,'2026-10','payday');
+ const owner=app.usageBuckets(original,st,true);
+ const shared=app.usageBuckets(original,st);
+ const privateBucket=owner.find(x=>x.id==='personal');
+ eq(privateBucket.amount,46000,'Personal costs are a native category');
+ eq(owner.reduce((a,x)=>a+x.amount,0),original.funds+46000,'Chart groups reconcile with personal total');
+ eq(privateBucket.items.length,2,'Personal category exposes both recipients');
+ ok(!shared.some(x=>x.id==='personal'),'Family share never receives private expense category');
+ eq(shared.find(x=>x.id==='variable').amount,owner.find(x=>x.id==='variable').amount,
+   'Variable-only family view excludes personal category');
+ const cat=app.categoryGroups(privateBucket,'economic');
+ eq(cat.find(x=>x.key==='PERSONAL_WIFE').amount,40000,'Wife amount in existing category accordion');
+ eq(cat.find(x=>x.key==='PERSONAL_SELF').amount,6000,'Own actual payments in same accordion');
+ ok(cat.find(x=>x.key==='PERSONAL_SELF').label.includes('14,000'),
+   'Own budget remaining shown inside category heading, without new card');
+ const matchedState=structuredClone(st);
+ matchedState.purchaseEvents.push({
+  purchase_id:'self-drinks-import',card:'Rakuten',purchase_date:'2026-10-30',
+  merchant_raw:'飲み会',original_amount:6000,category:'FOOD',subcategory:'CAFE',
+  economic_type:'EXPENSE',spending_class:'NORMAL',billing_month:'2026-12'
+ });
+ const matchedUsage=window.householdUsageLedgerV157.calculate(matchedState,'2026-10','payday');
+ const matchedRows=app.usageBuckets(matchedUsage,matchedState,true);
+ const sharedRows=app.usageBuckets(matchedUsage,matchedState);
+ eq(matchedRows.find(x=>x.id==='personal').amount,46000,'Matching import does not create new personal charge');
+ eq(matchedRows.reduce((a,x)=>a+x.amount,0),original.funds+46000,
+    'A subsequent card import cannot double count the drinks');
+ eq(sharedRows.find(x=>x.id==='variable').amount,shared.find(x=>x.id==='variable').amount,
+    'Matching personal card import is not disclosed on wife variable view');
+ state.personalExpenses=st.personalExpenses;
+ state.personalExpenseBudgets=st.personalExpenseBudgets;
+ state.privatePersonalSeedV186=true;
+ app.render();
+ ok(root.innerHTML.includes('data-hub-bucket="personal"'),'Personal is rendered with regular expense lines');
+ ok(!root.innerHTML.includes('hubPersonalV186'),'Old standalone personal card removed');
+ ok(root.innerHTML.includes('消費・購入額（個人費を含む）'),'Consumption amount includes private expense');
+ const legendHtml=root.innerHTML.split('<div class="hub-legend">')[1]?.split('</div>')[0]||'';
+ ok(legendHtml.includes('個人費') && legendHtml.includes('%'),
+   'Personal participates in the existing graph legend and shares');
+ btn('bucket','personal');
+ btn('category','PERSONAL_SELF');
+ btn('subcategory','PERSONAL|self');
+ ok(root.innerHTML.includes('飲み会'),'Personal receipts open through the existing category/subcategory navigation');
+ delete state.personalExpenses;delete state.personalExpenseBudgets;delete state.privatePersonalSeedV186;
+ app.render();
 }
 console.log('PASS '+asserts+' expense unified v148 assertions');

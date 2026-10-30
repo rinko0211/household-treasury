@@ -322,7 +322,10 @@ function render(){
  const total=economic?usage.funds+privateAdjustment:bank.total;
  const income=usage.income;
  const difference=income-total,ratio=income>0?total*100/income:null;
- const bars=ratioParts(all,income);
+ // When income has not been imported for the current cycle, keep the
+ // category composition bar useful by using total spending as its basis.
+ const chartBaseline=economic&&income<=0?total:income;
+ const bars=ratioParts(all,chartBaseline);
  const root=$('expenseHubV148');
  let html='<div class="hub-card"><div class="hub-period"><div class="hub-title">月次支出サマリー</div>'+
  '<div class="hub-toolbar"><button type="button" class="hub-arrow" id="hubPrevV148" aria-label="前月">‹</button>'+
@@ -354,7 +357,8 @@ function render(){
  '<div class="hub-totals"><span>'+(economic?'収支':'確認済み入金との差（口座移動を含む）')+'</span>'+
  '<b style="color:'+(difference<0?'#ffa9a0':'#e9fdf7')+'">'+(difference>0?'+':'')+yen(difference)+'</b></div>'+
  '<div style="margin-top:20px;display:flex;justify-content:space-between;gap:10px;align-items:end"><b>'+
- (economic?'確認済み収入に対する資金用途':'確認済み入金に対する口座流出（消費率ではない）')+
+ (economic?(income>0?'確認済み収入に対する資金用途':'支出構成比（収入未計上のため総支出を100%）'):
+   '確認済み入金に対する口座流出（消費率ではない）')+
  '</b><span class="hub-big">'+(ratio===null?'—':ratio.toFixed(1)+'%')+'</span></div>'+
  '<div class="hub-progress" role="img" aria-label="'+(economic?'資金用途構成':'銀行資金流出構成')+'">'+bars.html+'</div>'+
  '<div class="hub-legend">'+bars.legend+'</div>';

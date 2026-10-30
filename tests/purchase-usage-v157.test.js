@@ -113,6 +113,16 @@ other.purchaseEvents.find(x=>x.merchant_raw==='Cafe prepaid uncertain').potentia
 eq(api.calculate(other,'2026-09','payday').consumption,460404,'Review changes do not modify spending');
 ok(api.calculate(other,'2026-09','payday').reviewCount<r.reviewCount,
  'Review flags are independent of money');
+// v186: a manually reported expense and a future card receipt must not add twice.
+const dual=structuredClone(st);
+dual.cashExpenses.push(cash(5600,'2026-10-30','厚生費','NORMAL',
+  {manual_reconciliation_pending:true,cost_nature:'VARIABLE'}));
+dual.purchaseEvents.push(purchase(5600,'2026-10-30','厚生費'));
+const baseNow=api.calculate(st,'2026-10','payday');
+const reconciled=api.calculate(dual,'2026-10','payday');
+eq(reconciled.consumption-baseNow.consumption,5600,
+ 'Manual welfare report superseded by matching later card purchase');
+ok(!reconciled.byKind.cash.some(x=>x.label==='厚生費'),'Imported card is canonical');
 const next=api.calculate(st,'2026-10','payday');
 ok(!next.byKind.cash.some(x=>x.provisional&&x.date==='2026-10-16'),
    'Provisional previous-cycle receipts do not leak into next pay period');

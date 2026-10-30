@@ -18,6 +18,56 @@
   const cardId=x=>String(x.pdf_card_identity||'').normalize('NFKC').trim();
   const pdfSource=x=>/^MDC_PDF_/i.test(String(x?.source_file||''))||!!x?.pdf_card_identity;
   const isMdcCard=x=>norm(x?.card||'')==='MUFGDCJAL'||pdfSource(x);
+
+  // v188: historical assistant-generated CSVs often stored card receipts as
+  // cashExpenses or as card purchases without a PDF statement signature.
+  // These must be checked BEFORE a PDF can add economic spending.
+  let pendingApprovals=null;
+  const rowToken=r=>r.key+'|'+r.occurrence;
+  const included=x=>x?.count_in_spending!==false&&x?.reconciliation_status!=='ABSORBED_DUPLICATE'&&
+    !x?.is_refinanced&&String(x?.economic_type||'EXPENSE').toUpperCase()==='EXPENSE';
+  const otherCard=x=>/RAKUTEN|楽天|DCARD|Dカード|PAYPAY|SUICA|PASMO|KABU/.test(norm(x?.card||''));
+  const tail=s=>(String(s||'').match(/(?:末尾|last4|下4桁)\D*(\d{4})$/i)||
+    String(s||'').match(/^(\d{4})$/)||[])[1]||'';
+  function crossCandidates(st,r){
+    const arr=[],last=tail(r.identity);
+    for(const [i,x] of (st.purchaseEvents||[]).entries()){
+      if(pdfSource(x)||otherCard(x)||!included(x)||x.purchase_date!==r.date||
+        Math.abs(Number(x.original_amount)||0)!==r.amount||
+        (last&&x.card_last4&&String(x.card_last4)!==last))continue;
+      const card=norm(x.card||'');
+      if(card&&!/JAL|MUFG|DC|CARD|カード|未特定|QUICPAY/.test(card)&&
+        !x.receipt_reconciliation_pending&&!x.source_cash_expense_id)continue;
+      arr.push({ref:'purchase:'+i,index:i,kind:'purchase',
+        label:String(x.merchant_raw||x.merchant_normalized||x.source_receipt_description||'旧カード明細'),
+        payment:String(x.payment_method||x.card||'')});
+    }
+    for(const [i,x] of (st.cashExpenses||[]).entries()){
+      if(!included(x)||x.date!==r.date||Math.abs(Number(x.amount)||0)!==r.amount)continue;
+      arr.push({ref:'cash:'+i,index:i,kind:'cash',
+        label:String(x.description||x.description_raw||x.name||'旧現金明細'),
+        payment:String(x.payment_method||'不明')});
+    }
+    return arr;
+  }
+  function setImportApprovals(p,identity,approvals){
+    if(!p){pendingApprovals=null;return}
+    const month=String(p.paymentDate||'').slice(0,7),seen=new Map(),keys=[];
+    for(const r of p.entries||[]){
+      const key=signature(r.date,r.merchant,r.amount,month,null);
+      const ordinal=(seen.get(key)||0)+1;seen.set(key,ordinal);
+      keys.push(key+'|'+ordinal);
+    }
+    pendingApprovals={identity:String(identity||''),keys:keys.join('\n'),choices:{...approvals}};
+  }
+  function activeApprovals(entries){
+    const proof=pendingApprovals;pendingApprovals=null;
+    if(!proof)return {};
+    if(proof.identity!==String(entries[0]?.identity||'')||
+       proof.keys!==entries.map(rowToken).join('\n'))
+      throw Error('MDC-X32: PDF明細が照合後に変更されました。再確認してください。');
+    return proof.choices;
+  }
   const parse=(src,file)=>{
     const rows=parseCsv(src?.text||''),hi=findHeader(rows,['確定情報','ご利用日','ご利用金額（円）']);
     if(hi<0)return null;
@@ -89,8 +139,9 @@
     }
     return [...matching].map(([identity,set])=>({identity,count:set.size})).sort((a,b)=>b.count-a.count);
   }
-  function plan(st,entries,fileName=''){
-    const existing=st.purchaseEvents||[],updates=[],additions=[],issues=[];
+  function plan(st,entries,fileName='',approvals={}){
+    const existing=st.purchaseEvents||[],updates=[],additions=[],issues=[],pending=[],cashLinked=[];
+    const crossUsed=new Set();
     const conflicts=identityConflicts(st,entries),identity=String(entries[0].identity||'').normalize('NFKC').trim();
     const direct=entries.filter(r=>existing.some(x=>cardId(x)===identity&&rowSig(x)===r.key)).length;
     if(conflicts.length && direct===0 && !entries[0].differentCard){

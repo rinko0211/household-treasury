@@ -200,7 +200,7 @@
           issues.push('MDC-X31: CSV照合先が見つかりません。選択内容を見直してください。');
           continue;
         }
-        const receipts=cashLinked.some(x=>x.token===token)?[]:receiptMatch(st,r,used);
+        const receipts=(choice==='separate'||cashLinked.some(x=>x.token===token))?[]:receiptMatch(st,r,used);
         if(receipts.length>1){
           issues.push('MDC-R18: '+r.date+' '+r.merchant+' '+r.amount+
             '円の領収書が複数一致します。自動吸収を中止し、元明細を確認してください。');
@@ -257,10 +257,26 @@
     if(!entries)return null;
     const st=stateNow();
     if(!st||!Array.isArray(st.purchaseEvents))throw Error('MDC-D06: 保存先の取引データが取得できません。');
-    const result=plan(st,entries,file?.name||'');
+    const result=plan(st,entries,file?.name||'',activeApprovals(entries));
+    if(result.pending.length||result.issues.some(x=>x.startsWith('MDC-X3')))
+      throw Error(result.issues.find(x=>x.startsWith('MDC-X3'))||'CSVとの重複確認が終わっていません。');
     if(result.issues.some(x=>x.startsWith('MDC-D11:')))throw Error(result.issues.find(x=>x.startsWith('MDC-D11:')));
     if(result.issues.some(x=>x.startsWith('MDC-R18:')))throw Error(result.issues.find(x=>x.startsWith('MDC-R18:')));
-    // Transactional: validation and dedup decisions precede all mutations.
+    // Validate every reconciliation before changing the ledger.
+    for(const u of result.cashLinked){
+      const old=st.cashExpenses?.[u.index];
+      if(!old||!included(old))throw Error('MDC-X33: 対応するCSV支出が変更されています。');
+    }
+    // A cash-coded legacy row is preserved for audit, but only the
+    // canonical PDF transaction counts after migration.
+    for(const u of result.cashLinked){
+      const old=st.cashExpenses[u.index];
+      old.count_in_spending=false;
+      old.reconciliation_status='ABSORBED_DUPLICATE';
+      old.mdc_pdf_reclassification_v188=true;
+      old.mdc_pdf_link_key=u.token;
+      old.mdc_pdf_card_identity=u.identity;
+    }
     for(const u of result.updates){
       const x=st.purchaseEvents[u.index];
       if(!x)throw Error('MDC-R19: 照合対象の取引を取得できません');
@@ -292,7 +308,8 @@
       });
     }
     return {source:'MDC/JAL PDF',detectedType:'mdc_pdf',read:result.read,added:result.added,
-      duplicates:result.duplicates,upgraded:result.upgraded,receiptAbsorbed:result.receiptAbsorbed,review:result.additions.filter(x=>x.confidence<.7).length,
+      duplicates:result.duplicates,upgraded:result.upgraded,receiptAbsorbed:result.receiptAbsorbed,
+      migratedCash:result.migratedCash,review:result.additions.filter(x=>x.confidence<.7).length,
       latest:entries.map(x=>x.date).sort().at(-1)||'',billing_month:result.billing_month,
       importedMonths:result.importedMonths,issues:result.issues,incrementalDedup:true};
   }
@@ -307,7 +324,7 @@
     };
   }
   // Render a non-mutating import preview with the statement parser's entries.
-  function previewPdf(p,identity,forceDifferent=false){
+  function previewPdf(p,identity,forceDifferent=false,approvals={}){
     const st=stateNow(),seen=new Map();
     const entries=(p?.entries||[]).map(e=>{
       const key=signature(e.date,e.merchant,e.amount,String(p.paymentDate).slice(0,7),null);
@@ -317,7 +334,7 @@
         differentCard:forceDifferent,oldFilename:''};
     });
     if(!entries.length)throw Error('PDFの明細がありません。');
-    return plan(st,entries,'');
+    return plan(st,entries,'',approvals);
   }
   // Very conservative repair candidates: identical PDF records with the same
   // physical-card scope AND occurrence ordinal, imported from different files.
@@ -392,7 +409,8 @@
     // not a version-specific extra Import picker.
     window.householdJalCrossSourceV166?.mountInto?.(box);
   }
-  window.householdMdcPdfDeltaV144={signature,parse,plan,dryRun,previewPdf,duplicatesAudit,crossCardWarnings,mountAudit};
+  window.householdMdcPdfDeltaV144={signature,parse,plan,dryRun,previewPdf,setImportApprovals,
+    duplicatesAudit,crossCardWarnings,mountAudit};
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',mountAudit,{once:true});
   else setTimeout(mountAudit,0);
   document.addEventListener('click',e=>{

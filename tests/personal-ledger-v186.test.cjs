@@ -29,11 +29,23 @@ assert.equal(summary.selfSpent,6000);
 assert.equal(summary.wifeBudget,40000);
 assert.equal(summary.selfBudget,20000);
 assert.equal(summary.rows.length,2);
-const display=ledger.html(v,p,'payday','economic');
-for(const val of ['個人費（本人の支出管理専用）','46,000','14,000','40,000','6,000','飲み会']){
-  assert.ok(display.includes(val),'Private UI must show '+val);
-}
-assert.equal(ledger.html(v,p,'payday','cash'),'','Bank lens must not invent bank cashflows');
+const presentation=ledger.presentation(v,{...p,basis:'payday',usageRows:[]});
+assert.equal(presentation.amount,46000,'Personal amount participates in existing totals');
+assert.equal(presentation.items.length,2);
+assert.equal(presentation.items.find(x=>x.owner==='wife').amount,40000);
+assert.equal(presentation.items.find(x=>x.owner==='self').amount,6000);
+assert.ok(presentation.items.find(x=>x.owner==='self').personalCategoryLabel.includes('14,000'),
+ 'Self allowance remaining must be visible inside native category drilldown');
+assert.ok(!('html' in ledger),'Standalone private expense box removed');
+assert.ok(!('bind' in ledger),'Standalone private expense form removed');
+assert.equal(presentation.matchedConsumption,0);
+const duplicate=ledger.presentation(v,{...p,basis:'payday',usageRows:[
+ {kind:'purchase',identity:'purchase:0',date:'2026-10-30',amount:6000,
+  label:'飲み会',spendingClass:'NORMAL'},
+]});
+assert.equal(duplicate.matchedConsumption,6000,'Existing source must be excluded from additive sum');
+assert.equal(duplicate.matchedOrdinary,6000);
+assert.ok(duplicate.matched.has('purchase:0'));
 assert.equal(ledger.summary(v,{start:'2026-11-18',end:'2026-12-17'},'payday').selfSpent,0,
  'Future cycle starts with no spending');
 ledger.ensure(v);

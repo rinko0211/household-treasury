@@ -1,0 +1,29 @@
+name: Private ledger v186 preflight
+on:
+  pull_request:
+    paths:
+      - 'personal-ledger-v186.js'
+      - 'expense-unified-v148.js'
+      - 'index.html'
+      - 'sw.js'
+      - 'tests/**'
+      - '.github/workflows/personal-ledger-v186-ci.yml'
+  workflow_dispatch:
+jobs:
+  regression:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Syntax and regression tests
+        run: |
+          node --check personal-ledger-v186.js
+          node --check expense-unified-v148.js
+          node tests/personal-ledger-v186.test.cjs
+          node tests/expense-unified-v148.test.js
+          node tests/purchase-usage-v157.test.js
+          node tests/family-share-v160.test.js
+          node tests/family-sync-v164.test.js
+          node tests/ci-current-assets-v180.cjs personal-ledger-v186.js expense-unified-v148.js

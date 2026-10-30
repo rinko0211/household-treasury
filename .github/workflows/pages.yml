@@ -43,6 +43,7 @@ jobs:
           set -euo pipefail
           node tests/treasury-ledger-v145.test.js
           node tests/expense-unified-v148.test.js
+          node tests/personal-ledger-v186.test.cjs
           node tests/settings-mobile-layout-v171.test.cjs
           node tests/continuous-transaction-editor-v167.test.cjs
           node tests/transaction-card-master-v176.test.cjs
@@ -87,6 +88,7 @@ jobs:
             ['index.html','HTML'],['sw.js','service worker'],
             ['treasury-ledger-v145.js','treasury engine'],
             ['expense-unified-v148.js','unified expense UI'],
+            ['personal-ledger-v186.js','private personal ledger'],
             ['purchase-usage-ledger-v157.js','purchase-date usage ledger'],
             ['expense-nature-rules-v152.js','exact user-approved subcategory rules'],
             ['expense-unified-v148.css','unified mobile styling'],
@@ -98,10 +100,11 @@ jobs:
           assert.ok(html.includes('data-page="expenses"'));
           assert.ok(!html.includes('monthly-treasury-v142.js?v=146'));
           assert.ok(html.includes('expense-nature-rules-v152.js?v=159'));
-          assert.ok(html.includes('purchase-usage-ledger-v157.js?v=158'));
-          assert.ok(html.includes('expense-unified-v148.js?v=169'));
-          assert.ok(html.indexOf('expense-nature-rules-v152.js?v=159') < html.indexOf('purchase-usage-ledger-v157.js?v=158'));
-          assert.ok(html.indexOf('purchase-usage-ledger-v157.js?v=158') < html.indexOf('expense-unified-v148.js?v=169'));
+          assert.ok(html.includes('purchase-usage-ledger-v157.js?v=186'));
+          assert.ok(html.includes('personal-ledger-v186.js?v=186'));
+          assert.ok(html.includes('expense-unified-v148.js?v=186'));
+          assert.ok(html.indexOf('expense-nature-rules-v152.js?v=159') < html.indexOf('purchase-usage-ledger-v157.js?v=186'));
+          assert.ok(html.indexOf('purchase-usage-ledger-v157.js?v=186') < html.indexOf('expense-unified-v148.js?v=186'));
           assert.ok(html.includes('expense-unified-v148.css?v=169'));
           assert.ok(html.includes('ui-modern-v169.css?v=180'));
           assert.ok(!html.includes('card-budget-allocation-v170.js'),'Removed recommendation panel must not be mounted');
@@ -130,7 +133,7 @@ jobs:
 
           assert.ok(html.includes('sync-state-sanitizer-v22.js?v=171'));
           assert.ok(html.includes('treasury-ledger-v145.js?v=153'));
-          assert.ok(sw.includes('household-treasury-v185-observer-stack-fix'));
+          assert.ok(sw.includes('household-treasury-v186-personal-ledger-cycle'));
           assert.ok(sw.includes('./semantic-ui-v48.js?v=184'));
           assert.ok(sw.includes('./app.js?v=184'));
           assert.ok(html.includes('./app.js?v=184'));
@@ -192,8 +195,9 @@ jobs:
           for(const path of [
             'sync-state-sanitizer-v22.js?v=171',
             'expense-nature-rules-v152.js?v=159',
-            'purchase-usage-ledger-v157.js?v=158',
-            'expense-unified-v148.js?v=169',
+            'purchase-usage-ledger-v157.js?v=186',
+            'personal-ledger-v186.js?v=186',
+            'expense-unified-v148.js?v=186',
             'expense-unified-v148.css?v=169',
             'verified-correction-patch-v149.js?v=161',
             'cycle-audit-reconciliation-v153.js?v=161',

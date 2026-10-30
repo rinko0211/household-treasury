@@ -86,13 +86,15 @@ function budgetReference(st,viewMonth){
 }
 function initialMonth(){
  const now=localDate(),m=now.slice(0,7);
- const audits=(stateNow().auditMigrations||[]).filter(a=>a.period_start&&a.period_end)
-   .sort((a,b)=>String(b.period_end).localeCompare(String(a.period_end)));
- if(cycle==='payday'&&audits.length){
-   const gap=(new Date(now+'T12:00:00')-new Date(audits[0].period_end+'T12:00:00'))/86400000;
-   if(gap>=0&&gap<=31)return audits[0].period_start.slice(0,7);
- }
- return cycle==='calendar'||!engine()?m:(now<engine().payday(stateNow(),m)?engine().addMonth(m,-1):m);
+ if(cycle==='calendar'||!engine())return m;
+ const st=stateNow(),ledger=window.householdUsageLedgerV157||engine();
+ // The active payroll period takes precedence over old audited cycles.
+ // When periods share a boundary day, pick the period with later start.
+ const periods=[engine().addMonth(m,-1),m,engine().addMonth(m,1)]
+   .map(key=>{try{return ledger.period(st,key,'payday')}catch{return null}})
+   .filter(p=>p&&p.start<=now&&now<=p.end)
+   .sort((a,b)=>b.start.localeCompare(a.start));
+ return periods[0]?.month||m;
 }
 function cardEstimates(){
  try{const r=window.householdCardCycleV81?.buildPlan?.(460);return Array.isArray(r?.rows)?r.rows:[]}catch{return []}
@@ -291,7 +293,9 @@ function render(){
  if(!mount())return false;
  const priorReview=$('hubReviewV157');if(priorReview)reviewOpen=!!priorReview.open;
  if(!month)month=initialMonth();
- const st=stateNow(),ul=window.householdUsageLedgerV157;
+ let st=stateNow();
+ st=window.householdPersonalLedgerV186?.ensure?.(st)||st;
+ const ul=window.householdUsageLedgerV157;
  if(!ul){$('expenseHubV148').innerHTML='<div class="hub-note">利用日基準の集計処理を読み込み中です。</div>';return false}
  const usage=ul.calculate(st,month,cycle);
  const bank=ul.bankFlow(st,month,cycle);
@@ -371,6 +375,7 @@ function render(){
          '</div><b class="hub-amt">'+yen(r.amount)+'</b></div></div>';
      }).join('')+'</details>';
  }
+ html+=window.householdPersonalLedgerV186?.html?.(st,usage,cycle,lens)||'';
  const budget=budgetReference(st,month);
  html+='<details class="hub-card" id="hubBudgetV151"><summary style="cursor:pointer;font-size:16px;font-weight:750">'+
    '毎月の基本予算（参考）'+yen(budget.total)+'</summary>'+
@@ -393,6 +398,7 @@ function render(){
  '</details>';
  root.innerHTML=html;
  bind(root);
+ window.householdPersonalLedgerV186?.bind?.();
  return true;
 }
 function bind(root){

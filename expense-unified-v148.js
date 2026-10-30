@@ -125,8 +125,13 @@ function rowDetails(row,st){
  return {...row,category,subcategory,costNature:rule.nature,
    costNatureKey:rule.key,costNatureReason:rule.reason,editKind,editId};
 }
-function usageBuckets(usage,st){
- const enriched=usage.usageRows.map(row=>rowDetails(row,st));
+function usageBuckets(usage,st,includePersonal=false){
+ const privateSummary=window.householdPersonalLedgerV186?.presentation?.(st,usage);
+ // Existing sources matching personal reports cannot be counted in two
+ // buckets, including the variable-only family snapshot.
+ const excluded=privateSummary?.matched||new Set();
+ const enriched=usage.usageRows.filter(row=>!excluded.has(row.identity))
+   .map(row=>rowDetails(row,st));
  const normal=enriched.filter(x=>['cash','purchase','bank'].includes(x.kind)&&x.spendingClass!=='SPECIAL');
  const groups=[
   {id:'fixed',label:'固定費・ローン',color:'#42c5d0',items:[...normal.filter(x=>x.costBucket==='FIXED'),...usage.byKind.debt]},
@@ -134,6 +139,8 @@ function usageBuckets(usage,st){
   {id:'undetermined',label:'通常費（固定・変動未確定）',color:'#a2acb9',items:normal.filter(x=>x.costBucket!=='FIXED'&&x.costBucket!=='VARIABLE')},
   {id:'special',label:'特別費',color:'#eab86d',
     items:enriched.filter(x=>['cash','purchase','bank'].includes(x.kind)&&x.spendingClass==='SPECIAL')},
+  ...(includePersonal?[{id:'personal',label:'個人費',color:'#dc8bfa',
+     items:privateSummary?.items||[]}]:[]),
   {id:'ideco',label:'iDeCo（固定拠出・投資）',color:'#987efd',items:usage.byKind.ideco},
   {id:'investment',label:'その他投資',color:'#67b9f4',items:usage.byKind.investment}
  ];
@@ -151,7 +158,9 @@ function subgroups(bucket,mode=lens){
      key='CARD|'+x.label;label=x.label||'カード精算';
    }else if(['transfer','expense','unclassified'].includes(bucket.id)){
      key='BANK|'+x.label;label=x.label||'銀行取引';
-   }else if(bucket.id==='ideco'){
+   }else if(bucket.id==='personal'){
+   key='PERSONAL|'+(x.owner||'self');label='個人費明細';
+ }else if(bucket.id==='ideco'){
      key='INVESTMENT|IDECO';label='iDeCo';
    }else if(bucket.id==='investment'){
      key='INVESTMENT|OTHER';label='NISA・証券積立等';
@@ -179,8 +188,11 @@ function categoryGroups(bucket,mode=lens){
    // any of their accounting classifications or recorded amounts.
    const economicExpense=mode==='economic'&&['cash','purchase','bank'].includes(x.kind);
    const debtInFixed=mode==='economic'&&bucket.id==='fixed'&&x.kind==='debt';
-   const key=debtInFixed?'DEBT_PAYMENTS':economicExpense?String(x.category||'OTHER'):'TRANSACTION_DETAILS';
-   const label=debtInFixed?'ローン・借入返済（消費外）':economicExpense?
+   const isPersonal=bucket.id==='personal'&&x.kind==='personal';
+   const key=isPersonal?(x.owner==='wife'?'PERSONAL_WIFE':'PERSONAL_SELF'):
+     debtInFixed?'DEBT_PAYMENTS':economicExpense?String(x.category||'OTHER'):'TRANSACTION_DETAILS';
+   const label=isPersonal?x.personalCategoryLabel:
+     debtInFixed?'ローン・借入返済（消費外）':economicExpense?
      (defs[key]?.label||window.householdExpenseAnalyticsV106?.categoryLabel?.(key)||'その他'):'取引明細';
    let group=map.get(key);
    if(!group){group={key,label,amount:0,items:[],subcategories:[]};map.set(key,group)}
@@ -300,8 +312,14 @@ function render(){
  const usage=ul.calculate(st,month,cycle);
  const bank=ul.bankFlow(st,month,cycle);
  const economic=lens==='economic',p=economic?usage:bank;
- const all=economic?usageBuckets(usage,st):bank.buckets;
- const total=economic?usage.funds:bank.total;
+ const personal=window.householdPersonalLedgerV186?.presentation?.(st,usage);
+ const all=economic?usageBuckets(usage,st,true):bank.buckets;
+ // Existing matched canonical purchases already contributed to funds.
+ // An owner-only personal expense adds only its unmatched portion.
+ const privateAdjustment=(personal?.amount||0)-(personal?.matchedConsumption||0);
+ const consumption=usage.consumption+privateAdjustment;
+ const ordinary=usage.ordinary-(personal?.matchedOrdinary||0);
+ const total=economic?usage.funds+privateAdjustment:bank.total;
  const income=usage.income;
  const difference=income-total,ratio=income>0?total*100/income:null;
  const bars=ratioParts(all,income);
@@ -323,7 +341,7 @@ function render(){
  '<div class="hub-muted">'+(economic?'実際に購入・使用した金額と、消費ではないローン・投資拠出を分離':'銀行口座から実際に出金された金額。消費・生活費の統計ではありません')+'</div>'+
  '<div class="hub-totals"><span>確認済み収入</span><b>'+yen(income)+'</b></div>'+
  '<div class="hub-tablehead"><span>'+ (economic?'消費・資金用途':'銀行引落・資金移動') +'</span><span>金額</span></div>';
- if(economic)html+='<div class="hub-totals"><span>通常の消費・生活費（ローンを除く）</span><b>'+yen(usage.ordinary)+'</b></div>';
+ if(economic)html+='<div class="hub-totals"><span>通常の消費・生活費（ローンを除く）</span><b>'+yen(ordinary)+'</b></div>';
  for(const b of all){
    const expanded=openBucket===b.id;
    html+='<button type="button" class="hub-line" data-hub-bucket="'+esc(b.id)+'" aria-expanded="'+expanded+'">'+
@@ -331,7 +349,7 @@ function render(){
      '<span class="hub-amt">'+yen(b.amount)+' <span aria-hidden="true" style="color:#a3bed0">'+(expanded?'⌄':'›')+'</span></span></button>';
    if(expanded)html+=detailPanel(b);
  }
- if(economic)html+='<div class="hub-totals"><span>消費・購入額</span><b>'+yen(usage.consumption)+'</b></div>';
+ if(economic)html+='<div class="hub-totals"><span>消費・購入額（個人費を含む）</span><b>'+yen(consumption)+'</b></div>';
  html+='<div class="hub-totals"><span>'+(economic?'支出・資金用途合計':'口座資金流出合計（消費とは別）')+'</span><b>'+yen(total)+'</b></div>'+
  '<div class="hub-totals"><span>'+(economic?'収支':'確認済み入金との差（口座移動を含む）')+'</span>'+
  '<b style="color:'+(difference<0?'#ffa9a0':'#e9fdf7')+'">'+(difference>0?'+':'')+yen(difference)+'</b></div>'+
@@ -375,7 +393,6 @@ function render(){
          '</div><b class="hub-amt">'+yen(r.amount)+'</b></div></div>';
      }).join('')+'</details>';
  }
- html+=window.householdPersonalLedgerV186?.html?.(st,usage,cycle,lens)||'';
  const budget=budgetReference(st,month);
  html+='<details class="hub-card" id="hubBudgetV151"><summary style="cursor:pointer;font-size:16px;font-weight:750">'+
    '毎月の基本予算（参考）'+yen(budget.total)+'</summary>'+
@@ -398,7 +415,6 @@ function render(){
  '</details>';
  root.innerHTML=html;
  bind(root);
- window.householdPersonalLedgerV186?.bind?.();
  return true;
 }
 function bind(root){

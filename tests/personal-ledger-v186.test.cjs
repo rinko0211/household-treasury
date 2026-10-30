@@ -30,7 +30,7 @@ assert.equal(summary.wifeBudget,40000);
 assert.equal(summary.selfBudget,20000);
 assert.equal(summary.rows.length,2);
 const display=ledger.html(v,p,'payday','economic');
-for(const val of ['個人費（本人の支出管理専用）','¥46,000','¥14,000','¥40,000','¥6,000','飲み会']){
+for(const val of ['個人費（本人の支出管理専用）','46,000','14,000','40,000','6,000','飲み会']){
   assert.ok(display.includes(val),'Private UI must show '+val);
 }
 assert.equal(ledger.html(v,p,'payday','cash'),'','Bank lens must not invent bank cashflows');

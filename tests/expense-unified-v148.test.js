@@ -420,6 +420,7 @@ ok(semanticEditorSource.includes("o.potential_prepaid_topup=false"),
  ok(!root.innerHTML.includes('hubPersonalV186'),'Old standalone personal card removed');
  ok(root.innerHTML.includes('消費・購入額（個人費を含む）'),'Consumption amount includes private expense');
  const legendHtml=root.innerHTML.split('<div class="hub-legend">')[1]?.split('</div>')[0]||'';
+ console.log('DEBUG_PERSONAL_LEGEND',JSON.stringify({legend:legendHtml,selection:app.getSelection(),htmlLength:root.innerHTML.length,around:root.innerHTML.slice(root.innerHTML.indexOf('hub-legend')-30,root.innerHTML.indexOf('hub-legend')+300)}));
  ok(legendHtml.includes('個人費') && legendHtml.includes('%'),
    'Personal participates in the existing graph legend and shares');
  btn('bucket','personal');

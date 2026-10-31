@@ -205,7 +205,7 @@ ok(root.innerHTML.includes('毎月の基本予算（参考）'),'Plan shown sepa
 ok(root.innerHTML.includes('電気'),'Fixed reference contains electricity');
 ok(root.innerHTML.includes('カード払い'),'Card-route reference labeled');
 ok(!fs.readFileSync('index.html','utf8').includes('id="monthlyTreasuryTabV142"'),'Redundant monthly tab removed');
-ok(fs.readFileSync('index.html','utf8').includes('expense-unified-v148.js?v=187'),'Unified hub loaded');
+ok(fs.readFileSync('index.html','utf8').includes('expense-unified-v148.js?v=191'),'Unified hub loaded');
 // v158: fixed and variable are PRESENTATION cost-behavior within economic NORMAL;
 // source category overrides and review badges do not change booked consumption.
 {
@@ -427,6 +427,53 @@ ok(semanticEditorSource.includes("o.potential_prepaid_topup=false"),
  btn('subcategory','PERSONAL|self');
  ok(root.innerHTML.includes('飲み会'),'Personal receipts open through the existing category/subcategory navigation');
  delete state.personalExpenses;delete state.personalExpenseBudgets;delete state.privatePersonalSeedV186;
+ app.render();
+}
+// v191: chronological use-date ordering applies inside every expense detail
+// without changing category totals or the immutable source ledger.
+{
+ const sample=[
+  {kind:'purchase',identity:'purchase:a',date:'2026-10-19',label:'古いカフェ',amount:1900,category:'FOOD',subcategory:'CAFE',costNatureKey:'FOOD.CAFE'},
+  {kind:'purchase',identity:'purchase:b',date:'2026-10-23',label:'新しいカフェ',amount:2300,category:'FOOD',subcategory:'CAFE',costNatureKey:'FOOD.CAFE'},
+  {kind:'cash',identity:'cash:c',date:'',label:'日付未確定カフェ',amount:300,category:'FOOD',subcategory:'CAFE',costNatureKey:'FOOD.CAFE'},
+  {kind:'purchase',identity:'purchase:d',date:'2026-10-21',label:'中間カフェ',amount:2100,category:'FOOD',subcategory:'CAFE',costNatureKey:'FOOD.CAFE'},
+  {kind:'purchase',identity:'purchase:e',date:'2026-10-23',label:'同日二件目',amount:550,category:'FOOD',subcategory:'CAFE',costNatureKey:'FOOD.CAFE'}
+ ];
+ const rawOrder=sample.map(x=>x.label).join('|');
+ const expected='新しいカフェ|同日二件目|中間カフェ|古いカフェ|日付未確定カフェ';
+ const ordered=app.orderDetailsByUsageDay(sample);
+ eq(ordered.map(x=>x.label).join('|'),expected,'Use date descending; same-day stable; undated last');
+ eq(sample.map(x=>x.label).join('|'),rawOrder,'Ordering does not mutate canonical source');
+ const bucket={id:'variable',items:sample};
+ const subtotal=sample.reduce((a,x)=>a+x.amount,0);
+ const middle=app.categoryGroups(bucket,'economic').find(x=>x.key==='FOOD');
+ eq(middle.items.map(x=>x.label).join('|'),expected,'Major category detail order matches use dates');
+ eq(middle.subcategories.find(x=>x.key==='FOOD.CAFE').items.map(x=>x.label).join('|'),
+   expected,'Nested minor category detail order matches use dates');
+ eq(middle.amount,subtotal,'Date sorting leaves category total unchanged');
+ eq(middle.subcategories[0].amount,subtotal,'Date sorting leaves subcategory total unchanged');
+ const dates=['2026-10-19','2026-10-23','2026-10-21'];
+ const names=['カフェ古い明細','カフェ新しい明細','カフェ中間明細'];
+ for(let i=0;i<dates.length;i++)state.purchaseEvents.push({
+   purchase_id:'v191-date-order-'+i,card:'MUFG/DC/JAL',
+   purchase_date:dates[i],merchant_raw:names[i],original_amount:100+i,
+   economic_type:'EXPENSE',category:'FOOD',subcategory:'CAFE',billing_month:'2026-12'
+ });
+ const originalCalc=window.householdUsageLedgerV157.calculate(state,'2026-10','payday');
+ app.render();
+ if(app.getSelection().lens!=='economic')btn('lens','economic');
+ if(app.getSelection().openBucket!=='variable')btn('bucket','variable');
+ if(app.getSelection().openCategory!=='FOOD')btn('category','FOOD');
+ if(app.getSelection().openSubcategory!=='FOOD.CAFE')btn('subcategory','FOOD.CAFE');
+ const html=root.innerHTML;
+ ok(names.every(x=>html.includes(x)),'All imported card statements are shown in expense detail');
+ ok(html.indexOf(names[1])<html.indexOf(names[2])&&
+   html.indexOf(names[2])<html.indexOf(names[0]),
+   'Rendered receipts are newest use-date first, even when imported out of order');
+ state.purchaseEvents.splice(-dates.length,dates.length);
+ const restoredCalc=window.householdUsageLedgerV157.calculate(state,'2026-10','payday');
+ eq(originalCalc.consumption-restoredCalc.consumption,303,
+   'Date ordering does not modify financial calculation');
  app.render();
 }
 console.log('PASS '+asserts+' expense unified v148 assertions');

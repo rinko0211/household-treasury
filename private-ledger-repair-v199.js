@@ -101,9 +101,9 @@ function plan(input,patch){
    const referenceOnly=r.reference_only_v200===true;
    if(referenceOnly){
      assert(next.personalExpenses.some(x=>x.owner==='wife'&&
-       x.count_in_spending!==false&&Number(x.amount)===40000&&
-       x.cycle_start==='2026-10-16'),
-       '妻の個人費40,000円の既存計上を確認できません');
+       x.count_in_spending!==false&&Number(x.amount)>=Number(r.original_amount)&&
+       x.cycle_start<=r.purchase_date&&x.cycle_end>=r.purchase_date),
+       '妻の既存個人費に紐づく支出計上を確認できません');
    }
    const old=next.purchaseEvents.find(x=>String(x.purchase_id)===r.purchase_id);
    if(old){

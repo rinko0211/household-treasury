@@ -209,6 +209,57 @@ function apply(choices,confirmed=false){
  return {count:verified.operations.length,excluded:verified.operations.filter(x=>x.action==='DUPLICATE').length,
    amount:verified.amount};
 }
+function excluded(st=stateNow()){
+ const out=[];
+ for(const [kind,arr] of [['cash',st.cashExpenses||[]],['purchase',st.purchaseEvents||[]]]){
+  for(const [index,x] of arr.entries()){
+   if(x?.count_in_spending!==false||
+      x?.reconciliation_status!=='ABSORBED_DUPLICATE'||
+      !x.cross_source_reconciliation_v201)continue;
+   const label=kind==='cash'?x.description||x.description_raw:
+     x.merchant_raw||x.merchant_normalized;
+   out.push({ref:kind+':'+index,label:String(label||''),
+     date:String(x.purchase_date||x.date||''),
+     amount:amount(x.original_amount??x.purchase_total??x.amount),
+     canonical:String(x.cross_source_canonical_ref_v201||'')});
+  }
+ }
+ return out.sort((a,b)=>b.date.localeCompare(a.date));
+}
+function restore(ref,confirmed=false){
+ if(!confirmed)throw Error('復元の確認が必要です');
+ if(typeof window.replaceTreasuryState!=='function'||
+    typeof window.treasuryRecoverySnapshot!=='function')
+   throw Error('復旧記録または保存機能が使えません');
+ const st=stateNow(),target=excluded(st).find(x=>x.ref===ref);
+ if(!target)throw Error('復元対象がありません。再点検してください。');
+ const keeper=target.canonical;
+ const [k,i]=keeper.split(':'),index=Number(i);
+ const anchor=(k==='cash'?st.cashExpenses:k==='purchase'?st.purchaseEvents:null)?.[index];
+ if(!anchor||!counted(anchor))throw Error('保持側の原本が見つからないため復元を停止しました');
+ const next=structuredClone(st),[kind,ix]=ref.split(':');
+ const record=(kind==='cash'?next.cashExpenses:next.purchaseEvents)?.[Number(ix)];
+ if(!record||record.count_in_spending!==false||
+    record.reconciliation_status!=='ABSORBED_DUPLICATE'||
+    !record.cross_source_reconciliation_v201)throw Error('復元前の原本照合に失敗しました');
+ if(record.cross_source_original_count_v201===null||
+    record.cross_source_original_count_v201===undefined)delete record.count_in_spending;
+ else record.count_in_spending=record.cross_source_original_count_v201;
+ if(record.cross_source_original_status_v201===null||
+    record.cross_source_original_status_v201===undefined)delete record.reconciliation_status;
+ else record.reconciliation_status=record.cross_source_original_status_v201;
+ delete record.cross_source_original_count_v201;
+ delete record.cross_source_original_status_v201;
+ delete record.cross_source_reconciliation_v201;
+ delete record.cross_source_canonical_ref_v201;
+ delete record.cross_source_canonical_id_v201;
+ record.cross_source_restored_at_v201=new Date().toISOString();
+ window.treasuryRecoverySnapshot('横断重複照合の計上除外を取り消す直前');
+ if(window.replaceTreasuryState(next)===false)throw Error('復元に失敗しました');
+ window.cloudSyncOnLocalSave?.();
+ window.householdExpenseUnifiedV148?.render?.();
+ return {restored:1,amount:target.amount};
+}
 function mount(){
  const root=document.querySelector('#imports .grid');
  if(!root||$('crossSourceAuditV201'))return false;
@@ -221,6 +272,8 @@ function mount(){
   '<button type="button" class="btn secondary" id="crossSourceRefreshV201">現在の明細を点検</button>'+
   '<div id="crossSourceSummaryV201" class="note" role="status" style="margin:10px 0"></div>'+
   '<div id="crossSourcePairsV201" style="max-height:440px;overflow:auto"></div>'+
+  '<details><summary>以前に計上除外した明細を確認・復元</summary>'+
+  '<div id="crossSourceExcludedV201" style="max-height:200px;overflow:auto"></div></details>'+
   '<button type="button" class="btn" id="crossSourceApplyV201" style="margin-top:9px" disabled>選択した照合結果を反映</button>';
  root.appendChild(el);
  $('crossSourceRefreshV201').onclick=render;
@@ -256,6 +309,22 @@ function render(){
   '組・要確認 '+results.review+'組・カード等不一致 '+results.blocked+'組'+
   (results.oversized?'｜大量の同日同額候補は保留 '+results.oversized+'件':'')+
   '。自動計上除外 0件。';
+ const excludedList=excluded().slice(0,100);
+ const excludedHost=$('crossSourceExcludedV201');
+ if(excludedHost){
+  excludedHost.innerHTML=excludedList.length?excludedList.map(x=>
+   '<div class="row" style="margin:6px 0"><span style="min-width:0;flex:1">'+
+    esc(x.date+' '+x.label)+' '+fmt(x.amount)+'</span>'+
+    '<button type="button" class="btn secondary" data-cross-restore="'+esc(x.ref)+'">復元</button></div>'
+  ).join(''):'<p class="tiny">この照合画面で除外した明細はありません。</p>';
+  excludedHost.querySelectorAll('button[data-cross-restore]').forEach(b=>b.onclick=()=>{
+   const ref=b.dataset.crossRestore;
+   if(!window.confirm?.('この明細を再び支出に計上しますか？'+
+     '\n本当に別々に購入した場合だけ復元してください。'))return;
+   try{restore(ref,true);render()}catch(e){$('crossSourceSummaryV201').textContent=
+     '復元できませんでした：'+String(e.message||e)}
+  });
+ }
  const view=results.candidates.slice(0,120);
  host.innerHTML=view.map(p=>{
   const keep=p.keep,dup=p.duplicate,blocked=p.level==='blocked';
@@ -287,7 +356,7 @@ function attach(){
  }
  return true;
 }
-window.householdCrossSourceAuditV201={scan,plan,apply,mount,render,cardFamily,norm,rows};
+window.householdCrossSourceAuditV201={scan,plan,apply,restore,excluded,mount,render,cardFamily,norm,rows};
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',attach,{once:true});
 else attach();
 window.addEventListener?.('pageshow',()=>{if(!attach())render()});

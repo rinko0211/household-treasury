@@ -102,17 +102,44 @@ function isSameRecordedExpense(row,personal){
  return label===requested||(requested.length>=3&&label.includes(requested))||
    (label.length>=3&&requested.includes(label));
 }
+function classifiedPersonalSource(st,row){
+ const [kind,index]=String(row.identity||'').split(':');
+ if(!['cash','purchase','bank'].includes(kind)||!/^\d+$/.test(index))return null;
+ const source=kind==='cash'?st.cashExpenses?.[Number(index)]:
+   kind==='purchase'?st.purchaseEvents?.[Number(index)]:
+   st.cashTransactions?.[Number(index)];
+ if(!source)return null;
+ const assigned=String(source.expense_bucket_v193||'').toUpperCase();
+ const category=String(source.category||'').toUpperCase();
+ if(assigned!=='PERSONAL'&&
+    (['FIXED','VARIABLE','SPECIAL'].includes(assigned)||category!=='PERSONAL'))return null;
+ return source;
+}
 function presentation(st,usage,cycle=usage.basis){
  const s=summary(st,usage,cycle);
  const matched=new Set(),items=[];
  let matchedOrdinary=0,matchedConsumption=0;
- for(const [i,r] of s.rows.entries()){
+ const entries=s.rows.map((r,i)=>({r,i}));
+ for(const {r} of entries){
    const raw=(usage.usageRows||[]).find(x=>!matched.has(x.identity)&&isSameRecordedExpense(x,r));
    if(raw){
      matched.add(raw.identity);
      matchedConsumption+=Number(raw.amount)||0;
      if(raw.spendingClass!=='SPECIAL')matchedOrdinary+=Number(raw.amount)||0;
    }
+ }
+ const allocated={wife:0,self:0,unassigned:0};
+ for(const row of usage.usageRows||[]){
+   if(matched.has(row.identity))continue;
+   const source=classifiedPersonalSource(st,row);
+   if(!source)continue;
+   const owner=String(source.personal_owner_v193||'').toLowerCase();
+   allocated[owner==='wife'||owner==='self'?owner:'unassigned']+=Number(row.amount)||0;
+ }
+ s.wifeSpent+=allocated.wife;
+ s.selfSpent+=allocated.self;
+ s.unassignedSpent=allocated.unassigned;
+ for(const {r,i} of entries){
    const owner=r.owner==='wife'?'wife':'self';
    const budget=owner==='wife'?s.wifeBudget:s.selfBudget;
    const spent=owner==='wife'?s.wifeSpent:s.selfSpent;
@@ -127,10 +154,10 @@ function presentation(st,usage,cycle=usage.basis){
      provisional:false,needsReview:false
    });
  }
- return {items,matched,matchedOrdinary,matchedConsumption,
+ return {items,matched,matchedOrdinary,matchedConsumption,allocated,
    amount:items.reduce((sum,r)=>sum+r.amount,0),summary:s};
 }
-window.householdPersonalLedgerV186={ensure,recordsFor,summary,presentation};
+window.householdPersonalLedgerV186={ensure,recordsFor,summary,presentation,classifiedPersonalSource};
 window.addEventListener?.('householdShareCloudSyncedV160',()=>{
   // An older cloud revision may have replaced local state during startup.
   // The migration is idempotent and runs only after successful sync.

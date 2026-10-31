@@ -142,7 +142,9 @@ function usageBuckets(usage,st,includePersonal=false){
   {id:'special',label:'特別費',color:'#eab86d',
     items:enriched.filter(x=>['cash','purchase','bank'].includes(x.kind)&&x.spendingClass==='SPECIAL')},
   ...(includePersonal?[{id:'personal',label:'個人費',color:'#dc8bfa',
-     items:privateSummary?.items||[]}]:[]),
+     items:(privateSummary?.items||[]).map(x=>({
+        ...x,manualDeleteIdentity:window.householdManualExpenseDeleteV192?.locate?.(st,x.identity)?.identity||''
+      }))}]:[]),
   {id:'ideco',label:'iDeCo（固定拠出・投資）',color:'#987efd',items:usage.byKind.ideco},
   {id:'investment',label:'その他投資',color:'#67b9f4',items:usage.byKind.investment}
  ];

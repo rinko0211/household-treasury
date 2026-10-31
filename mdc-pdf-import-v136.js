@@ -160,11 +160,18 @@
     card.innerHTML='<div class="title">MDC / JALカード PDF明細</div>'+
       '<div class="tiny" style="margin:8px 0">スマホで保存した文字付きPDFに対応。解析・請求額検証は端末内で行い、確認後にのみ明細を保存します。</div>'+
       '<button class="btn secondary" type="button" id="mdcPdfChooseV136">PDFを選択</button>'+
+      '<button class="btn secondary" type="button" id="mdcPdfManageRegisteredV190" style="margin-left:8px">登録済み明細を後から除外・復元</button>'+
       '<input class="hidden" id="mdcPdfFileV136" type="file" accept=".pdf,application/pdf">'+
       '<div id="mdcPdfOutputV136" style="margin-top:12px"></div>';
     grid.appendChild(card);
     const input=card.querySelector('#mdcPdfFileV136'),output=card.querySelector('#mdcPdfOutputV136');
     card.querySelector('#mdcPdfChooseV136').onclick=()=>input.click();
+    card.querySelector('#mdcPdfManageRegisteredV190').onclick=()=>{
+      window.householdMdcPdfDeltaV144?.mountAudit?.();
+      const audit=document.getElementById('mdcRegisteredReviewV190');
+      audit?.querySelector('details')?.setAttribute('open','');
+      audit?.scrollIntoView?.({behavior:'smooth',block:'start'});
+    };
     input.onchange=async()=>{
       const file=input.files?.[0];if(!file)return;
       output.textContent='PDFの文字情報を解析中…';

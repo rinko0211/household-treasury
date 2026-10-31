@@ -123,8 +123,18 @@ function presentation(st,usage,cycle=usage.basis){
  const matched=new Set(),items=[];
  let matchedOrdinary=0,matchedConsumption=0;
  const entries=s.rows.map((r,i)=>({r,i}));
+ // Preserve original first-unmatched-in-source-order semantics while avoiding
+ // a full usage-row scan for every personal expense. The index is per call.
+ const candidatesByAmount=new Map();
+ for(const row of usage.usageRows||[]){
+   if(!['cash','purchase','bank'].includes(row.kind))continue;
+   const amount=Number(row.amount);
+   if(!candidatesByAmount.has(amount))candidatesByAmount.set(amount,[]);
+   candidatesByAmount.get(amount).push(row);
+ }
  for(const {r} of entries){
-   const raw=(usage.usageRows||[]).find(x=>!matched.has(x.identity)&&isSameRecordedExpense(x,r,st));
+   const raw=(candidatesByAmount.get(value(r))||[]).find(x=>
+     !matched.has(x.identity)&&isSameRecordedExpense(x,r,st));
    if(raw){
      matched.add(raw.identity);
      matchedConsumption+=Number(raw.amount)||0;

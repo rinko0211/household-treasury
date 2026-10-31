@@ -90,6 +90,13 @@ test('manually registered KABU transactions cannot suppress canonical statement 
  assert.equal(e.state.purchaseEvents[1].count_in_spending,undefined);
  assert.ok(e.backups>0&&e.writes>0&&e.renders>0);
  assert.equal(e.win.householdKabuCardV198.scanDuplicates(e.state).length,0);
+ assert.equal(e.win.householdKabuCardV198.excludedDuplicates(e.state).length,1);
+ const restored=e.win.householdKabuCardV198.restoreDuplicate('purchase:0');
+ assert.equal(restored.restored,1);
+ assert.equal(e.state.purchaseEvents[0].count_in_spending,undefined);
+ assert.equal(e.state.purchaseEvents[0].reconciliation_status,undefined);
+ assert.equal(e.win.householdKabuCardV198.excludedDuplicates(e.state).length,0);
+ assert.equal(e.win.householdKabuCardV198.scanDuplicates(e.state).length,1);
 });
 test('import-only historical duplicate is reviewable, never physically deleted',()=>{
  const e=env();
@@ -108,6 +115,10 @@ test('import-only historical duplicate is reviewable, never physically deleted',
  assert.equal(e.state.purchaseEvents[1].count_in_spending,false);
  assert.equal(e.state.purchaseEvents[1].kabu_canonical_purchase_id,first.purchase_id);
  assert.equal(e.win.householdKabuCardV198.scanDuplicates(e.state).length,0);
+ assert.equal(e.win.householdKabuCardV198.excludedDuplicates(e.state).length,1);
+ assert.equal(e.win.householdKabuCardV198.restoreDuplicate('purchase:1').restored,1);
+ assert.equal(e.state.purchaseEvents[1].count_in_spending,undefined);
+ assert.equal(e.win.householdKabuCardV198.scanDuplicates(e.state).length,1);
 });
 test('only explicitly card-tagged cash overlaps are candidates; genuine cash is protected',()=>{
  const e=env();
@@ -123,6 +134,9 @@ test('only explicitly card-tagged cash overlaps are candidates; genuine cash is 
  assert.equal(e.state.cashExpenses[0].count_in_spending,undefined,'Actual cash expense not touched');
  assert.equal(e.state.cashExpenses[1].count_in_spending,false);
  assert.equal(e.state.purchaseEvents[0].count_in_spending,undefined);
+ assert.equal(e.win.householdKabuCardV198.restoreDuplicate('cash:1').restored,1);
+ assert.equal(e.state.cashExpenses[1].count_in_spending,undefined);
+ assert.equal(e.state.cashExpenses[0].count_in_spending,undefined);
 });
 test('different card, date, merchant or amount never treated as KABU overlap',()=>{
  const e=env();

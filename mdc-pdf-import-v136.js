@@ -167,7 +167,6 @@
       output.textContent='PDFの文字情報を解析中…';
       try{
         const p=await parseFile(file);
-        const list=p.entries.slice(0,6).map(e=>'<div class="row"><span>'+esc(e.date)+' '+esc(e.merchant)+'</span><b>'+yen(e.amount)+'</b></div>').join('');
         output.innerHTML='<div class="note">照合成功。データはまだ保存されていません。</div>'+
           '<div class="row"><span>支払日</span><b>'+esc(p.paymentDate)+'</b></div>'+
           '<div class="row"><span>明細</span><b>'+p.entries.length+'件</b></div>'+
@@ -176,69 +175,145 @@
           '<input id="mdcPdfCardLabelV139" type="text" maxlength="70" value="'+esc(p.cardLabel)+'" style="width:100%;margin-top:4px">'+
           '<div class="tiny">'+(p.cardIdentityDetected?'カード番号の伏字部分から自動識別。必要なら変更できます。':'カード番号を自動識別できません。別カードなら識別名を変更してください。')+'</div>'+
           '<div class="tiny" style="margin-top:6px">支出は引落月ではなく利用月に計上されます。'+[...new Set(p.entries.map(e=>e.date.slice(0,7)))].sort().join('、')+'の明細が対象です。</div>'+
-          '<details><summary>明細プレビュー（6件）</summary>'+list+'</details>'+
+
           '<div class="note" id="mdcPdfDeltaPreviewV144" style="margin-top:9px">登録済み明細との差分を照合中…</div>'+
           '<label class="tiny" style="display:block;margin:9px 0"><input type="checkbox" id="mdcPdfDifferentCardV144"> 既存と明細が重なりますが、実際に別のカードとして登録する（確認が必要な場合のみ）</label>'+
-          '<div class="note" style="margin:9px 0">まだ支出へ登録していません。次の「確認して取り込む」で保存します。</div>'+
-          '<button class="btn" id="mdcPdfCommitV136" type="button">確認して取り込む</button>'+
+          '<div class="note" style="margin:9px 0">この画面の確認中は家計データに書き込みません。「登録予定を最終確認」してから確定します。</div>'+
+          '<button class="btn secondary" id="mdcPdfReviewV189" type="button" disabled>登録予定を最終確認</button>'+
+          '<div id="mdcPdfFinalReviewV189" style="margin:10px 0" hidden></div>'+
+          '<button class="btn" id="mdcPdfCommitV136" type="button" disabled hidden>内容を確認したので登録する</button>'+
           '<div class="tiny" id="mdcPdfResultV136" style="margin-top:8px"></div>';
-        const saveBtn=card.querySelector('#mdcPdfCommitV136'),status=card.querySelector('#mdcPdfResultV136');
+        const saveBtn=card.querySelector('#mdcPdfCommitV136'),
+          reviewBtn=card.querySelector('#mdcPdfReviewV189'),
+          finalBox=card.querySelector('#mdcPdfFinalReviewV189'),
+          status=card.querySelector('#mdcPdfResultV136');
         const labelInput=card.querySelector('#mdcPdfCardLabelV139'),
           otherCard=card.querySelector('#mdcPdfDifferentCardV144'),
           previewBox=card.querySelector('#mdcPdfDeltaPreviewV144');
         const approvals={};
+        let lockedReview=null;
+        const resetFinal=()=>{
+          lockedReview=null;
+          saveBtn.hidden=true;saveBtn.disabled=true;
+          finalBox.hidden=true;finalBox.innerHTML='';
+        };
         const checkDelta=()=>{
           const identity=String(labelInput.value||'').normalize('NFKC').trim();
-          if(!identity){saveBtn.disabled=true;previewBox.textContent='カード識別名が必要です。';return null}
+          if(!identity){resetFinal();reviewBtn.disabled=true;previewBox.textContent='カード識別名が必要です。';return null}
           const engine=window.householdMdcPdfDeltaV144;
-          if(!engine?.previewPdf){saveBtn.disabled=true;previewBox.textContent='差分照合機能が読み込まれていません。';return null}
+          if(!engine?.previewPdf){resetFinal();reviewBtn.disabled=true;previewBox.textContent='差分照合機能が読み込まれていません。';return null}
           try{
             const delta=engine.previewPdf(p,identity,otherCard.checked,approvals);
             const cross=window.householdJalCrossSourceV166?.scanPdfPreview?.(p)||[];
             const blocked=delta.pending?.length||delta.issues.some(x=>
               x.startsWith('MDC-D11:')||x.startsWith('MDC-R18:')||x.startsWith('MDC-X3'));
-            const overlapUI=(delta.overlaps||[]).map(item=>{
+            const overlapUI=(delta.pending||[]).map(item=>{
               const choices=item.candidates.map(c=>
                 '<option value="'+esc(c.ref)+'"'+(approvals[item.token]===c.ref?' selected':'')+'>'+
                 esc((c.kind==='cash'?'旧CSV/現金':'旧CSV/カード')+'：'+c.label+
                   '（'+c.payment+'）')+'</option>').join('');
-              return '<label class="field" style="margin:8px 0">'+
-                '<span>'+esc(item.date+' '+item.merchant)+' '+yen(item.amount)+'</span>'+
-                '<select data-mdc-csv-choice="'+esc(item.token)+'" style="width:100%">'+
+              return '<div class="field" style="margin:9px 0;padding:8px;border:1px solid #506274;border-radius:8px">'+
+                '<label style="display:flex;align-items:flex-start;gap:8px">'+
+                '<input type="checkbox" data-mdc-bulk-duplicate="'+esc(item.token)+'" style="margin-top:4px">'+
+                '<span>'+esc(item.date+' '+item.merchant)+' <b>'+yen(item.amount)+'</b></span></label>'+
+                '<select aria-label="重複候補の対応先" data-mdc-csv-choice="'+esc(item.token)+'" style="width:100%;margin-top:6px">'+
                 '<option value="">未確認（保存不可）</option>'+choices+
+                '<option value="skip">重複としてPDFから取り込まない（既存の明細を維持）</option>'+
                 '<option value="separate"'+(approvals[item.token]==='separate'?' selected':'')+
-                '>別の支出なので新規登録</option></select></label>';
+                '>別の支出なので新規登録</option></select></div>';
             }).join('');
+            const newRows=(delta.newRows||[]).filter(r=>!r.migrated);
+            const migratedRows=(delta.newRows||[]).filter(r=>r.migrated);
+            const newUI=newRows.map(r=>
+              '<label class="row" style="align-items:center;gap:8px">'+
+              '<input type="checkbox" data-mdc-include-new="'+esc(r.token)+'" checked>'+
+              '<span style="min-width:0;flex:1">'+esc(r.date+' '+r.merchant)+'</span><b>'+yen(r.amount)+'</b></label>').join('');
+            const skippedUI=(delta.skipped||[]).map(r=>
+              '<div class="row"><span>'+esc(r.date+' '+r.merchant)+' '+yen(r.amount)+'</span>'+
+              '<button class="btn secondary" type="button" data-mdc-restore="'+esc(r.token)+'">除外を取り消す</button></div>').join('');
             previewBox.innerHTML=
-              '<b>今回の差分：新規 '+delta.added+'件／登録済み '+delta.duplicates+
-              '件／旧CSVから置換 '+(delta.migratedCash||0)+'件／未確認 '+(delta.pending?.length||0)+'件</b>'+
-              '<div class="tiny">CSVとPDFは取り込む前に1対1で照合します。旧CSVが現金扱いでも、カード払いと確認した取引だけ置換し、二重計上を防ぎます。</div>'+
-              (overlapUI?'<details open style="margin-top:10px"><summary>既存CSVとの照合 '+(delta.overlaps||[]).length+'件</summary>'+
-                '<div class="tiny">支払先が異なる同日・同額の明細は、自動で重複扱いにしません。対応する旧明細を選ぶか、別取引として新規登録を選択してください。</div>'+
+              '<b>登録予定：新規 '+delta.added+'件／旧CSVから置換 '+(delta.migratedCash||0)+
+              '件／重複として除外 '+(delta.skipped?.length||0)+'件／登録済み '+delta.duplicates+
+              '件／未確認 '+(delta.pending?.length||0)+'件</b>'+
+              '<div class="tiny">既にPDF取込済み・確定済みの明細は一覧へ再表示しません。登録前に新規と未確認だけをチェックできます。</div>'+
+              (newRows.length?'<details open style="margin-top:12px"><summary><b>新規登録の対象 '+newRows.length+'件（全件表示）</b></summary>'+
+                '<div class="tiny">チェックを外した明細は登録されません。</div>'+newUI+'</details>':
+                '<div class="tiny" style="margin-top:10px">今回、新規登録の対象はありません。</div>')+
+              (migratedRows.length?'<details open style="margin-top:10px"><summary><b>旧CSVから置換 '+migratedRows.length+'件</b></summary>'+
+                migratedRows.map(r=>'<div class="row"><span>'+esc(r.date+' '+r.merchant)+'</span><b>'+yen(r.amount)+'</b></div>').join('')+'</details>':'')+
+              (overlapUI?'<details open style="margin-top:12px"><summary><b>重複の可能性・要確認 '+(delta.pending||[]).length+'件</b></summary>'+
+                '<div class="tiny">重複と思われる明細にチェックを付けて一括で除外できます。異なる買い物なら個別に「別の支出」を選択してください。</div>'+
+                '<div class="controls" style="margin:8px 0"><button type="button" class="btn secondary" id="mdcPdfBulkAllV189">候補を全選択</button>'+
+                '<button type="button" class="btn secondary" id="mdcPdfBulkSkipV189">選択した候補を一括で重複除外</button></div>'+
                 overlapUI+'</details>':'')+
-              (delta.pending?.length?'<div class="note" style="margin-top:8px;color:#ffc78d">CSVとの照合が残っています。選択が完了するまで保存できません。</div>':'')+
+              (skippedUI?'<details style="margin-top:10px"><summary>今回除外するPDF明細 '+(delta.skipped||[]).length+'件（通常は非表示）</summary>'+
+                skippedUI+'</details>':'')+
+              (delta.pending?.length?'<div class="note" style="margin-top:8px;color:#ffc78d">未確認の重複候補があります。処理方法を決めるまで登録できません。</div>':'')+
               (delta.issues.length?'<div class="tiny" style="margin-top:7px">'+
                 delta.issues.map(esc).join(' / ')+'</div>':'')+
               (delta.conflicts?.length&&blocked?'<button class="btn secondary" id="mdcPdfUseExistingV144" type="button" style="margin-top:8px">以前のカード識別名「'+esc(delta.conflicts[0].identity)+'」を使う</button>':'');
             previewBox.querySelectorAll('[data-mdc-csv-choice]').forEach(sel=>sel.addEventListener('change',()=>{
               if(sel.value)approvals[sel.dataset.mdcCsvChoice]=sel.value;
               else delete approvals[sel.dataset.mdcCsvChoice];
-              checkDelta();
+              resetFinal();checkDelta();
             }));
+            previewBox.querySelectorAll('[data-mdc-include-new]').forEach(chk=>chk.addEventListener('change',()=>{
+              if(!chk.checked)approvals[chk.dataset.mdcIncludeNew]='skip';
+              else delete approvals[chk.dataset.mdcIncludeNew];
+              resetFinal();checkDelta();
+            }));
+            previewBox.querySelectorAll('[data-mdc-restore]').forEach(btn=>btn.addEventListener('click',()=>{
+              delete approvals[btn.dataset.mdcRestore];
+              resetFinal();checkDelta();
+            }));
+            previewBox.querySelector('#mdcPdfBulkAllV189')?.addEventListener('click',()=>{
+              previewBox.querySelectorAll('[data-mdc-bulk-duplicate]').forEach(chk=>{chk.checked=true});
+            });
+            previewBox.querySelector('#mdcPdfBulkSkipV189')?.addEventListener('click',()=>{
+              const selected=[...previewBox.querySelectorAll('[data-mdc-bulk-duplicate]:checked')];
+              if(!selected.length)return;
+              for(const chk of selected)approvals[chk.dataset.mdcBulkDuplicate]='skip';
+              resetFinal();checkDelta();
+            });
             const useExisting=card.querySelector('#mdcPdfUseExistingV144');
-            if(useExisting)useExisting.onclick=()=>{labelInput.value=delta.conflicts[0].identity;otherCard.checked=false;checkDelta()};
-            saveBtn.disabled=blocked;
+            if(useExisting)useExisting.onclick=()=>{labelInput.value=delta.conflicts[0].identity;otherCard.checked=false;resetFinal();checkDelta()};
+            reviewBtn.disabled=!!blocked||!(delta.additions?.length||delta.updates?.length);
             return blocked?null:delta;
-          }catch(e){saveBtn.disabled=true;previewBox.textContent='差分照合できません: '+String(e?.message||e);return null}
+          }catch(e){resetFinal();reviewBtn.disabled=true;previewBox.textContent='差分照合できません: '+String(e?.message||e);return null}
         };
-        labelInput.addEventListener('input',checkDelta);
-        otherCard.addEventListener('change',checkDelta);
+        labelInput.addEventListener('input',()=>{resetFinal();checkDelta()});
+        otherCard.addEventListener('change',()=>{resetFinal();checkDelta()});
         checkDelta();
+        reviewBtn.onclick=()=>{
+          const delta=checkDelta();
+          if(!delta||!(delta.additions.length||delta.updates.length))return;
+          const newRows=delta.newRows||[];
+          const sum=rows=>rows.reduce((v,r)=>v+Number(r.amount||0),0);
+          finalBox.hidden=false;
+          finalBox.innerHTML='<div class="note"><b>最終確認：まだ保存していません</b>'+
+            '<div class="row"><span>新しく増える支出</span><b>'+delta.added+'件 / '+
+            yen(sum(newRows.filter(r=>!r.migrated)))+'</b></div>'+
+            '<div class="row"><span>旧CSVとの置換（支出額は増えない）</span><b>'+delta.migratedCash+'件</b></div>'+
+            '<div class="row"><span>重複として今回取り込まない</span><b>'+delta.skipped.length+'件</b></div>'+
+            '<div class="row"><span>登録済み（変更不要）</span><b>'+delta.duplicates+'件</b></div>'+
+            '<div class="tiny">登録後はこの取込画面に留まります。内容に問題がなければ下のボタンで確定してください。</div></div>';
+          lockedReview={identity:String(labelInput.value||'').trim(),choices:JSON.stringify(approvals),
+            totals:JSON.stringify([delta.added,delta.migratedCash,delta.duplicates,delta.skipped.length,delta.additions.length,delta.updates.length])};
+          saveBtn.hidden=false;saveBtn.disabled=false;
+        };
         saveBtn.onclick=async()=>{
           if(saveBtn.disabled)return;
           if(typeof importOne!=='function'){status.textContent='既存の取込エンジンが利用できません。';return;}
+          const authorized=lockedReview;
           const verifiedDelta=checkDelta();
-          if(!verifiedDelta)return;
+          if(!verifiedDelta||!authorized||
+             authorized.identity!==String(labelInput.value||'').trim()||
+             authorized.choices!==JSON.stringify(approvals)||
+             authorized.totals!==JSON.stringify([verifiedDelta.added,verifiedDelta.migratedCash,
+               verifiedDelta.duplicates,verifiedDelta.skipped.length,
+               verifiedDelta.additions.length,verifiedDelta.updates.length])){
+            resetFinal();status.textContent='確認内容が変わったため、登録予定をもう一度確認してください。';return;
+          }
           // Unresolved CSV overlaps are blocked in checkDelta(), not merely
           // warned about after the duplicate has already been imported.
           saveBtn.disabled=true;status.textContent='差分照合と登録中…';
@@ -277,7 +352,7 @@
               host.appendChild(button);
             }
             window.dispatchEvent(new CustomEvent('treasury:expenses-imported',{detail:{months,source:'MDC_PDF'}}));
-            if(typeof render==='function')render();
+            resetFinal();
             checkDelta();
           }catch(e){saveBtn.disabled=false;status.textContent='取込失敗: '+String(e?.message||e);}
         };

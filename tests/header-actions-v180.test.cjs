@@ -20,9 +20,9 @@ assert.ok(family.includes("role','status'"),'Publish result must be perceivable 
 assert.ok(family.includes("aria-live','polite'"),'Publish status accessible');
 assert.ok(css.includes('#treasuryHeaderActionsV180'),'Responsive header styles must exist');
 assert.ok(css.includes('@media(max-width:420px)'),'Narrow mobile layout must remain safe');
-assert.ok(html.includes('family-share-owner-v160.js?v=180'));
+assert.ok(html.includes('family-share-owner-v160.js?v=193'));
 assert.ok(html.includes('ui-modern-v169.css?v=180'));
-assert.ok(sw.includes('./family-share-owner-v160.js?v=180'));
+assert.ok(sw.includes('./family-share-owner-v160.js?v=193'));
 assert.ok(sw.includes('./settings-ux-v45.js?v=180'));
 assert.ok(sw.includes('./ui-modern-v169.css?v=180'));
 console.log('HEADER_ACTIONS_V180_PASS');

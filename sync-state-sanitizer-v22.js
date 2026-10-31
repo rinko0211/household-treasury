@@ -173,5 +173,7 @@
   injectClassic('./mdc-cross-source-reconcile-v166.js?v=192', 'data-household-mdc-cross-source-v166');
   // v168: final owner of structured receipt CSV, after other CSV/PDF wrappers.
   injectClassic('./structured-expense-import-v168.js?v=192', 'data-household-structured-expense-v168');
+  // v201: conservative all-source reconciliation audit, loaded after CSV/PDF wrappers.
+  injectClassic('./cross-source-audit-v201.js?v=201', 'data-household-cross-source-audit-v201');
   // v92/v93 exact d-card overlay retired in v94.
 })();

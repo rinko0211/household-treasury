@@ -48,6 +48,16 @@ test('produces headers consumed by existing MUFG card import',()=>{
   assert.ok(csv.includes('2026/11/10'));
   assert.equal(csv.split('\r\n').filter(Boolean).length,4);
 });
+test('review choices change synthetic CSV hash input without changing the PDF invoice',()=>{
+  const api=run(),p=api.readStatement(fixture());
+  const included=api.toCsv(p,'JAL-SECOND','MDC_PDF_old.csv',false,'[]');
+  const partial=api.toCsv(p,'JAL-SECOND','MDC_PDF_old.csv',false,
+    '[[\"purchase-key\",\"skip\"]]');
+  assert.notEqual(included,partial,'A later attempt to import omitted rows must not share whole-file hash');
+  assert.ok(partial.includes('MDC今回の取込選択'));
+  assert.equal(partial.split(String.fromCharCode(13,10)).filter(Boolean).length,4);
+  assert.ok(partial.includes('2026/11/10'),'Statement dates remain identical');
+});
 test('rejects an unrelated or image-only PDF',()=>{
   assert.throws(()=>run().readStatement([{width:595,items:[]},{width:595,items:[]}]),/認識できません/);
 });

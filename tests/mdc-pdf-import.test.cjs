@@ -55,7 +55,7 @@ test('review choices change synthetic CSV hash input without changing the PDF in
     '[[\"purchase-key\",\"skip\"]]');
   assert.notEqual(included,partial,'A later attempt to import omitted rows must not share whole-file hash');
   assert.ok(partial.includes('MDC今回の取込選択'));
-  assert.equal(partial.split('\\r\\n').filter(Boolean).length,4);
+  assert.equal(partial.split(String.fromCharCode(13,10)).filter(Boolean).length,4);
   assert.ok(partial.includes('2026/11/10'),'Statement dates remain identical');
 });
 test('rejects an unrelated or image-only PDF',()=>{

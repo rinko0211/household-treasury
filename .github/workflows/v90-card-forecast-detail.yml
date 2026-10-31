@@ -3,6 +3,10 @@ name: Check v94 Core Card Authority
 on:
   push:
     branches: [main]
+    paths:
+      - 'card-forecast-v49.js'
+      - 'card-cycle-v81.js'
+      - '.github/workflows/v90-card-forecast-detail.yml'
   workflow_dispatch:
 
 permissions:

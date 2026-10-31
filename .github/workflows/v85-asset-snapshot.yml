@@ -3,6 +3,10 @@ name: Check v85 Asset Snapshot
 on:
   push:
     branches: [main]
+    paths:
+      - 'asset-snapshot-v85.js'
+      - 'asset-chart-v100.js'
+      - '.github/workflows/v85-asset-snapshot.yml'
   workflow_dispatch:
 
 permissions:

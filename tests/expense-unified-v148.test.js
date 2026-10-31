@@ -206,7 +206,7 @@ ok(root.innerHTML.includes('毎月の基本予算（参考）'),'Plan shown sepa
 ok(root.innerHTML.includes('電気'),'Fixed reference contains electricity');
 ok(root.innerHTML.includes('カード払い'),'Card-route reference labeled');
 ok(!fs.readFileSync('index.html','utf8').includes('id="monthlyTreasuryTabV142"'),'Redundant monthly tab removed');
-ok(fs.readFileSync('index.html','utf8').includes('expense-unified-v148.js?v=193'),'Unified hub loaded');
+ok(/expense-unified-v148\.js\?v=\d+/.test(fs.readFileSync('index.html','utf8')),'Unified hub loaded');
 // v158: fixed and variable are PRESENTATION cost-behavior within economic NORMAL;
 // source category overrides and review badges do not change booked consumption.
 {
@@ -596,5 +596,28 @@ ok(semanticEditorSource.includes("o.potential_prepaid_topup=false"),
  ok(!linked.find(x=>x.id==='variable').items.some(x=>x.label==='飲み会'),
    'Personal drink must not appear in variable spending');
  eq(st.purchaseEvents.length,start+4,'Rendering changes no source records');
+}
+// v194: prevent accidental duplicate personal and bank-flow calculations
+// while changing tabs and expanding the same expense report.
+{
+ const ledger=window.householdUsageLedgerV157,privateLedger=window.householdPersonalLedgerV186;
+ const originalBank=ledger.bankFlow,originalPersonal=privateLedger.presentation;
+ let bankCalls=0,personalCalls=0;
+ ledger.bankFlow=function(...args){bankCalls++;return originalBank.apply(this,args)};
+ privateLedger.presentation=function(...args){personalCalls++;return originalPersonal.apply(this,args)};
+ try{
+  if(app.getSelection().lens!=='economic')btn('lens','economic');
+  bankCalls=0;personalCalls=0;app.render();
+  eq(bankCalls,0,'Purchase-date view must not recompute unrelated bank-flow');
+  eq(personalCalls,1,'Personal presentation must run once per expense render');
+  btn('lens','cash');
+  eq(bankCalls,1,'Cash-outflow view calculates bank-flow once');
+  eq(personalCalls,1,'Bank-flow-only view skips personal presentation');
+  btn('lens','economic');
+  eq(bankCalls,1,'Switching back to purchases does not calculate bank-flow');
+  eq(personalCalls,2,'Each purchase render calculates personal just once');
+ }finally{
+  ledger.bankFlow=originalBank;privateLedger.presentation=originalPersonal;
+ }
 }
 console.log('PASS '+asserts+' expense unified v148 assertions');

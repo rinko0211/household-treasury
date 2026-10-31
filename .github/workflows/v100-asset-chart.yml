@@ -3,6 +3,10 @@ name: Browser Check v100 Asset History Chart
 on:
   push:
     branches: [main]
+    paths:
+      - 'asset-chart-v100.js'
+      - 'asset-snapshot-v85.js'
+      - '.github/workflows/v100-asset-chart.yml'
   workflow_dispatch:
 
 permissions:

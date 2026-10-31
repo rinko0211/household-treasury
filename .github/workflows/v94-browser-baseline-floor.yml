@@ -3,6 +3,11 @@ name: Browser Check v95 Card Master Baseline
 on:
   push:
     branches: [main]
+    paths:
+      - 'card-master-baseline-v95.js'
+      - 'card-baseline-floor-v94.js'
+      - 'card-forecast-v49.js'
+      - '.github/workflows/v94-browser-baseline-floor.yml'
   workflow_dispatch:
 
 permissions:

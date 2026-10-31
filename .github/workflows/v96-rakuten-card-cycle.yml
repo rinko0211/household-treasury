@@ -3,6 +3,13 @@ name: Check v96 Rakuten Card Cycle
 on:
   push:
     branches: [main]
+    paths:
+      - 'card-cycle-defaults-v96.js'
+      - 'card-baseline-floor-v94.js'
+      - 'card-cycle-v81.js'
+      - 'rakuten-billing-v56.js'
+      - 'rakuten-enavi-v74.js'
+      - '.github/workflows/v96-rakuten-card-cycle.yml'
   workflow_dispatch:
 
 permissions:

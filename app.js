@@ -10,7 +10,8 @@ const empty=()=>({
 });
 let state=empty();
 const $=id=>document.getElementById(id);
-const yen=n=>new Intl.NumberFormat('ja-JP',{style:'currency',currency:'JPY',maximumFractionDigits:0}).format(Number(n)||0);
+const yenFormatter=new Intl.NumberFormat('ja-JP',{style:'currency',currency:'JPY',maximumFractionDigits:0});
+const yen=n=>yenFormatter.format(Number(n)||0);
 const iso=d=>{const x=new Date(d);return Number.isNaN(x.getTime())?'':`${x.getFullYear()}-${String(x.getMonth()+1).padStart(2,'0')}-${String(x.getDate()).padStart(2,'0')}`};
 const ym=d=>iso(d).slice(0,7);
 const today=()=>iso(new Date());

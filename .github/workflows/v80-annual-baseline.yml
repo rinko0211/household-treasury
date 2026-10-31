@@ -3,6 +3,10 @@ name: Check v80 Annual Baseline
 on:
   push:
     branches: [main]
+    paths:
+      - 'planning-model-v80.js'
+      - 'planning-ui-v80.js'
+      - '.github/workflows/v80-annual-baseline.yml'
   workflow_dispatch:
 
 permissions:

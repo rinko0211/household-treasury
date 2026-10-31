@@ -4,7 +4,8 @@ if(window.__expenseUnifiedV148)return;
 window.__expenseUnifiedV148=true;
 const $=id=>document.getElementById(id);
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const yen=v=>new Intl.NumberFormat('ja-JP',{style:'currency',currency:'JPY',maximumFractionDigits:0}).format(Number(v)||0);
+const yenFormat=new Intl.NumberFormat('ja-JP',{style:'currency',currency:'JPY',maximumFractionDigits:0});
+const yen=v=>yenFormat.format(Number(v)||0);
 const n=v=>Number.isFinite(Number(v))?Number(v):0;
 const stateNow=()=>{try{return (window.getTreasuryStateRaw||window.getTreasuryState)?.()||{}}catch{return {}}};
 const engine=()=>window.treasuryLedgerV145;
@@ -131,8 +132,9 @@ function rowDetails(row,st){
    personalExpense:isPersonal,personalOwner:['wife','self'].includes(owner)?owner:'',
    manualDeleteIdentity:deletable?.identity||''};
 }
-function usageBuckets(usage,st,includePersonal=false){
- const privateSummary=window.householdPersonalLedgerV186?.presentation?.(st,usage);
+function usageBuckets(usage,st,includePersonal=false,precomputedPersonal){
+ const privateSummary=precomputedPersonal===undefined?
+   window.householdPersonalLedgerV186?.presentation?.(st,usage):precomputedPersonal;
  // Existing personal reports and their card purchases count once. Other
  // explicitly personal card/cash purchases move from variable to pink.
  const excluded=privateSummary?.matched||new Set();
@@ -344,11 +346,14 @@ function render(){
  st=window.householdPersonalLedgerV186?.ensure?.(st)||st;
  const ul=window.householdUsageLedgerV157;
  if(!ul){$('expenseHubV148').innerHTML='<div class="hub-note">利用日基準の集計処理を読み込み中です。</div>';return false}
+ const economic=lens==='economic';
  const usage=ul.calculate(st,month,cycle);
- const bank=ul.bankFlow(st,month,cycle);
- const economic=lens==='economic',p=economic?usage:bank;
- const personal=window.householdPersonalLedgerV186?.presentation?.(st,usage);
- const all=economic?usageBuckets(usage,st,true):bank.buckets;
+ // Bank flow is only needed for the cash-outflow view; the default
+ // purchase-date view must not scan all bank records twice.
+ const bank=economic?null:ul.bankFlow(st,month,cycle);
+ const p=economic?usage:bank;
+ const personal=economic?window.householdPersonalLedgerV186?.presentation?.(st,usage):null;
+ const all=economic?usageBuckets(usage,st,true,personal):bank.buckets;
  // Existing matched canonical purchases already contributed to funds.
  // An owner-only personal expense adds only its unmatched portion.
  const privateAdjustment=(personal?.amount||0)-(personal?.matchedConsumption||0);

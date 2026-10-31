@@ -3,6 +3,10 @@ name: Check v86 Card Consistency
 on:
   push:
     branches: [main]
+    paths:
+      - 'card-event-consistency-v86.js'
+      - 'card-cycle-v81.js'
+      - '.github/workflows/v86-card-consistency.yml'
   workflow_dispatch:
 
 permissions:

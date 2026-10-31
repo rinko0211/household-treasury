@@ -3,6 +3,10 @@ name: Check v87 Revolving Payoff Cap
 on:
   push:
     branches: [main]
+    paths:
+      - 'revolving-payoff-cap-v87.js'
+      - 'revolving-card-v66.js'
+      - '.github/workflows/v87-revolving-payoff.yml'
   workflow_dispatch:
 
 jobs:

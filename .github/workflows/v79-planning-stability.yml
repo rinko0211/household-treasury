@@ -3,6 +3,10 @@ name: Check v79 Planning Stability
 on:
   push:
     branches: [main]
+    paths:
+      - 'planning-model-v79.js'
+      - 'planning-ui-v79.js'
+      - '.github/workflows/v79-planning-stability.yml'
   workflow_dispatch:
 
 permissions:

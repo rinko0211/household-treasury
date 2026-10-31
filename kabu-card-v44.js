@@ -2,6 +2,15 @@
   const CARD_NAME='KABU&';
   const SOURCE_LABEL='KABU&カード';
   const norm=s=>String(s??'').normalize('NFKC').replace(/[\s　()（）［］\[\]・\-_/]/g,'').toUpperCase();
+  const isKabuCard=x=>/^(?:KABU&|KABUAND|カブアンド|株アンド)(?:カード|CARD)?$/i.test(norm(x?.card||''));
+  const counted=x=>x?.count_in_spending!==false&&x?.reconciliation_status!=='ABSORBED_DUPLICATE';
+  // The purchase identity is independent of statement month, export filename,
+  // or payment presentation. Two genuinely identical purchases in one file
+  // are preserved by their occurrence index, not collapsed by their key.
+  const usageKey=x=>[String(x.purchase_date||''),norm(x.merchant_raw||x.merchant_normalized),
+    Math.abs(Number(x.original_amount)||0)].join('|');
+  const isOfficial=x=>isKabuCard(x)&&/^kabu:/i.test(String(x.purchase_id||''));
+
   const decodeTry=(buf,encoding)=>{try{return new TextDecoder(encoding,{fatal:false}).decode(buf)}catch{return''}};
   const isKabuText=text=>text.includes('今回のお支払日')&&text.includes('ご利用日')&&text.includes('ご利用先など')&&text.includes('ご利用金額(￥)');
 
@@ -47,11 +56,30 @@
       const c=classifyMerchant(merchant),payment=String(o['支払区分']||'').trim(),payAmount=number(o['お支払い金額(￥)']),instMatch=payment.normalize('NFKC').match(/(\d+)回/),installments=instMatch?Number(instMatch[1]):null;
       raw.push({card:CARD_NAME,source_file:file.name,purchase_date:date,merchant_raw:merchant,merchant_normalized:normalizeText(merchant),original_amount:Math.abs(amount),payment_amount:payAmount===null?null:Math.abs(payAmount),category:c.category,ordinary_or_special:c.ordinary_or_special,payment_method:payment,installment_count:installments,installment_number:null,billing_month:dueDate?dueDate.slice(0,7):ym(date),confidence:c.confidence,domestic_overseas:String(o['国内／海外']||'').trim(),note:String(o['摘要']||'').trim()});
     }
-    const within={};
+    const within=new Map(),existing=new Map();
+    // Index the entire previously imported history before adding this file.
+    // Count old occurrence numbers even if a duplicate was later suppressed.
+    for(const p of state.purchaseEvents||[]){
+      if(!isKabuCard(p))continue;
+      const key=usageKey(p);
+      if(!existing.has(key))existing.set(key,new Set());
+      existing.get(key).add(Number(p.occurrence_index||1));
+    }
     for(const x of raw){
-      const base=[CARD_NAME,x.purchase_date,x.merchant_normalized,x.original_amount,x.payment_method].join('|'),same=(state.purchaseEvents||[]).filter(p=>norm(p.card)===norm(CARD_NAME)&&p.purchase_date===x.purchase_date&&normalizeText(p.merchant_raw||p.merchant_normalized||'')===x.merchant_normalized&&Number(p.original_amount)===Number(x.original_amount)&&String(p.payment_method||'')===x.payment_method),idx=(within[base]||0)+1;within[base]=idx;
-      if(same.some(p=>Number(p.occurrence_index||1)===idx)){duplicates++;continue}
-      x.occurrence_index=idx;x.purchase_id=`kabu:${hash32(base)}:${idx}`;state.purchaseEvents.push(x);if(Number(x.confidence)<.7){addReview({source:SOURCE_LABEL,date:x.purchase_date,merchant:x.merchant_raw,confidence:x.confidence});review++}added++;
+      const key=usageKey(x),idx=(within.get(key)||0)+1;
+      within.set(key,idx);
+      if(existing.get(key)?.has(idx)){duplicates++;continue}
+      x.occurrence_index=idx;
+      x.purchase_id='kabu:'+hash32(CARD_NAME+'|'+key)+':'+idx;
+      x.record_kind='CARD_PURCHASE';x.kabu_csv_import_v198=true;
+      state.purchaseEvents.push(x);
+      if(!existing.has(key))existing.set(key,new Set());
+      existing.get(key).add(idx);
+      if(Number(x.confidence)<.7){
+        addReview({source:SOURCE_LABEL,date:x.purchase_date,merchant:x.merchant_raw,confidence:x.confidence});
+        review++;
+      }
+      added++;
     }
     if(dueDate&&Number.isFinite(Number(settlementTotal))&&Number(settlementTotal)>0){
       const sid=`kabu:${dueDate}`,rec={settlement_id:sid,card:CARD_NAME,due_date:dueDate,amount:Math.abs(Number(settlementTotal)),principal:null,fee_interest:null,remaining_balance:null,source_file:file.name,confidence:.98};
@@ -73,5 +101,61 @@
     };
   }
 
+
+  // Previously imported duplicate copies remain in the ledger as evidence.
+  // Users can suppress only an explicitly reviewed duplicate from Expenses.
+  // Never delete the original card transaction or exclude it implicitly.
+  function scanDuplicates(st=state){
+    const groups=new Map(),out=[];
+    for(const [i,p] of (st.purchaseEvents||[]).entries()){
+      if(!isOfficial(p)||!counted(p))continue;
+      const key=usageKey(p)+'|'+Number(p.occurrence_index||1);
+      const first=groups.get(key);
+      if(!first){groups.set(key,{p,index:i});continue}
+      // A repeated purchase from a different official export may use a
+      // different payment label or statement month. Show it for review;
+      // multiple legitimate same-day charges are not automatically excluded.
+      out.push({kind:'purchase',index:i,canonicalIndex:first.index,key,
+        date:p.purchase_date||'',label:p.merchant_raw||p.merchant_normalized||'',
+        amount:Math.abs(Number(p.original_amount)||0),
+        sourceFile:String(p.source_file||''),canonicalFile:String(first.p.source_file||'')});
+    }
+    return out.sort((a,b)=>b.date.localeCompare(a.date)||a.index-b.index);
+  }
+  function applyDuplicate(index){
+    const proposed=scanDuplicates().find(x=>x.index===index);
+    if(!proposed)throw Error('重複候補が変わりました。公式明細は変更していません。');
+    if(typeof window.treasuryRecoverySnapshot!=='function'||
+       typeof window.replaceTreasuryState!=='function')
+      throw Error('安全な保存と復旧履歴が利用できません。');
+    const yen=new Intl.NumberFormat('ja-JP',{style:'currency',currency:'JPY',maximumFractionDigits:0});
+    if(!window.confirm?.('株アンドの同一利用として照合しますか？\\n'+
+      proposed.date+'　'+proposed.label+'　'+yen.format(proposed.amount)+'\\n'+
+      '保持する正本：'+proposed.canonicalFile+'\\n重複候補：'+proposed.sourceFile+
+      '\\n実際に2回買い物をした場合はキャンセルしてください。\\n'+
+      '明細は削除せず、候補の二重計上だけ解除します。'))
+      return {cancelled:true};
+    const latest=typeof window.getTreasuryStateRaw==='function'?window.getTreasuryStateRaw():state;
+    const verified=scanDuplicates(latest).find(x=>x.index===index);
+    if(!verified||verified.key!==proposed.key||
+       verified.canonicalIndex!==proposed.canonicalIndex)
+      throw Error('照合中に家計データが変わりました。再確認してください。');
+    const next=structuredClone(latest);
+    const x=next.purchaseEvents[index];
+    const canonical=next.purchaseEvents[verified.canonicalIndex];
+    if(!x||!canonical||!isOfficial(x)||!isOfficial(canonical)||!counted(x)||!counted(canonical))
+      throw Error('正本の照合に失敗しました。');
+    x.count_in_spending=false;
+    x.reconciliation_status='ABSORBED_DUPLICATE';
+    x.kabu_canonical_purchase_id=String(canonical.purchase_id||'');
+    x.kabu_duplicate_reviewed_at_v198=new Date().toISOString();
+    window.treasuryRecoverySnapshot('株アンドCSV同一利用の二重計上解除直前');
+    if(window.replaceTreasuryState(next)===false)throw Error('保存に失敗しました。');
+    window.cloudSyncOnLocalSave?.();
+    window.householdExpenseUnifiedV148?.render?.();
+    return {suppressed:1,amount:verified.amount};
+  }
+
   window.parseKabuCardV44=parseKabuCard;
+  window.householdKabuCardV198={usageKey,isKabuCard,scanDuplicates,applyDuplicate};
 })();

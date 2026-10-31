@@ -72,7 +72,10 @@ function namesMatch(a,b){
  return '';
 }
 function compare(a,b){
- if(a.ref===b.ref||a.amount!==b.amount||a.source===b.source)return null;
+ if(a.ref===b.ref||a.amount!==b.amount)return null;
+ // Two rows in one official export may be legitimate repeat purchases.
+ // Manual entries may have no distinct source file; retain them for review.
+ if(a.source===b.source&&a.source!=='MANUAL')return null;
  const dd=days(a.date,b.date);
  if(dd>3)return null;
  const pdfReceipt=(a.type==='pdf'&&b.type==='receipt')||(b.type==='pdf'&&a.type==='receipt');
@@ -85,7 +88,7 @@ function compare(a,b){
  const occurrences=a.count&&b.count&&Number(a.count)!==Number(b.count);
  if(families||physical||occurrences)return {level:'blocked',reason:'カード・実カード識別・同日利用回数が一致しません'};
  const cash=a.kind==='cash'||b.kind==='cash';
- const level=cash||dd||nameMatch==='partial'||!a.card||!b.card?'review':'high';
+ const level=cash||dd||a.source==='MANUAL'||nameMatch==='partial'||!a.card||!b.card?'review':'high';
  return {level,reason:cash?'現金とカードの支払方法を確認してください':
    dd?'利用日が異なります。レシートとPDFを照合してください':
    nameMatch==='partial'?'店舗表記の一部だけ一致しています':
@@ -128,9 +131,12 @@ function scan(st=stateNow()){
    }
   }
  }
- const prior=new Set((st.crossSourceReviewDecisionsV201||[])
-   .filter(r=>r?.decision==='SEPARATE').map(r=>String(r.key)));
- const all=[...found.values()].filter(p=>!prior.has(p.key));
+ const prior=new Map((st.crossSourceReviewDecisionsV201||[])
+   .filter(r=>r?.decision==='SEPARATE').map(r=>[String(r.key),r]));
+ const all=[...found.values()].filter(p=>{
+   const before=prior.get(p.key);
+   return !before||before.keepSig!==p.keepSig||before.duplicateSig!==p.duplicateSig;
+ });
  const order={high:0,review:1,blocked:2};
  all.sort((a,b)=>order[a.level]-order[b.level]||b.date.localeCompare(a.date)||
    b.amount-a.amount);
@@ -177,7 +183,7 @@ function apply(choices,confirmed=false){
  const now=new Date().toISOString();
  for(const p of verified.operations){
   if(p.action==='SEPARATE'){
-   next.crossSourceReviewDecisionsV201.push({key:p.key,decision:'SEPARATE',at:now});
+   next.crossSourceReviewDecisionsV201.push({key:p.key,keepSig:p.keepSig,duplicateSig:p.duplicateSig,decision:'SEPARATE',at:now});
    continue;
   }
   const arr=p.duplicate.kind==='cash'?next.cashExpenses:next.purchaseEvents;
@@ -185,6 +191,8 @@ function apply(choices,confirmed=false){
   const keeper=(p.keep.kind==='cash'?next.cashExpenses:next.purchaseEvents)?.[p.keep.index];
   if(!record||!keeper||!counted(record)||!counted(keeper))
     throw Error('原本状態が変わりました。未適用です。');
+  record.cross_source_original_count_v201=record.count_in_spending===undefined?null:record.count_in_spending;
+  record.cross_source_original_status_v201=record.reconciliation_status===undefined?null:record.reconciliation_status;
   record.count_in_spending=false;
   record.reconciliation_status='ABSORBED_DUPLICATE';
   record.cross_source_canonical_ref_v201=p.keep.ref;

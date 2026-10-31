@@ -620,4 +620,53 @@ ok(semanticEditorSource.includes("o.potential_prepaid_topup=false"),
   ledger.bankFlow=originalBank;privateLedger.presentation=originalPersonal;
  }
 }
+// v197: when DOM replaceWith exists, opening middle and small categories
+// replaces only the expanded panel. No state change/recalculation occurs.
+{
+ if(app.getSelection().lens!=='economic')btn('lens','economic');
+ if(app.getSelection().openBucket==='variable')btn('bucket','fixed');
+ btn('bucket','variable');
+ const oldReplace=El.prototype.replaceWith;
+ const oldFirst=Object.getOwnPropertyDescriptor(El.prototype,'firstElementChild');
+ let replacements=0,calculations=0;
+ El.prototype.replaceWith=function(next){
+   replacements++;dom.set(this.id,next);
+ };
+ Object.defineProperty(El.prototype,'firstElementChild',{configurable:true,get(){
+   if(!this.innerHTML.includes('id="expenseHubDrilldownV148"'))return null;
+   const element=new El('expenseHubDrilldownV148');
+   element.innerHTML=this.innerHTML;
+   return element;
+ }});
+ const ledger=window.householdUsageLedgerV157,oldCalculate=ledger.calculate;
+ ledger.calculate=function(...args){calculations++;return oldCalculate.apply(this,args)};
+ try{
+   btn('category','FOOD');
+   eq(calculations,0,'Opening a category does not recalculate the ledger');
+   eq(replacements,1,'A category tap swaps only the drilldown panel');
+   const first=dom.get('expenseHubDrilldownV148');
+   ok(first.innerHTML.includes('data-hub-subcategory="FOOD.CAFE"'),
+     'New panel contains the actual food subcategory');
+   const next=first.querySelectorAll('[data-hub-subcategory]')
+     .find(x=>x.dataset.hubSubcategory==='FOOD.CAFE');
+   ok(!!next,'Updated category rebinds its subcategory button');
+   next.click();
+   eq(calculations,0,'Opening a subcategory does not recalculate the ledger');
+   eq(replacements,2,'A subcategory tap swaps only the drilldown panel');
+   const second=dom.get('expenseHubDrilldownV148');
+   ok(second.innerHTML.includes('カフェ'),'Receipts appear in the replaced panel');
+   const edit=second.querySelectorAll('[data-hub-edit]')
+     .find(x=>x.dataset.hubEdit==='purchase');
+   ok(!!edit,'Updated panel retains exact transaction edit action');
+   edit.click();
+   eq(events.at(-1)[1],'buy1','Incrementally updated receipt still opens official card editor');
+ }finally{
+   ledger.calculate=oldCalculate;
+   if(oldReplace===undefined)delete El.prototype.replaceWith;
+   else El.prototype.replaceWith=oldReplace;
+   if(oldFirst)Object.defineProperty(El.prototype,'firstElementChild',oldFirst);
+   else delete El.prototype.firstElementChild;
+   app.render();
+ }
+}
 console.log('PASS '+asserts+' expense unified v148 assertions');

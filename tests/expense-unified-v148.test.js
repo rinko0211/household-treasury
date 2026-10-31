@@ -480,6 +480,8 @@ ok(semanticEditorSource.includes("o.potential_prepaid_topup=false"),
 // v192: delete only manually entered rows IN the expense detail; imported
 // PDF/card transactions are immutable. The restore control stays on Expenses.
 {
+ // Bypass the legacy one-time welfare migration during this isolated assertion.
+ state.privatePersonalSeedV186=true;
  let backups=0;
  window.treasuryRecoverySnapshot=()=>{backups++};
  window.confirm=()=>true;

@@ -95,10 +95,13 @@
     return [header,...p.entries.map(e=>['確定',e.date.replace(/-/g,'/'),e.merchant,e.amount,e.count,'',p.paymentDate.replace(/-/g,'/')])]
       .map(row=>row.map(quote).join(',')).join('\r\n')+'\r\n';
   }
-  function toCsv(p,identity=p.cardLabel||'JALカード①',oldFilename='',differentCard=false){
+  function toCsv(p,identity=p.cardLabel||'JALカード①',oldFilename='',differentCard=false,reviewDecisions=''){
     const quote=s=>'"'+String(s??'').replace(/"/g,'""')+'"';
-    const header=['確定情報','ご利用日','ご利用店名（海外ご利用店名／海外都市名）','ご利用金額（円）','支払回数','何回目','お支払日','MDCカード識別子','MDC旧版CSVファイル','MDC別カードとして登録'];
-    return [header,...p.entries.map(e=>['確定',e.date.replace(/-/g,'/'),e.merchant,e.amount,e.count,'',p.paymentDate.replace(/-/g,'/'),identity,oldFilename,differentCard?'YES':''])]
+    // Separate import selections need distinct source hashes. Otherwise the
+    // whole-file hash guard would reject a later attempt to import a line
+    // previously excluded from a partially committed PDF.
+    const header=['確定情報','ご利用日','ご利用店名（海外ご利用店名／海外都市名）','ご利用金額（円）','支払回数','何回目','お支払日','MDCカード識別子','MDC旧版CSVファイル','MDC別カードとして登録','MDC今回の取込選択'];
+    return [header,...p.entries.map(e=>['確定',e.date.replace(/-/g,'/'),e.merchant,e.amount,e.count,'',p.paymentDate.replace(/-/g,'/'),identity,oldFilename,differentCard?'YES':'',reviewDecisions])]
       .map(row=>row.map(quote).join(',')).join('\r\n')+'\r\n';
   }
   async function syntheticFilename(p,csv){
@@ -321,7 +324,8 @@
             const identity=String(card.querySelector('#mdcPdfCardLabelV139')?.value||'').normalize('NFKC').trim();
             if(!identity)throw Error('カード識別名を入力してください。');
             const oldName=await syntheticFilename(p,toLegacyCsv(p));
-            const csv=toCsv(p,identity,oldName,otherCard.checked);
+            const sortedChoices=Object.entries(approvals).sort(([a],[b])=>a.localeCompare(b,'ja'));
+            const csv=toCsv(p,identity,oldName,otherCard.checked,JSON.stringify(sortedChoices));
             const name=await syntheticFilename(p,csv);
             const synthetic=new File([csv],name,{type:'text/csv;charset=utf-8'});
             window.householdMdcPdfDeltaV144?.setImportApprovals?.(p,identity,approvals);

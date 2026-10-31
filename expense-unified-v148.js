@@ -140,6 +140,12 @@ function usageBuckets(usage,st,includePersonal=false){
  const expenseItems=enriched.filter(x=>['cash','purchase','bank'].includes(x.kind));
  const allocated=expenseItems.filter(x=>x.personalExpense);
  const normal=expenseItems.filter(x=>!x.personalExpense&&x.spendingClass!=='SPECIAL');
+ const pBudget=privateSummary?.summary||{};
+ const personalTitle=owner=>owner==='wife'?
+   '妻（予算 '+yen(pBudget.wifeBudget||40000)+'・使用 '+yen(pBudget.wifeSpent||0)+'）':
+   owner==='self'?'本人（予算 '+yen(pBudget.selfBudget||20000)+'・残 '+
+      yen((pBudget.selfBudget||20000)-(pBudget.selfSpent||0))+'）':'本人・妻の指定待ち';
+ for(const item of allocated)item.personalCategoryLabel=personalTitle(item.personalOwner);
  const groups=[
    {id:'fixed',label:'固定費・ローン',color:'#42c5d0',items:[...normal.filter(x=>x.costBucket==='FIXED'),...usage.byKind.debt]},
    {id:'variable',label:'変動費',color:'#13c7b5',items:normal.filter(x=>x.costBucket==='VARIABLE')},
@@ -151,9 +157,7 @@ function usageBuckets(usage,st,includePersonal=false){
      items:[...(privateSummary?.items||[]).map(x=>({
        ...x,manualDeleteIdentity:window.householdManualExpenseDeleteV192?.locate?.(st,x.identity)?.identity||''
      })),...allocated.map(x=>({
-       ...x,owner:x.personalOwner||'unassigned',
-       personalCategoryLabel:x.personalOwner==='wife'?'妻（個人費）':
-         x.personalOwner==='self'?'本人（個人費）':'本人・妻の指定待ち'
+       ...x,owner:x.personalOwner||'unassigned'
      }))]}]:[]),
    {id:'ideco',label:'iDeCo（固定拠出・投資）',color:'#987efd',items:usage.byKind.ideco},
    {id:'investment',label:'その他投資',color:'#67b9f4',items:usage.byKind.investment}
@@ -217,8 +221,8 @@ function categoryGroups(bucket,mode=lens){
    const isPersonal=bucket.id==='personal';
    const key=isPersonal?(x.owner==='wife'?'PERSONAL_WIFE':x.owner==='self'?'PERSONAL_SELF':'PERSONAL_UNASSIGNED'):
      debtInFixed?'DEBT_PAYMENTS':economicExpense?String(x.category||'OTHER'):'TRANSACTION_DETAILS';
-   const label=isPersonal?(x.owner==='wife'?'妻（個人費）':
-     x.owner==='self'?'本人（個人費）':'本人・妻の指定待ち'):
+   const label=isPersonal?(x.personalCategoryLabel||
+     (x.owner==='wife'?'妻（個人費）':x.owner==='self'?'本人（個人費）':'本人・妻の指定待ち')):
      debtInFixed?'ローン・借入返済（消費外）':economicExpense?
      (defs[key]?.label||window.householdExpenseAnalyticsV106?.categoryLabel?.(key)||'その他'):'取引明細';
    let group=map.get(key);

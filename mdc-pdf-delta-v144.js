@@ -380,147 +380,6 @@
     return out;
   }
 
-  // v190: allow a verified statement purchase to be excluded or restored
-  // AFTER import. No deletion or modification of card billing settlements.
-  let registeredMonthV190='';
-  const registeredSourceV190=x=>pdfSource(x)&&Boolean(x.mdc_import_v144||
-    x.mdc_pdf_signature_v168||x.mdc_incremental_import_v144||
-    /^MDC_PDF_/i.test(String(x.source_file||'')));
-  function registeredRowsV190(st=stateNow(),month=''){
-    const rows=(st.purchaseEvents||[]).map((record,index)=>({record,index}))
-      .filter(({record})=>registeredSourceV190(record)&&
-        (record.mdc_pdf_user_excluded_v190===true||included(record)));
-    const months=[...new Set(rows.map(({record})=>
-      String(record.billing_month||record.mdc_pdf_purchase_date||record.purchase_date||'').slice(0,7))
-      .filter(x=>/^\d{4}-\d{2}$/.test(x)))].sort().reverse();
-    const activeMonth=month==='_all'?'_all':months.includes(month)?month:(months[0]||'_all');
-    return {months,month:activeMonth,rows:rows.filter(({record})=>activeMonth==='_all'||
-      String(record.billing_month||record.mdc_pdf_purchase_date||record.purchase_date||'').startsWith(activeMonth))
-      .sort((a,b)=>String(b.record.purchase_date).localeCompare(String(a.record.purchase_date))||
-        a.index-b.index)};
-  }
-  function reviewPostImportV190(st,indices,action){
-    if(!['exclude','restore'].includes(action)||!Array.isArray(indices)||indices.length<1||
-       indices.length>500||!indices.every(Number.isSafeInteger)||
-       new Set(indices).size!==indices.length)throw Error('対象の明細選択が不正です。');
-    const rows=(st.purchaseEvents||[]),ops=[],months=new Set(),ids=new Set();
-    for(const i of indices){
-      const x=rows[i];
-      if(!x||!registeredSourceV190(x)||x.reconciliation_status==='ABSORBED_DUPLICATE'||
-         x.is_refinanced||x.is_refinance_adjustment)
-        throw Error('計上対象外にできない明細があります。読み込み直してください。');
-      const id=String(x.purchase_id||'');
-      const key=[id,cardId(x),rowSig(x),x.occurrence_index||1].join('|');
-      if(ids.has(key))throw Error('一意に識別できない明細が重複しています。');
-      ids.add(key);
-      if(action==='exclude'&&(!included(x)||x.mdc_pdf_user_excluded_v190===true))
-        throw Error('すでに計上対象外の明細が選択されています。');
-      if(action==='restore'&&(x.mdc_pdf_user_excluded_v190!==true||
-        x.count_in_spending!==false))
-        throw Error('この画面から除外した明細だけ復元できます。');
-      months.add(String(x.purchase_date||'').slice(0,7));
-      ops.push({index:i,key,amount:Math.abs(Number(x.original_amount)||0),date:x.purchase_date,
-        label:x.merchant_raw||x.merchant_normalized||'',source:x.source_file||''});
-    }
-    return {ops,months:[...months].filter(Boolean),total:ops.reduce((a,x)=>a+x.amount,0),action};
-  }
-  function applyPostImportV190(indices,action){
-    const current=stateNow(),validated=reviewPostImportV190(current,indices,action);
-    if(typeof window.replaceTreasuryState!=='function'||
-       typeof window.treasuryRecoverySnapshot!=='function')
-      throw Error('安全なバックアップまたは保存機能がありません。');
-    const verb=action==='exclude'?'支出集計から除外':'支出集計へ復元';
-    const details=validated.ops.slice(0,4).map(x=>
-      x.date+' '+x.label+' '+yen(x.amount)).join('\n');
-    if(!window.confirm?.('登録済みのJALカード明細 '+validated.ops.length+'件（'+yen(validated.total)+
-      '）を'+verb+'します。元の取引履歴は残ります。\n'+details+
-      (validated.ops.length>4?'\n…':'')+'\nよろしいですか？'))
-      return {cancelled:true};
-    const latest=stateNow(),rechecked=reviewPostImportV190(latest,indices,action);
-    if(rechecked.ops.some((x,i)=>x.key!==validated.ops[i].key))
-      throw Error('明細が更新されたため中止しました。再度選択してください。');
-    const next=structuredClone(latest),time=new Date().toISOString();
-    for(const op of rechecked.ops){
-      const x=next.purchaseEvents[op.index];
-      if(action==='exclude'){
-        x.mdc_pdf_original_count_in_spending_v190=x.count_in_spending===undefined?null:x.count_in_spending;
-        x.count_in_spending=false;
-        x.mdc_pdf_user_excluded_v190=true;
-        x.mdc_pdf_excluded_at_v190=time;
-      }else{
-        const original=x.mdc_pdf_original_count_in_spending_v190;
-        if(original===null||original===undefined)delete x.count_in_spending;
-        else x.count_in_spending=original;
-        x.mdc_pdf_user_excluded_v190=false;
-        delete x.mdc_pdf_original_count_in_spending_v190;
-        delete x.mdc_pdf_excluded_at_v190;
-      }
-      x.mdc_pdf_review_history_v190=[...(x.mdc_pdf_review_history_v190||[]),
-        {at:time,operation:action,source:'USER_REGISTERED_PDF_REVIEW'}];
-    }
-    window.treasuryRecoverySnapshot('登録済みJAL PDF明細の'+verb+'直前');
-    const saved=window.replaceTreasuryState(next);
-    if(saved===false)throw Error('変更を保存できませんでした。');
-    window.cloudSyncOnLocalSave?.();
-    window.dispatchEvent?.(new CustomEvent('treasury:expenses-imported',{
-      detail:{months:rechecked.months,source:'MDC_PDF_POST_IMPORT_V190'}}));
-    window.householdExpenseUnifiedV148?.render?.();
-    return {count:rechecked.ops.length,amount:rechecked.total,action};
-  }
-  function mountRegisteredV190(host){
-    if(!host)return;
-    host.querySelector?.('#mdcRegisteredReviewV190')?.remove();
-    const view=registeredRowsV190(stateNow(),registeredMonthV190);
-    registeredMonthV190=view.month;
-    const box=document.createElement('section');box.id='mdcRegisteredReviewV190';
-    box.style.cssText='border-top:1px solid #506274;margin-top:16px;padding-top:12px';
-    const active=view.rows.filter(x=>x.record.mdc_pdf_user_excluded_v190!==true);
-    const inactive=view.rows.filter(x=>x.record.mdc_pdf_user_excluded_v190===true);
-    const rowHtml=({record:x,index:i},action)=>
-      '<label class="row" style="gap:10px;align-items:flex-start">'+
-      '<span style="min-width:0;flex:1"><input type="checkbox" data-mdc-post-'+action+'="'+i+
-      '" style="margin-right:7px">'+esc(x.purchase_date)+'　'+esc(x.merchant_raw||x.merchant_normalized||'購入')+
-      '<div class="tiny">'+esc(cardId(x)||x.card||'JAL')+' / '+esc(x.source_file||'PDF明細')+'</div></span>'+
-      '<b>'+yen(x.original_amount)+'</b></label>';
-    box.innerHTML='<div class="title">登録済みJAL PDF明細の後から除外・復元</div>'+
-      '<div class="tiny">取り込み済みの明細を削除せず、支出集計からだけ外せます。変更前にバックアップを作り、あとで元に戻せます。カード請求額・銀行引落の記録は変更しません。</div>'+
-      '<label class="field" style="display:block;margin-top:8px">対象の請求月'+
-      '<select id="mdcRegisteredMonthV190" style="width:100%;margin-top:4px">'+
-      view.months.map(m=>'<option value="'+esc(m)+'"'+(view.month===m?' selected':'')+'>'+esc(m)+'</option>').join('')+
-      '<option value="_all"'+(view.month==='_all'?' selected':'')+'>全期間</option></select></label>'+
-      '<details style="margin-top:10px"><summary>計上中の登録済み明細 '+active.length+'件（除外する明細を選ぶ）</summary>'+
-      (active.length?'<div style="max-height:400px;overflow:auto">'+active.map(r=>rowHtml(r,'exclude')).join('')+'</div>'+
-       '<div class="controls" style="margin:8px 0"><button type="button" class="btn secondary" id="mdcRegisteredSelectAllV190">表示分を全選択</button>'+
-       '<button type="button" class="btn secondary" id="mdcRegisteredExcludeV190">選択明細を計上対象外にする</button></div>':
-       '<div class="tiny">この期間には計上中のJAL PDF明細がありません。</div>')+'</details>'+
-      '<details style="margin-top:8px"><summary>計上対象外にした明細 '+inactive.length+'件（復元できます）</summary>'+
-      (inactive.length?'<div style="max-height:300px;overflow:auto">'+inactive.map(r=>rowHtml(r,'restore')).join('')+'</div>'+
-       '<button type="button" class="btn secondary" id="mdcRegisteredRestoreV190">選択明細を支出集計へ戻す</button>':
-       '<div class="tiny">現在、除外済みの明細はありません。</div>')+'</details>'+
-      '<div class="tiny" id="mdcRegisteredResultV190" role="status" style="margin-top:7px"></div>';
-    host.appendChild(box);
-    box.querySelector('#mdcRegisteredMonthV190')?.addEventListener('change',e=>{
-      registeredMonthV190=e.target.value;mountRegisteredV190(host);
-    });
-    box.querySelector('#mdcRegisteredSelectAllV190')?.addEventListener('click',()=>{
-      box.querySelectorAll('input[data-mdc-post-exclude]').forEach(x=>{x.checked=true});
-    });
-    const apply=(type)=>{
-      const names=type==='exclude'?'data-mdc-post-exclude':'data-mdc-post-restore';
-      const selected=[...box.querySelectorAll('input['+names+']:checked')]
-        .map(el=>Number(el.getAttribute(names)));
-      const result=box.querySelector('#mdcRegisteredResultV190');
-      if(!selected.length){if(result)result.textContent='対象の明細を選んでください。';return}
-      try{
-        const out=applyPostImportV190(selected,type);
-        if(out.cancelled)return;
-        mountAudit();
-      }catch(e){if(result)result.textContent='未変更：'+String(e?.message||e)}
-    };
-    box.querySelector('#mdcRegisteredExcludeV190')?.addEventListener('click',()=>apply('exclude'));
-    box.querySelector('#mdcRegisteredRestoreV190')?.addEventListener('click',()=>apply('restore'));
-  }
-
   function mountAudit(){
     const root=document.querySelector('#imports .grid');
     if(!root)return;
@@ -536,41 +395,19 @@
         '組の一致候補があります。実際に別カードの可能性もあるため自動整理しません。'+
         cross.slice(0,8).map(x=>'<div class="tiny">'+esc(x.record.purchase_date)+' '+esc(x.record.merchant_raw)+
           ' '+yen(x.record.original_amount)+' / '+x.identities.map(esc).join(' と ')+'</div>').join('')+'</div>':'')+
-      (items.length?'<div class="note" style="margin-top:8px">'+items.length+'件の重複候補。残す明細を確認してから整理してください。</div>'+
-        '<div style="max-height:260px;overflow:auto">'+items.slice(0,100).map((v,j)=>
-          '<label class="row"><span><input type="checkbox" data-mdc-duplicate-index="'+v.index+'"> '+
-          esc(v.record.purchase_date)+' '+esc(v.record.merchant_raw)+'（'+esc(cardId(v.record))+'）'+
-          '<div class="tiny">削除候補: '+esc(v.record.source_file)+' / 保持: '+esc(v.original.source_file)+'</div></span><b>'+yen(v.record.original_amount)+'</b></label>').join('')+'</div>'+
-        '<button type="button" class="btn danger" id="mdcRepairSelectedV144">選択した重複候補だけ削除</button>'+
-        '<div class="tiny">バックアップを保存してから明細を削除します。異なるカード・判定不能の重複は対象外です。</div>'
-      :'<div class="tiny" style="margin-top:8px">同一カード内の明確な重複候補は見つかりませんでした。カード識別名が変わったケースは別途確認が必要です。</div>');
-    const button=box.querySelector('#mdcRepairSelectedV144');
-    if(button)button.onclick=()=>{
-      const selected=[...box.querySelectorAll('input[data-mdc-duplicate-index]:checked')].map(x=>Number(x.dataset.mdcDuplicateIndex));
-      if(!selected.length){alert('削除候補を選択してください。');return;}
-      const fresh=duplicatesAudit(stateNow()),allowed=new Set(fresh.map(x=>x.index));
-      if(selected.some(x=>!allowed.has(x))){alert('データが更新されています。再読み込みして確認してください。');mountAudit();return;}
-      if(!confirm('重複候補'+selected.length+'件を家計データから削除します。復元可能なバックアップを作成してから実行しますか？'))return;
-      if(typeof window.treasuryRecoverySnapshot!=='function'||typeof window.replaceTreasuryState!=='function'){
-        alert('バックアップ機能または保存機能が使用できないため、削除を中止しました。');return;
-      }
-      const st=structuredClone(stateNow());
-      window.treasuryRecoverySnapshot('MDC PDF重複候補整理の直前');
-      const kill=new Set(selected);
-      st.purchaseEvents=st.purchaseEvents.filter((_,i)=>!kill.has(i));
-      window.replaceTreasuryState(st);
-      window.cloudSyncOnLocalSave?.();
-      window.dispatchEvent(new CustomEvent('treasury:expenses-imported',{detail:{months:[],source:'MDC_PDF_REPAIR'}}));
-      mountAudit();
-    };
-    // Keep CSV/PDF reconciliation in the existing PDF audit surface,
-    // not a version-specific extra Import picker.
-    window.householdJalCrossSourceV166?.mountInto?.(box);
-    mountRegisteredV190(box);
+      (items.length?'<div class="note" style="margin-top:8px">'+items.length+
+         '件の重複疑い（参照専用）。公式PDFの明細はこの画面から削除できません。</div>'+
+         '<details><summary>登録済みPDFの重複疑い</summary>'+
+         items.slice(0,100).map(v=>'<div class="row"><span>'+esc(v.record.purchase_date)+' '+
+           esc(v.record.merchant_raw)+'（'+esc(cardId(v.record))+'）'+
+           '<div class="tiny">'+esc(v.record.source_file)+' / '+esc(v.original.source_file)+'</div></span><b>'+
+           yen(v.record.original_amount)+'</b></div>').join('')+'</details>'
+       :'<div class="tiny">同一カード内の明確な重複候補は見つかりませんでした。</div>');
+    // Imported statement sources remain immutable.
+    // Remove assistant/manual duplicate entries from individual expense rows.
   }
   window.householdMdcPdfDeltaV144={signature,parse,plan,dryRun,previewPdf,setImportApprovals,
-    duplicatesAudit,crossCardWarnings,mountAudit,registeredRowsV190,
-    reviewPostImportV190,applyPostImportV190,mountRegisteredV190};
+    duplicatesAudit,crossCardWarnings,mountAudit};
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',mountAudit,{once:true});
   else setTimeout(mountAudit,0);
   document.addEventListener('click',e=>{

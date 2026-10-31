@@ -7,6 +7,8 @@ on:
       - 'manual-expense-delete-v192.js'
       - 'private-ledger-repair-v199.js'
       - 'kabu-card-v44.js'
+      - 'cross-source-audit-v201.js'
+      - 'sync-state-sanitizer-v22.js'
       - 'index.html'
       - 'sw.js'
       - 'tests/**'
@@ -27,6 +29,8 @@ jobs:
           node --check manual-expense-delete-v192.js
           node --check private-ledger-repair-v199.js
           node --check kabu-card-v44.js
+          node --check cross-source-audit-v201.js
+          node tests/cross-source-audit-v201.test.cjs
           node tests/private-ledger-repair-v199.test.cjs
           node tests/kabu-card-v198.test.cjs
           node --check mdc-pdf-delta-v144.js

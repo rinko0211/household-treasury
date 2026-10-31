@@ -72,6 +72,7 @@ jobs:
           node tests/mdc-pdf-csv-preflight-v188.test.cjs
           node tests/mdc-pdf-bulk-review-v189.test.cjs
           node tests/mdc-pdf-post-import-v190.test.cjs
+          node tests/manual-expense-delete-v192.test.cjs
           node tests/mdc-pdf-import.test.cjs
           node tests/structured-payment-and-pdf-v168.test.cjs
       - name: Check release links against actual app version
@@ -84,6 +85,7 @@ jobs:
           const sw=fs.readFileSync('sw.js','utf8');
           const loader=fs.readFileSync('sync-state-sanitizer-v22.js','utf8');
           const hub=fs.readFileSync('expense-unified-v148.js','utf8');
+          assert.ok(fs.readFileSync('manual-expense-delete-v192.js','utf8').includes('manually_deleted_v192'));
           const purchaseUsage=fs.readFileSync('purchase-usage-ledger-v157.js','utf8');
           const expenseNature=fs.readFileSync('expense-nature-rules-v152.js','utf8');
           const correction=fs.readFileSync('verified-correction-patch-v149.js','utf8');
@@ -105,15 +107,16 @@ jobs:
           assert.ok(!html.includes('monthly-treasury-v142.js?v=146'));
           assert.ok(html.includes('expense-nature-rules-v152.js?v=159'));
           assert.ok(html.includes('purchase-usage-ledger-v157.js?v=186'));
-          assert.ok(html.includes('personal-ledger-v186.js?v=187'));
-          assert.ok(html.includes('expense-unified-v148.js?v=191'));
+          assert.ok(html.includes('manual-expense-delete-v192.js?v=192'));
+          assert.ok(html.includes('personal-ledger-v186.js?v=192'));
+          assert.ok(html.includes('expense-unified-v148.js?v=192'));
           assert.ok(html.indexOf('expense-nature-rules-v152.js?v=159') < html.indexOf('purchase-usage-ledger-v157.js?v=186'));
-          assert.ok(html.indexOf('purchase-usage-ledger-v157.js?v=186') < html.indexOf('expense-unified-v148.js?v=191'));
-          assert.ok(html.includes('expense-unified-v148.css?v=169'));
+          assert.ok(html.indexOf('purchase-usage-ledger-v157.js?v=186') < html.indexOf('expense-unified-v148.js?v=192'));
+          assert.ok(html.includes('expense-unified-v148.css?v=192'));
           assert.ok(html.includes('ui-modern-v169.css?v=180'));
           assert.ok(!html.includes('card-budget-allocation-v170.js'),'Removed recommendation panel must not be mounted');
           assert.ok(sw.includes('./ui-modern-v169.css?v=180'));
-          assert.ok(html.includes('sync-state-sanitizer-v22.js?v=190'));
+          assert.ok(html.includes('sync-state-sanitizer-v22.js?v=192'));
           assert.ok(sw.includes('./fixed-master-unified-v43.js?v=171'));
           assert.ok(sw.includes('./card-settings-unified-v77.js?v=171'));
           assert.ok(loader.includes('fixed-master-unified-v43.js?v=171'));
@@ -135,9 +138,9 @@ jobs:
 
           assert.ok(fs.readFileSync('family/family.js','utf8').includes('管理アプリの「支出」'));
 
-          assert.ok(html.includes('sync-state-sanitizer-v22.js?v=190'));
+          assert.ok(html.includes('sync-state-sanitizer-v22.js?v=192'));
           assert.ok(html.includes('treasury-ledger-v145.js?v=153'));
-          assert.ok(sw.includes('household-treasury-v191-expense-date-order'));
+          assert.ok(sw.includes('household-treasury-v192-manual-only-delete'));
           assert.ok(sw.includes('./semantic-ui-v48.js?v=184'));
           assert.ok(sw.includes('./app.js?v=184'));
           assert.ok(html.includes('./app.js?v=184'));
@@ -197,27 +200,28 @@ jobs:
           assert.ok(html.includes('verified-correction-patch-v149.js?v=161'));
           assert.ok(correction.includes('treasuryRecoverySnapshot')&&correction.includes('replaceTreasuryState'));
           for(const path of [
-            'sync-state-sanitizer-v22.js?v=190',
+            'sync-state-sanitizer-v22.js?v=192',
             'expense-nature-rules-v152.js?v=159',
             'purchase-usage-ledger-v157.js?v=186',
-            'personal-ledger-v186.js?v=187',
-            'expense-unified-v148.js?v=191',
-            'expense-unified-v148.css?v=169',
+            'personal-ledger-v186.js?v=192',
+            'manual-expense-delete-v192.js?v=192',
+            'expense-unified-v148.js?v=192',
+            'expense-unified-v148.css?v=192',
             'verified-correction-patch-v149.js?v=161',
             'cycle-audit-reconciliation-v153.js?v=161',
             'card-cycle-v81.js?v=179',
             'treasury-ledger-v145.js?v=153',
-            'mdc-pdf-delta-v144.js?v=190'
+            'mdc-pdf-delta-v144.js?v=192'
           ])assert.ok(sw.includes('./'+path),'PWA cache missing '+path);
-          assert.ok(sw.includes('./mdc-cross-source-reconcile-v166.js?v=166'));
-          assert.ok(loader.includes('mdc-cross-source-reconcile-v166.js?v=166'));
-          assert.ok(loader.includes('mdc-pdf-import-v136.js?v=190'));
-          assert.ok(loader.includes('structured-expense-import-v168.js?v=168'));
-          assert.ok(sw.includes('./structured-expense-import-v168.js?v=168'));
+          assert.ok(sw.includes('./mdc-cross-source-reconcile-v166.js?v=192'));
+          assert.ok(loader.includes('mdc-cross-source-reconcile-v166.js?v=192'));
+          assert.ok(loader.includes('mdc-pdf-import-v136.js?v=192'));
+          assert.ok(loader.includes('structured-expense-import-v168.js?v=192'));
+          assert.ok(sw.includes('./structured-expense-import-v168.js?v=192'));
           assert.ok(fs.readFileSync('mdc-pdf-delta-v144.js','utf8').includes('receiptAbsorbed'));
           assert.ok(fs.readFileSync('structured-expense-import-v168.js','utf8').includes('payment_method'));
 
-          assert.ok(fs.readFileSync('mdc-pdf-delta-v144.js','utf8').includes('householdJalCrossSourceV166'));
+          assert.ok(!fs.readFileSync('mdc-pdf-delta-v144.js','utf8').includes('mdcRegisteredExcludeV190'));
           assert.ok(fs.readFileSync('mdc-pdf-import-v136.js','utf8').includes('scanPdfPreview'));
           assert.ok(!loader.includes('mdc-pdf-record-manager-v146.js'),'retired old PDF UI is still injected');
           assert.ok(!sw.includes('mdc-pdf-record-manager-v146.js'),'retired old PDF UI is still precached');

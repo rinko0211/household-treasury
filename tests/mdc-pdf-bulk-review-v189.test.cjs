@@ -38,7 +38,7 @@ const staged=api.previewPdf(parsed,'JAL-1234',false,approved);
 assert.equal(staged.skipped.length,2,'Bulk duplicate and individually excluded new entries both excluded');
 assert.equal(staged.pending.length,0);
 assert.equal(staged.added,2);
-assert.deepEqual(staged.newRows.map(r=>r.merchant),
+assert.deepEqual(Array.from(staged.newRows,r=>r.merchant),
  ['カフェ','量販店'],'Preview precisely identifies new candidate list');
 assert.equal(JSON.stringify(state),original,'Preview must never mutate ledger');
 api.setImportApprovals(parsed,'JAL-1234',approved);

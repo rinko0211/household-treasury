@@ -89,9 +89,12 @@ function summary(st,p,cycle){
  return {wifeBudget,selfBudget,wifeSpent:spent('wife'),selfSpent:spent('self'),rows};
 }
 const normText=s=>String(s||'').normalize('NFKC').replace(/[\s　・()（）\-/]/g,'').toUpperCase();
-function isSameRecordedExpense(row,personal){
+function isSameRecordedExpense(row,personal,st){
  if(!['cash','purchase','bank'].includes(row.kind)||
     Number(row.amount)!==value(personal))return false;
+ const tagged=classifiedPersonalSource(st||{},row);
+ const owner=String(tagged?.personal_owner_v193||'').toLowerCase();
+ if(['wife','self'].includes(owner)&&owner!==personal.owner)return false;
  const label=normText(row.label),requested=normText(personal.description);
  if(!label)return false;
  if(personal.owner==='wife'){
@@ -121,7 +124,7 @@ function presentation(st,usage,cycle=usage.basis){
  let matchedOrdinary=0,matchedConsumption=0;
  const entries=s.rows.map((r,i)=>({r,i}));
  for(const {r} of entries){
-   const raw=(usage.usageRows||[]).find(x=>!matched.has(x.identity)&&isSameRecordedExpense(x,r));
+   const raw=(usage.usageRows||[]).find(x=>!matched.has(x.identity)&&isSameRecordedExpense(x,r,st));
    if(raw){
      matched.add(raw.identity);
      matchedConsumption+=Number(raw.amount)||0;

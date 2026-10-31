@@ -86,6 +86,20 @@ assert.equal(state.personalExpenses[0].count_in_spending,false);
 assert.ok(api.removed(state).some(x=>x.kind==='personal'));
 api.apply('personal:self-party','restore');
 assert.equal(state.personalExpenses[0].count_in_spending,undefined);
+// v190 compatibility: undo an incorrectly excluded official PDF from
+// Expenses only, without enabling any deletion of canonical imports.
+state.purchaseEvents[1].count_in_spending=false;
+state.purchaseEvents[1].mdc_pdf_user_excluded_v190=true;
+state.purchaseEvents[1].mdc_pdf_original_count_in_spending_v190=null;
+assert.equal(api.legacyExcludedPdf(state).length,1);
+const restoredPdf=api.restoreOldCanonical(1);
+assert.equal(restoredPdf.restored,true);
+assert.equal(state.purchaseEvents[1].count_in_spending,undefined);
+assert.equal(state.purchaseEvents[1].mdc_pdf_user_excluded_v190,false);
+assert.equal(api.legacyExcludedPdf(state).length,0);
+assert.throws(()=>api.restoreOldCanonical(1),/過去に除外/);
+assert.equal(state.purchaseEvents[0].count_in_spending,false,
+ 'Previously deleted manual receipt remains omitted after PDF restoration');
 // A change between confirmation and save must stop the operation.
 changeOnConfirm=()=>{state.cashExpenses[1].amount=4001};
 assert.throws(()=>api.apply('cash:1','delete'),/変更/);

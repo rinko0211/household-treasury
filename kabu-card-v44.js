@@ -148,8 +148,12 @@
     }
     return out.sort((a,b)=>b.date.localeCompare(a.date)||a.index-b.index);
   }
-  function applyDuplicate(index){
-    const proposed=scanDuplicates().find(x=>x.index===index);
+  function applyDuplicate(ref){
+    const [kind,number]=String(ref||'').split(':');
+    const index=Number(number);
+    if(!['purchase','manual_purchase','manual_cash'].includes(kind)||
+       !Number.isSafeInteger(index)||index<0)throw Error('重複候補の指定が不正です。');
+    const proposed=scanDuplicates().find(x=>x.kind===kind&&x.index===index);
     if(!proposed)throw Error('重複候補が変わりました。公式明細は変更していません。');
     if(typeof window.treasuryRecoverySnapshot!=='function'||
        typeof window.replaceTreasuryState!=='function')
@@ -162,7 +166,7 @@
       '明細は削除せず、'+(proposed.kind.startsWith('manual')?'手動入力':'重複登録分')+'の二重計上だけ解除します。'))
       return {cancelled:true};
     const latest=typeof window.getTreasuryStateRaw==='function'?window.getTreasuryStateRaw():state;
-    const verified=scanDuplicates(latest).find(x=>x.index===index);
+    const verified=scanDuplicates(latest).find(x=>x.kind===kind&&x.index===index);
     if(!verified||verified.key!==proposed.key||
        verified.canonicalIndex!==proposed.canonicalIndex)
       throw Error('照合中に家計データが変わりました。再確認してください。');

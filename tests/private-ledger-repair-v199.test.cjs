@@ -78,3 +78,50 @@ test('duplicate purchaser identity and conflicting IDs are rejected',()=>{
  assert.throws(()=>e.win.householdPrivateLedgerRepairV199.plan(e.state,doubled),/重複/);
  assert.equal(e.saved,0);
 });
+
+
+test('three independent new purchases and their settlement are distinct operations',()=>{
+ const e=setup();
+ e.state.personalExpenses.push({id:'synthetic-wife-allowance',owner:'wife',
+    amount:20000,date:'',cycle_start:'2026-10-16',cycle_end:'2026-11-17'});
+ const newPurchase=(id,card,merchant,price,extra={})=>({
+   op:'add_purchase',record:{
+     purchase_id:id,card,purchase_date:'2026-10-25',merchant_raw:merchant,
+     original_amount:price,billing_month:'2026-12',
+     category:'OTHER',subcategory:'OTHER',spending_class:'NORMAL',
+     cost_nature:'VARIABLE',source_file:'SYNTHETIC-IMAGE',...extra
+   }
+ });
+ const p={format:fmt,entries:[
+   newPurchase('synthetic:a','KABU&','電気',2500),
+   newPurchase('synthetic:b','Dカード','妻の購入',1600,{
+      reference_only_v200:true,personal_owner_v193:'wife',
+      expense_bucket_v193:'PERSONAL',count_in_spending:false
+   }),
+   newPurchase('synthetic:c','Dカード','病院',200),
+   {op:'add_settlement',record:{settlement_id:'synthetic:bill',
+     card:'KABU&',due_date:'2026-12-10',amount:2500,purchase_ids:['synthetic:a']}}
+ ]};
+ const preview=e.win.householdPrivateLedgerRepairV199.plan(e.state,p);
+ assert.equal(preview.changed,4);
+ assert.equal(preview.total,2700,'reference is not added to expense totals');
+ assert.equal(e.win.householdPrivateLedgerRepairV199.apply(p).changed,4);
+ assert.equal(e.state.purchaseEvents.find(x=>x.purchase_id==='synthetic:b').count_in_spending,false);
+ assert.equal(e.state.purchaseEvents.find(x=>x.purchase_id==='synthetic:b').personal_owner_v193,'wife');
+ assert.equal(e.state.personalExpenses.find(x=>x.owner==='wife').amount,20000);
+ assert.equal(e.win.householdPrivateLedgerRepairV199.apply(p).alreadyApplied,true);
+ assert.equal(e.saved,1);
+});
+test('reference-only receipt requires a prior counted allowance',()=>{
+ const e=setup();
+ const p={format:fmt,entries:[{op:'add_purchase',record:{
+   purchase_id:'synthetic:ref',card:'Dカード',purchase_date:'2026-10-25',
+   merchant_raw:'カード購入',original_amount:1600,billing_month:'2026-12',
+   category:'OTHER',subcategory:'OTHER',spending_class:'NORMAL',
+   cost_nature:'REVIEW',source_file:'SYNTHETIC-IMAGE',
+   reference_only_v200:true,personal_owner_v193:'wife',count_in_spending:false
+ }}]};
+ assert.throws(()=>e.win.householdPrivateLedgerRepairV199.plan(e.state,p),
+   /既存個人費/);
+ assert.equal(e.saved,0);
+});

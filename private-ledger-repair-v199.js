@@ -117,8 +117,10 @@ function plan(input,patch){
    // If the user already entered this screenshot, never add it again.
    if(next.purchaseEvents.some(x=>x.count_in_spending!==false&&
      x.purchase_date===r.purchase_date&&amount(x.original_amount)===Number(r.original_amount)&&
-     cardNorm(x.card)===cardNorm(r.card)&&norm(x.merchant_raw||x.merchant_normalized)===norm(r.merchant_raw)))
+     cardNorm(x.card)===cardNorm(r.card)&&norm(x.merchant_raw||x.merchant_normalized)===norm(r.merchant_raw))){
+     assert(!referenceOnly,'既に家計支出として計上された同一利用があります。個別照合が必要です');
      continue;
+   }
    next.purchaseEvents.push({...r,record_kind:'CARD_PURCHASE',economic_type:'EXPENSE',
      expense_scope:r.spending_class,ordinary_or_special:r.spending_class,
      original_amount:Number(r.original_amount),count_in_spending:!referenceOnly,

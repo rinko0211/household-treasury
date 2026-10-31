@@ -152,6 +152,22 @@ function presentation(st,usage,cycle=usage.basis){
  s.wifeSpent+=allocated.wife;
  s.selfSpent+=allocated.self;
  s.unassignedSpent=allocated.unassigned;
+ for(const receipt of st.purchaseEvents||[]){
+   if(receipt?.reference_only_v200!==true||receipt.count_in_spending!==false||
+      receipt.personal_owner_v193!=='wife')continue;
+   const day=receipt.purchase_date;
+   if(!validDate(day)||day<usage.start||day>usage.end)continue;
+   const val=value(receipt);
+   if(!val)continue;
+   items.push({
+     kind:'personal_reference',identity:'reference:'+(receipt.purchase_id||day),
+     date:day,amount:0,referenceAmount:val,
+     label:String(receipt.merchant_raw||'個人費内訳')+'（参考 '+fmt(val)+'・追加計上なし）',
+     owner:'wife',source:'妻の個人費40,000円の内訳・参考',
+     personalCategoryLabel:'妻（予算 '+fmt(s.wifeBudget)+'・使用 '+fmt(s.wifeSpent)+'）',
+     provisional:false,needsReview:false
+   });
+ }
  for(const {r,i} of entries){
    const owner=r.owner==='wife'?'wife':'self';
    const budget=owner==='wife'?s.wifeBudget:s.selfBudget;

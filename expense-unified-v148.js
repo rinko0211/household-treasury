@@ -416,6 +416,14 @@ function render(){
          '</div><b class="hub-amt">'+yen(r.amount)+'</b></div></div>';
      }).join('')+'</details>';
  }
+ const previousPdf=window.householdManualExpenseDeleteV192?.legacyExcludedPdf?.(st)||[];
+ if(previousPdf.length)html+='<details class="hub-card" id="hubLegacyPdfRecoveryV192">'+
+   '<summary style="cursor:pointer;font-weight:700">旧版で非計上にした公式PDFを復旧（'+previousPdf.length+'件）</summary>'+
+   '<p class="hub-muted">以前のImport画面から除外した公式カード明細です。正本を再計上した後、重複する手動入力があれば上の明細から削除してください。</p>'+
+   previousPdf.map(x=>'<div class="hub-detailrow"><div class="hub-merchant"><b>'+esc(x.label)+
+   '</b><div class="hub-muted">'+esc(x.date)+'</div><button type="button" class="hub-edit" data-hub-restorepdf="'+
+   x.index+'">公式PDFの計上を復旧</button></div><b>'+yen(x.amount)+'</b></div>').join('')+
+   '</details>';
  const removed=window.householdManualExpenseDeleteV192?.removed?.(st)||[];
  html+='<details class="hub-card" id="hubManualDeletedV192"><summary style="cursor:pointer;font-weight:700">'+
    '削除した手動明細を復元（'+removed.length+'件）</summary>'+
@@ -478,6 +486,10 @@ function bind(root){
  root.querySelectorAll('[data-hub-delete]').forEach(btn=>btn.addEventListener('click',()=>{
    try{window.householdManualExpenseDeleteV192?.apply?.(btn.dataset.hubDelete,'delete')}
    catch(e){window.alert?.('削除できません：'+String(e?.message||e))}
+ }));
+ root.querySelectorAll('[data-hub-restorepdf]').forEach(btn=>btn.addEventListener('click',()=>{
+   try{window.householdManualExpenseDeleteV192?.restoreOldCanonical?.(Number(btn.dataset.hubRestorepdf))}
+   catch(e){window.alert?.('正本を復旧できません：'+String(e?.message||e))}
  }));
  root.querySelectorAll('[data-hub-restore]').forEach(btn=>btn.addEventListener('click',()=>{
    try{window.householdManualExpenseDeleteV192?.apply?.(btn.dataset.hubRestore,'restore')}

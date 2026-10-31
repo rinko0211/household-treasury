@@ -146,6 +146,16 @@ function usageBuckets(usage,st,includePersonal=false){
  ];
  return groups.map(g=>({...g,amount:g.items.reduce((a,x)=>a+n(x.amount),0)}));
 }
+// Sort displayed transactions by their purchase/usage date, not billing
+// month, CSV import order, or amount. Keep undated provisional entries last.
+function detailUsageDay(row){
+ const d=String(row?.date||'').trim();
+ const m=d.match(/^(\d{4})[-/](\d{1,2})[-/](\d{1,2})(?:$|[T\s])/);
+ return m?m[1]+'-'+m[2].padStart(2,'0')+'-'+m[3].padStart(2,'0'):'';
+}
+function orderDetailsByUsageDay(items){
+ return [...(items||[])].sort((a,b)=>detailUsageDay(b).localeCompare(detailUsageDay(a)));
+}
 function subgroups(bucket,mode=lens){
  const map=new Map();
  for(const x of bucket.items){
@@ -178,6 +188,7 @@ function subgroups(bucket,mode=lens){
    if(!group){group={key,label,amount:0,items:[]};map.set(key,group)}
    group.items.push(x);group.amount+=Math.abs(n(x.amount));
  }
+ for(const group of map.values())group.items=orderDetailsByUsageDay(group.items);
  return [...map.values()].sort((a,b)=>b.amount-a.amount||a.label.localeCompare(b.label,'ja'));
 }
 function categoryGroups(bucket,mode=lens){
@@ -200,6 +211,7 @@ function categoryGroups(bucket,mode=lens){
    group.amount+=Math.abs(n(x.amount));
  }
  for(const category of map.values()){
+   category.items=orderDetailsByUsageDay(category.items);
    const subs=subgroups({...bucket,items:category.items},mode);
    category.subcategories=subs.map(g=>({
      ...g,
@@ -382,7 +394,7 @@ function render(){
    html+='<details class="hub-note" id="hubReviewV157"'+(reviewOpen?' open':'')+'><summary style="cursor:pointer;font-weight:700">'+
      '要確認：'+usage.reviewCount+'件（支出への追加加算なし）</summary>'+
      '<p class="hub-muted">これらは支出に計上済みであり、別途加算しません。理由を確認し、下の「この明細を確認・編集」から確定してください。保存後も残る場合は固定・変動の個別指定やチャージ判定をご確認ください。</p>'+
-     usage.flags.slice(0,100).map(r=>{
+     orderDetailsByUsageDay(usage.flags).slice(0,100).map(r=>{
        const detail=rowDetails(r,st),reasons=reviewReasons(r,st);
        return '<div class="hub-review-item" data-hub-review-item="1">'+
          '<div class="hub-detailrow"><div class="hub-merchant">'+
@@ -496,6 +508,6 @@ function boot(){
  window.addEventListener('focus',()=>{if($('expenses')?.classList.contains('active'))render()});
  if($('expenses')?.classList.contains('active'))render();
 }
-window.householdExpenseUnifiedV148={mount,render,calculate,usageBuckets,subgroups,categoryGroups,rowDetails,fixedReference,seasonalReference,budgetReference,masterNature,loanReference,captureEditContext,restoreEditContext,getSelection:()=>({cycle,lens,month,openBucket,openCategory,openSubcategory})};
+window.householdExpenseUnifiedV148={mount,render,calculate,usageBuckets,subgroups,categoryGroups,orderDetailsByUsageDay,rowDetails,fixedReference,seasonalReference,budgetReference,masterNature,loanReference,captureEditContext,restoreEditContext,getSelection:()=>({cycle,lens,month,openBucket,openCategory,openSubcategory})};
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});else setTimeout(boot,0);
 })();

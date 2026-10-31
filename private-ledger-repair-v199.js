@@ -33,7 +33,10 @@ function plan(input,patch){
  const keys=new Set();
  for(const entry of patch.entries){
   assert(entry&&typeof entry==='object'&&typeof entry.op==='string','修正操作が不正です');
-  const key=entry.op+':'+String(entry.id||entry.duplicate?.id||entry.record?.id||'');
+  const identity=entry.id||entry.duplicate?.id||entry.record?.id||
+    entry.record?.purchase_id||entry.record?.settlement_id;
+  assert(typeof identity==='string'&&identity,'修正対象IDがありません');
+  const key=entry.op+':'+identity;
   assert(!keys.has(key),'修正操作の重複があります');keys.add(key);
   if(entry.op==='suppress_duplicate'){
    ensurePurchaseRef(entry.duplicate);ensurePurchaseRef(entry.canonical);
@@ -92,12 +95,22 @@ function plan(input,patch){
      typeof r.source_file==='string'&&r.source_file&&
      typeof r.category==='string'&&typeof r.subcategory==='string'&&
      ['NORMAL','SPECIAL'].includes(r.spending_class)&&
-     ['FIXED','VARIABLE','REVIEW'].includes(r.cost_nature),
+     ['FIXED','VARIABLE','REVIEW'].includes(r.cost_nature)&&
+     (!r.reference_only_v200||(r.personal_owner_v193==='wife'&&r.count_in_spending===false)),
      '購入明細の必須項目が不正です');
+   const referenceOnly=r.reference_only_v200===true;
+   if(referenceOnly){
+     assert(next.personalExpenses.some(x=>x.owner==='wife'&&
+       x.count_in_spending!==false&&Number(x.amount)===40000&&
+       x.cycle_start==='2026-10-16'),
+       '妻の個人費40,000円の既存計上を確認できません');
+   }
    const old=next.purchaseEvents.find(x=>String(x.purchase_id)===r.purchase_id);
    if(old){
      assert(exactPurchase(old,{id:r.purchase_id,date:r.purchase_date,
-       amount:r.original_amount,merchant:r.merchant_raw,card:r.card}),
+       amount:r.original_amount,merchant:r.merchant_raw,card:r.card})&&
+       (!referenceOnly||(old.count_in_spending===false&&
+         old.reference_only_v200===true&&old.personal_owner_v193==='wife')),
        '同一購入IDに異なる明細が存在します');
      continue;
    }
@@ -108,9 +121,9 @@ function plan(input,patch){
      continue;
    next.purchaseEvents.push({...r,record_kind:'CARD_PURCHASE',economic_type:'EXPENSE',
      expense_scope:r.spending_class,ordinary_or_special:r.spending_class,
-     original_amount:Number(r.original_amount),count_in_spending:true,
+     original_amount:Number(r.original_amount),count_in_spending:!referenceOnly,
      source:'USER_VERIFIED_SCREENSHOT',private_verified_v199:true});
-   changed++;total+=Number(r.original_amount);
+   changed++;if(!referenceOnly)total+=Number(r.original_amount);
   }else if(entry.op==='add_personal'){
    const r=entry.record;
    assert(r&&typeof r.id==='string'&&['wife','self'].includes(r.owner)&&digits(r.amount)&&

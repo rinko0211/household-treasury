@@ -71,6 +71,7 @@ jobs:
           node tests/mdc-cross-source-v166.test.cjs
           node tests/mdc-pdf-csv-preflight-v188.test.cjs
           node tests/mdc-pdf-bulk-review-v189.test.cjs
+          node tests/mdc-pdf-post-import-v190.test.cjs
           node tests/mdc-pdf-import.test.cjs
           node tests/structured-payment-and-pdf-v168.test.cjs
       - name: Check release links against actual app version
@@ -112,7 +113,7 @@ jobs:
           assert.ok(html.includes('ui-modern-v169.css?v=180'));
           assert.ok(!html.includes('card-budget-allocation-v170.js'),'Removed recommendation panel must not be mounted');
           assert.ok(sw.includes('./ui-modern-v169.css?v=180'));
-          assert.ok(html.includes('sync-state-sanitizer-v22.js?v=189'));
+          assert.ok(html.includes('sync-state-sanitizer-v22.js?v=190'));
           assert.ok(sw.includes('./fixed-master-unified-v43.js?v=171'));
           assert.ok(sw.includes('./card-settings-unified-v77.js?v=171'));
           assert.ok(loader.includes('fixed-master-unified-v43.js?v=171'));
@@ -134,9 +135,9 @@ jobs:
 
           assert.ok(fs.readFileSync('family/family.js','utf8').includes('管理アプリの「支出」'));
 
-          assert.ok(html.includes('sync-state-sanitizer-v22.js?v=189'));
+          assert.ok(html.includes('sync-state-sanitizer-v22.js?v=190'));
           assert.ok(html.includes('treasury-ledger-v145.js?v=153'));
-          assert.ok(sw.includes('household-treasury-v189-pdf-bulk-review'));
+          assert.ok(sw.includes('household-treasury-v190-post-import-exclude'));
           assert.ok(sw.includes('./semantic-ui-v48.js?v=184'));
           assert.ok(sw.includes('./app.js?v=184'));
           assert.ok(html.includes('./app.js?v=184'));
@@ -196,7 +197,7 @@ jobs:
           assert.ok(html.includes('verified-correction-patch-v149.js?v=161'));
           assert.ok(correction.includes('treasuryRecoverySnapshot')&&correction.includes('replaceTreasuryState'));
           for(const path of [
-            'sync-state-sanitizer-v22.js?v=189',
+            'sync-state-sanitizer-v22.js?v=190',
             'expense-nature-rules-v152.js?v=159',
             'purchase-usage-ledger-v157.js?v=186',
             'personal-ledger-v186.js?v=187',
@@ -206,11 +207,11 @@ jobs:
             'cycle-audit-reconciliation-v153.js?v=161',
             'card-cycle-v81.js?v=179',
             'treasury-ledger-v145.js?v=153',
-            'mdc-pdf-delta-v144.js?v=189'
+            'mdc-pdf-delta-v144.js?v=190'
           ])assert.ok(sw.includes('./'+path),'PWA cache missing '+path);
           assert.ok(sw.includes('./mdc-cross-source-reconcile-v166.js?v=166'));
           assert.ok(loader.includes('mdc-cross-source-reconcile-v166.js?v=166'));
-          assert.ok(loader.includes('mdc-pdf-import-v136.js?v=189'));
+          assert.ok(loader.includes('mdc-pdf-import-v136.js?v=190'));
           assert.ok(loader.includes('structured-expense-import-v168.js?v=168'));
           assert.ok(sw.includes('./structured-expense-import-v168.js?v=168'));
           assert.ok(fs.readFileSync('mdc-pdf-delta-v144.js','utf8').includes('receiptAbsorbed'));

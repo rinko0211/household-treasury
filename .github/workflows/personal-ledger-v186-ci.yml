@@ -25,6 +25,7 @@ jobs:
           node --check mdc-pdf-import-v136.js
           node tests/mdc-pdf-csv-preflight-v188.test.cjs
           node tests/mdc-pdf-bulk-review-v189.test.cjs
+          node tests/mdc-pdf-post-import-v190.test.cjs
           node tests/mdc-pdf-import.test.cjs
           node tests/structured-payment-and-pdf-v168.test.cjs
           node tests/personal-ledger-v186.test.cjs

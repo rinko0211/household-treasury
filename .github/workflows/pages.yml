@@ -71,6 +71,7 @@ jobs:
           node tests/mdc-cross-source-v166.test.cjs
           node tests/mdc-pdf-csv-preflight-v188.test.cjs
           node tests/mdc-pdf-bulk-review-v189.test.cjs
+          node tests/mdc-pdf-import.test.cjs
           node tests/structured-payment-and-pdf-v168.test.cjs
       - name: Check release links against actual app version
         shell: bash

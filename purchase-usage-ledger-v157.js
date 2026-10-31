@@ -88,6 +88,23 @@ function calculate(st,month,basis='payday'){
    normalFixed:0,normalVariable:0,normalUndetermined:0,
    debt:0,ideco:0,investment:0,income:0,unresolvedBankFee:0};
  const byKind={cash:[],purchase:[],bank:[],debt:[],ideco:[],investment:[],income:[]};
+ // Ephemeral lookups: preserve original strict date equality and merchant
+ // normalization without persisting new state or changing source records.
+ let pendingCardIndex=null;
+ const typedKey=(date,amount,label)=>JSON.stringify([typeof date,date,amount,normalized(label)]);
+ const reconciledByCard=cash=>{
+   if(!pendingCardIndex){
+     pendingCardIndex=new Set();
+     for(const card of st.purchaseEvents||[]){
+       if(!paidOnce(card)||!expense(card))continue;
+       pendingCardIndex.add(typedKey(card.purchase_date,fullAmount(card),
+         card.merchant_raw||card.merchant_normalized||''));
+     }
+   }
+   return pendingCardIndex.has(typedKey(cash.date,fullAmount(cash),
+     cash.description||cash.name||''));
+ };
+ const cashSpendingIndex=new Set();
  const add=(kind,row)=>{
    rows.push(row);byKind[kind]?.push(row);
  };
@@ -124,18 +141,14 @@ function calculate(st,month,basis='payday'){
    if(!belongs(r,'date',p)||!paidOnce(r)||!expense(r))continue;
    // A chat-reported transaction can be reconciled to a later imported
    // card purchase. The imported source becomes canonical, not an addition.
-   if(r.manual_reconciliation_pending===true &&
-      (st.purchaseEvents||[]).some(card=>
-        paidOnce(card)&&expense(card)&&card.purchase_date===r.date&&
-        fullAmount(card)===fullAmount(r)&&
-        normalized(card.merchant_raw||card.merchant_normalized||'')===
-          normalized(r.description||r.name||'')))continue;
+   if(r.manual_reconciliation_pending===true&&reconciledByCard(r))continue;
    const amount=fullAmount(r);if(!amount)continue;
    const key=String(r.id||[r.date,r.description,amount,r.source_file].join('|'));
    if(seenCash.has(key))continue;seenCash.add(key);
    const date=iso(r.date);
    const label=String(r.description||r.name||'現金・商品券等');
    addExpense(r,'cash',i,date,label,amount,String(r.payment_method||'現金・商品券等'));
+   cashSpendingIndex.add(typedKey(date,amount,label));
    subtotals.cashExpenses+=amount;
  }
  for(const [i,r] of (st.purchaseEvents||[]).entries()){
@@ -178,8 +191,7 @@ function calculate(st,month,basis='payday'){
      continue;
    }
    if(kind!=='expense')continue;
-   const duplicate=byKind.cash.some(c=>c.date===date&&c.amount===-amount&&
-     normalized(c.label)===normalized(label));
+   const duplicate=cashSpendingIndex.has(typedKey(date,-amount,label));
    if(duplicate)continue;
    // Retain a genuine bank fee in records but expose the explicitly disputed
    // amount separately, rather than making a silently adjusted total.

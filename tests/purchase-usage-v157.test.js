@@ -163,4 +163,79 @@ eq(api.calculate(edited,'2026-09','payday').consumption,460404,
  eq(api.bankKindWithHistory(third,sample),'expense','Different recipient cannot inherit principal status');
 }
 
+
+// v195: Verify the indexed duplicate filter against the original strict
+// predicate for many imported rows; official purchases remain authoritative.
+{
+ const local={settings:{salaryDay:18},masters:{cards:[],fixedExpenses:[]},
+   auditMigrations:[],cashExpenses:[],purchaseEvents:[],cashTransactions:[]};
+ const date='2026-10-22',expenseCost=200;
+ const norm=s=>String(s||'').normalize('NFKC').replace(/[\s　()（）._\-／/・]/g,'').toUpperCase();
+ const value=r=>Math.abs(Number(r.purchase_total??r.original_amount??r.amount)||0);
+ const included=r=>r.count_in_spending!==false&&r.reconciliation_status!=='ABSORBED_DUPLICATE'&&
+   !r.is_refinanced&&!r.is_refinance_adjustment&&
+   (!r.economic_type||String(r.economic_type).toUpperCase()==='EXPENSE');
+ for(let i=0;i<250;i++){
+   local.cashExpenses.push({
+     id:'reported-'+i,date,description:'重複店'+i,amount:expenseCost,
+     manual_reconciliation_pending:true,economic_type:'EXPENSE'
+   });
+   local.purchaseEvents.push({
+     purchase_id:'card-'+i,purchase_date:date,
+     card:'JAL',pdf_card_identity:'CARD-1',merchant_raw:'重複店'+i,
+     billing_month:'2026-12',source_original_id:'source-'+i,
+     original_amount:expenseCost,occurrence_index:1,economic_type:'EXPENSE'
+   });
+ }
+ for(let i=0;i<100;i++){
+   const label='固有店'+i,cost=300+i;
+   local.cashExpenses.push({id:'unique-'+i,date,description:label,
+     amount:cost,manual_reconciliation_pending:true,economic_type:'EXPENSE'});
+   local.cashTransactions.push({
+     id:'bank-duplicate-'+i,date,source:'UFJ',account:'main',
+     balance_after:250000-i,amount:-cost,description_raw:label,
+     cashflow_type:'HOUSEHOLD_EXPENSE',economic_type:'EXPENSE'
+   });
+ }
+ // These official rows are ineligible for suppressing the manual report.
+ for(const [i,extra] of [{count_in_spending:false},
+     {economic_type:'TRANSFER'},{reconciliation_status:'ABSORBED_DUPLICATE'}].entries()){
+   local.cashExpenses.push({id:'not-linked-'+i,date,description:'無効明細'+i,
+     amount:expenseCost,manual_reconciliation_pending:true});
+   local.purchaseEvents.push({purchase_id:'not-linked-pdf-'+i,
+     purchase_date:date,card:'JAL',billing_month:'2026-12',
+     merchant_raw:'無効明細'+i,source_original_id:'ineligible-'+i,
+     original_amount:expenseCost,...extra});
+ }
+ local.cashExpenses.push({id:'different-date',date,
+   description:'日付違い',amount:expenseCost,manual_reconciliation_pending:true});
+ local.purchaseEvents.push({purchase_id:'different-date-pdf',
+   purchase_date:'2026-10-23',card:'JAL',billing_month:'2026-12',
+   merchant_raw:'日付違い',original_amount:expenseCost});
+ // Confirm the original baseline predicate independently from the index.
+ for(const reported of local.cashExpenses){
+   const old=local.purchaseEvents.some(card=>included(card)&&
+     card.purchase_date===reported.date&&value(card)===value(reported)&&
+     norm(card.merchant_raw||card.merchant_normalized||'')===
+       norm(reported.description||reported.name||''));
+   const expect=reported.id.startsWith('reported-');
+   eq(old,expect,'Brute-force oracle for '+reported.id);
+ }
+ const before=structuredClone(local);
+ const output=api.calculate(local,'2026-10','calendar');
+ eq(output.byKind.purchase.length,251,'250 canonical purchases plus a different-date purchase');
+ eq(output.byKind.cash.length,104,'Manual rows with no qualifying card remain');
+ eq(output.byKind.bank.length,0,'Bank duplicates of included manual cash are ignored');
+ eq(output.subtotals.cashExpenses,local.cashExpenses.slice(250).reduce((sum,x)=>sum+value(x),0),
+   'Only non-reconciled cash contributes to consumption');
+ eq(output.subtotals.directBank,0,'Index excludes direct-bank duplicates');
+ ok(output.byKind.cash.every(x=>!x.label.startsWith('重複店')),
+   'All 250 duplicated manually reported receipts are suppressed');
+ eq(JSON.stringify(local),JSON.stringify(before),'Indexing never mutates official or manual source records');
+ const missingBank=structuredClone(local);
+ missingBank.cashExpenses=missingBank.cashExpenses.filter(x=>x.id!=='unique-0');
+ eq(api.calculate(missingBank,'2026-10','calendar').subtotals.directBank,300,
+   'Without its cash equivalent, a direct bank transaction is restored');
+}
+
 console.log('PASS '+tests+' purchase-usage v157 assertions');

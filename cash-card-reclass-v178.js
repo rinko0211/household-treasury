@@ -66,6 +66,8 @@ function plan(state,req){
    expected_settlement_status:'UNCONFIRMED',settlement_pending:true,
    no_card_settlement:false,count_in_spending:true,
    cost_nature:['FIXED','VARIABLE','REVIEW'].includes(req.costNature)?req.costNature:undefined,
+   expense_bucket_v193:['FIXED','VARIABLE','PERSONAL','REVIEW'].includes(req.expenseBucket)?req.expenseBucket:undefined,
+   personal_owner_v193:req.expenseBucket==='PERSONAL'&&['wife','self'].includes(req.personalOwner)?req.personalOwner:undefined,
    confidence:1,review_status:'RESOLVED',semantic_manual_override:true,
    semantic_transaction_edit_version:108,manual_corrected:true,
    manual_corrected_at:now,receipt_reconciliation_pending:true,
@@ -75,6 +77,8 @@ function plan(state,req){
  if(isoDate(due)){item.expected_settlement_date=due;item.settlement_due_date=due}
  else delete item.expected_settlement_status;
  if(!item.cost_nature)delete item.cost_nature;
+ if(!item.expense_bucket_v193)delete item.expense_bucket_v193;
+ if(!item.personal_owner_v193)delete item.personal_owner_v193;
  next.purchaseEvents=Array.isArray(next.purchaseEvents)?next.purchaseEvents:[];
  next.purchaseEvents.push(item);
  if(!old.id)old.id=originalId;

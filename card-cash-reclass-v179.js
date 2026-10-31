@@ -88,6 +88,12 @@ function plan(st,req){
    note:purchase.note||cashRow.note||''
  });
  if(nature)cashRow.cost_nature=nature;else delete cashRow.cost_nature;
+ if(['FIXED','VARIABLE','PERSONAL','REVIEW'].includes(req.expenseBucket))
+   cashRow.expense_bucket_v193=req.expenseBucket;
+ else delete cashRow.expense_bucket_v193;
+ if(req.expenseBucket==='PERSONAL'&&['wife','self'].includes(req.personalOwner))
+   cashRow.personal_owner_v193=req.personalOwner;
+ else delete cashRow.personal_owner_v193;
  delete cashRow.reconciliation_status;
  delete cashRow.card_purchase_id;
  delete cashRow.card_master_id;

@@ -80,7 +80,8 @@ function makeSnapshot(){
    if(p.start<=today&&today<=p.end){month=candidate;break}
  }
  const calc=ledger.calculate(st,month,'payday');
- const variableBucket=hub.usageBuckets(calc,st).find(b=>b.id==='variable');
+ const sharedBuckets=hub.usageBuckets(calc,st);
+ const variableBucket=sharedBuckets.find(b=>b.id==='variable');
  if(!variableBucket)throw Error('変動費を集計できません。');
  // Use the identical source rows and major/minor taxonomy as the owner's
  // expense screen. No merchant, card, account, or transaction IDs leave device.
@@ -111,11 +112,18 @@ function makeSnapshot(){
  const ctx=context();
  const revision=Number(ctx.revision);
  if(!Number.isSafeInteger(revision)||revision<1)throw Error('クラウド同期のrevisionを確認できません。');
+ // Warning aggregates on the family shared view also exclude all pink
+ // personal entries, not only its variable category drilldown.
+ const undeterminedBucket=sharedBuckets.find(b=>b.id==='undetermined');
+ const privateMatched=window.householdPersonalLedgerV186?.presentation?.(st,calc)?.matched||new Set();
+ const publicReviews=Array.isArray(calc.flags)?
+   calc.flags.filter(r=>!privateMatched.has(r.identity)&&
+     !hub.rowDetails?.(r,st)?.personalExpense).length:Number(calc.reviewCount)||0;
  return {
   schema_version:2,
   period_start:calc.start,period_end:calc.end,source_revision:revision,variable,
-  undetermined:Math.round(Number(calc.normalUndetermined)||0),
-  review_count:Math.max(0,Math.round(Number(calc.reviewCount)||0)),
+  undetermined:Math.round(Number(undeterminedBucket?.amount??calc.normalUndetermined)||0),
+  review_count:Math.max(0,Math.round(publicReviews)),
   categories
  };
 }

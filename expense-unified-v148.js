@@ -123,30 +123,44 @@ function rowDetails(row,st){
    category,subcategory,source,kind:row.kind,label:row.label,semantic:sem
  })||{nature:'REVIEW',key:''};
  const deletable=window.householdManualExpenseDeleteV192?.locate?.(st,row.identity);
+ const assigned=String(source?.expense_bucket_v193||'').toUpperCase();
+ const isPersonal=assigned==='PERSONAL'||(!['FIXED','VARIABLE','SPECIAL'].includes(assigned)&&category==='PERSONAL');
+ const owner=String(source?.personal_owner_v193||'').toLowerCase();
  return {...row,category,subcategory,costNature:rule.nature,
    costNatureKey:rule.key,costNatureReason:rule.reason,editKind,editId,
+   personalExpense:isPersonal,personalOwner:['wife','self'].includes(owner)?owner:'',
    manualDeleteIdentity:deletable?.identity||''};
 }
 function usageBuckets(usage,st,includePersonal=false){
  const privateSummary=window.householdPersonalLedgerV186?.presentation?.(st,usage);
- // Existing sources matching personal reports cannot be counted in two
- // buckets, including the variable-only family snapshot.
+ // Existing personal reports and their card purchases count once. Other
+ // explicitly personal card/cash purchases move from variable to pink.
  const excluded=privateSummary?.matched||new Set();
- const enriched=usage.usageRows.filter(row=>!excluded.has(row.identity))
-   .map(row=>rowDetails(row,st));
- const normal=enriched.filter(x=>['cash','purchase','bank'].includes(x.kind)&&x.spendingClass!=='SPECIAL');
+ const enriched=usage.usageRows.filter(row=>!excluded.has(row.identity)).map(row=>rowDetails(row,st));
+ const expenseItems=enriched.filter(x=>['cash','purchase','bank'].includes(x.kind));
+ const allocated=expenseItems.filter(x=>x.personalExpense);
+ const normal=expenseItems.filter(x=>!x.personalExpense&&x.spendingClass!=='SPECIAL');
+ const pBudget=privateSummary?.summary||{};
+ const personalTitle=owner=>owner==='wife'?
+   '妻（予算 '+yen(pBudget.wifeBudget||40000)+'・使用 '+yen(pBudget.wifeSpent||0)+'）':
+   owner==='self'?'本人（予算 '+yen(pBudget.selfBudget||20000)+'・残 '+
+      yen((pBudget.selfBudget||20000)-(pBudget.selfSpent||0))+'）':'本人・妻の指定待ち';
+ for(const item of allocated)item.personalCategoryLabel=personalTitle(item.personalOwner);
  const groups=[
-  {id:'fixed',label:'固定費・ローン',color:'#42c5d0',items:[...normal.filter(x=>x.costBucket==='FIXED'),...usage.byKind.debt]},
-  {id:'variable',label:'通常費（変動費）',color:'#13c7b5',items:normal.filter(x=>x.costBucket==='VARIABLE')},
-  {id:'undetermined',label:'通常費（固定・変動未確定）',color:'#a2acb9',items:normal.filter(x=>x.costBucket!=='FIXED'&&x.costBucket!=='VARIABLE')},
-  {id:'special',label:'特別費',color:'#eab86d',
-    items:enriched.filter(x=>['cash','purchase','bank'].includes(x.kind)&&x.spendingClass==='SPECIAL')},
-  ...(includePersonal?[{id:'personal',label:'個人費',color:'#dc8bfa',
-     items:(privateSummary?.items||[]).map(x=>({
-        ...x,manualDeleteIdentity:window.householdManualExpenseDeleteV192?.locate?.(st,x.identity)?.identity||''
-      }))}]:[]),
-  {id:'ideco',label:'iDeCo（固定拠出・投資）',color:'#987efd',items:usage.byKind.ideco},
-  {id:'investment',label:'その他投資',color:'#67b9f4',items:usage.byKind.investment}
+   {id:'fixed',label:'固定費・ローン',color:'#42c5d0',items:[...normal.filter(x=>x.costBucket==='FIXED'),...usage.byKind.debt]},
+   {id:'variable',label:'変動費',color:'#13c7b5',items:normal.filter(x=>x.costBucket==='VARIABLE')},
+   {id:'undetermined',label:'通常費（固定・変動未確定）',color:'#a2acb9',
+     items:normal.filter(x=>x.costBucket!=='FIXED'&&x.costBucket!=='VARIABLE')},
+   {id:'special',label:'特別費',color:'#eab86d',
+     items:expenseItems.filter(x=>!x.personalExpense&&x.spendingClass==='SPECIAL')},
+   ...(includePersonal?[{id:'personal',label:'個人費',color:'#dc8bfa',
+     items:[...(privateSummary?.items||[]).map(x=>({
+       ...x,manualDeleteIdentity:window.householdManualExpenseDeleteV192?.locate?.(st,x.identity)?.identity||''
+     })),...allocated.map(x=>({
+       ...x,owner:x.personalOwner||'unassigned'
+     }))]}]:[]),
+   {id:'ideco',label:'iDeCo（固定拠出・投資）',color:'#987efd',items:usage.byKind.ideco},
+   {id:'investment',label:'その他投資',color:'#67b9f4',items:usage.byKind.investment}
  ];
  return groups.map(g=>({...g,amount:g.items.reduce((a,x)=>a+n(x.amount),0)}));
 }
@@ -173,7 +187,8 @@ function subgroups(bucket,mode=lens){
    }else if(['transfer','expense','unclassified'].includes(bucket.id)){
      key='BANK|'+x.label;label=x.label||'銀行取引';
    }else if(bucket.id==='personal'){
-   key='PERSONAL|'+(x.owner||'self');label='個人費明細';
+   key='PERSONAL|'+(x.owner||'unassigned');
+   label=x.owner==='wife'?'妻の個人費明細':x.owner==='self'?'本人の個人費明細':'区分未指定の個人費明細';
  }else if(bucket.id==='ideco'){
      key='INVESTMENT|IDECO';label='iDeCo';
    }else if(bucket.id==='investment'){
@@ -203,10 +218,11 @@ function categoryGroups(bucket,mode=lens){
    // any of their accounting classifications or recorded amounts.
    const economicExpense=mode==='economic'&&['cash','purchase','bank'].includes(x.kind);
    const debtInFixed=mode==='economic'&&bucket.id==='fixed'&&x.kind==='debt';
-   const isPersonal=bucket.id==='personal'&&x.kind==='personal';
-   const key=isPersonal?(x.owner==='wife'?'PERSONAL_WIFE':'PERSONAL_SELF'):
+   const isPersonal=bucket.id==='personal';
+   const key=isPersonal?(x.owner==='wife'?'PERSONAL_WIFE':x.owner==='self'?'PERSONAL_SELF':'PERSONAL_UNASSIGNED'):
      debtInFixed?'DEBT_PAYMENTS':economicExpense?String(x.category||'OTHER'):'TRANSACTION_DETAILS';
-   const label=isPersonal?x.personalCategoryLabel:
+   const label=isPersonal?(x.personalCategoryLabel||
+     (x.owner==='wife'?'妻（個人費）':x.owner==='self'?'本人（個人費）':'本人・妻の指定待ち')):
      debtInFixed?'ローン・借入返済（消費外）':economicExpense?
      (defs[key]?.label||window.householdExpenseAnalyticsV106?.categoryLabel?.(key)||'その他'):'取引明細';
    let group=map.get(key);
@@ -337,7 +353,12 @@ function render(){
  // An owner-only personal expense adds only its unmatched portion.
  const privateAdjustment=(personal?.amount||0)-(personal?.matchedConsumption||0);
  const consumption=usage.consumption+privateAdjustment;
- const ordinary=usage.ordinary-(personal?.matchedOrdinary||0);
+ // A personal purchase contributes to total spending, not household living
+ // spending. The previously reported 6,000 yen is adjusted only once.
+ const allocatedNormal=(all.find(x=>x.id==='personal')?.items||[])
+   .filter(x=>x.kind!=='personal'&&x.spendingClass!=='SPECIAL')
+   .reduce((sum,x)=>sum+n(x.amount),0);
+ const ordinary=usage.ordinary-(personal?.matchedOrdinary||0)-allocatedNormal;
  const total=economic?usage.funds+privateAdjustment:bank.total;
  const income=usage.income;
  const difference=income-total,ratio=income>0?total*100/income:null;

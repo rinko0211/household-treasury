@@ -16,6 +16,6 @@ assert.ok(js.includes("$('budgetSection').hidden=budget<=0"),'zero budget must n
 assert.ok(!html.includes('id="balanceEdit"')&&!html.includes('id="budgetEdit"'),'family view must stay readonly');
 assert.ok(html.includes('family.css?v=183')&&html.includes('family.js?v=183'));
 assert.ok(sw.includes('./family/family.css?v=183')&&sw.includes('./family/family.js?v=183'));
-assert.ok(sw.includes('household-treasury-v190-post-import-exclude'));
+assert.ok(sw.includes('household-treasury-v191-expense-date-order'));
 assert.ok(css.includes('.balance-amount'));
 console.log('FAMILY_BUDGET_CLARITY_V173_PASS');

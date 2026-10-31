@@ -461,7 +461,7 @@ function render(){
        '<b>'+esc(x.date)+' '+esc(x.label)+'</b>'+
        '<div class="hub-muted">'+esc(x.kind.startsWith('manual')?'手動登録との重複候補':'公式CSV同士の重複候補')+
        ' ・ 正本 '+esc(x.canonicalFile)+' ・ 対象 '+esc(x.sourceFile)+'</div>'+
-       '<button type="button" class="hub-edit" data-hub-kabu-fix="'+x.index+'">この候補の二重計上を解除</button></div>'+
+       '<button type="button" class="hub-edit" data-hub-kabu-fix="'+x.kind+':'+x.index+'">この候補の二重計上を解除</button></div>'+
        '<b>'+yen(x.amount)+'</b></div>').join('')+
      (kabuOverlaps.length>80?'<p class="hub-muted">先頭80件まで表示しています。</p>':'')+
      '</details>';
@@ -555,7 +555,7 @@ function bind(root){
  }));
  // PDF/cash deletes, restores and edits keep their old guarded actions.
  root.querySelectorAll('[data-hub-kabu-fix]').forEach(btn=>btn.addEventListener('click',()=>{
-   try{window.householdKabuCardV198?.applyDuplicate?.(Number(btn.dataset.hubKabuFix))}
+   try{window.householdKabuCardV198?.applyDuplicate?.(btn.dataset.hubKabuFix)}
    catch(e){window.alert?.('株アンドの重複解除ができません：'+String(e?.message||e))}
  }));
  root.querySelectorAll('[data-hub-restorepdf]').forEach(btn=>btn.addEventListener('click',()=>{

@@ -61,20 +61,67 @@ function recipientKey(r){
  if(!/銀行|信用金庫|ゆうちょ/.test(head)||!/普通預金|当座預金/.test(head))return '';
  return normalized(head);
 }
-function bankKindWithHistory(r,st){
+// A per-calculation history index, not a persisted or global cache.
+// Account equality and recipient normalization are identical to the original
+// filter. Sorting stays stable for transactions on the same date.
+function buildBankHistoryIndex(st){
+ const accounts=new Map();
+ for(const row of st?.cashTransactions||[]){
+   const key=recipientKey(row);
+   if(!key)continue;
+   let groups=accounts.get(row.account);
+   if(!groups){groups=new Map();accounts.set(row.account,groups)}
+   let matches=groups.get(key);
+   if(!matches){matches=[];groups.set(key,matches)}
+   matches.push({row,date:String(row.date||'')});
+ }
+ for(const groups of accounts.values())for(const matches of groups.values()){
+   matches.sort((a,b)=>String(b.row.date).localeCompare(String(a.row.date)));
+   matches.isoDates=matches.every(x=>/^\d{4}-\d{2}-\d{2}$/.test(x.date));
+ }
+ return {
+   previous(target,key){
+     // Map uses SameValueZero; the original === comparison rejects NaN.
+     if(Number.isNaN(target.account))return null;
+     const matches=accounts.get(target.account)?.get(key);
+     if(!matches?.length)return null;
+     const date=String(target.date||'');
+     // ISO YYYY-MM-DD sorts identically under lexical and locale order.
+     // For legacy malformed dates, preserve the original linear predicate.
+     const isoOnly=/^\d{4}-\d{2}-\d{2}$/.test(date)&&matches.isoDates;
+     if(!isoOnly)return matches.find(x=>x.row!==target&&x.date<date)?.row||null;
+     let low=0,high=matches.length;
+     while(low<high){
+       const mid=(low+high)>>1;
+       if(matches[mid].date>=date)low=mid+1;
+       else high=mid;
+     }
+     return matches[low]?.row||null;
+   }
+ };
+}
+function bankKindWithHistory(r,st,indexProvider){
  const given=bankKind(r);
  if(given!=='expense'||String(r.cashflow_type||'').toUpperCase()!=='UNKNOWN')return given;
  const fingerprint=recipientKey(r);
  if(!fingerprint||!st?.cashTransactions)return given;
- const known=st.cashTransactions.filter(x=>
-  x!==r&&String(x.date||'')<String(r.date||'')&&
-  x.account===r.account&&recipientKey(x)===fingerprint)
-  .sort((a,b)=>String(b.date).localeCompare(String(a.date)));
- if(!known.length)return given;
- const previous=known[0],prevKind=bankKind(previous);
+ // Public call remains compatible with the previous exact search. The hot
+ // monthly paths supply a lazily constructed index on first eligible lookup.
+ const previous=indexProvider?
+   indexProvider().previous(r,fingerprint):
+   st.cashTransactions.filter(x=>
+     x!==r&&String(x.date||'')<String(r.date||'')&&
+     x.account===r.account&&recipientKey(x)===fingerprint)
+     .sort((a,b)=>String(b.date).localeCompare(String(a.date)))[0];
+ if(!previous)return given;
+ const prevKind=bankKind(previous);
  if(prevKind==='transfer')return 'transfer';
  if(prevKind==='debt'&&Number(previous.amount)===Number(r.amount))return 'debt';
  return given;
+}
+function bankClassifier(st){
+ let historyIndex=null;
+ return r=>bankKindWithHistory(r,st,()=>historyIndex||(historyIndex=buildBankHistoryIndex(st)));
 }
 function isReview(r,classification){
  const status=String(r.review_status||'').toUpperCase();
@@ -82,7 +129,7 @@ function isReview(r,classification){
    classification==='REVIEW'||r.potential_prepaid_topup===true;
 }
 function calculate(st,month,basis='payday'){
- const p=period(st,month,basis);
+ const p=period(st,month,basis),classifyBank=bankClassifier(st);
  const rows=[],seenBank=new Set(),seenCash=new Set(),seenPurchase=new Set(),flags=[],bankExpenses=[];
  const subtotals={cashExpenses:0,purchaseEvents:0,directBank:0,ordinary:0,special:0,
    normalFixed:0,normalVariable:0,normalUndetermined:0,
@@ -165,7 +212,7 @@ function calculate(st,month,basis='payday'){
    const amount=n(r.amount),date=iso(r.date),label=String(r.description_raw||r.description||'銀行明細');
    const key=[r.source,r.account,date,amount,normalized(label),r.balance_after??''].join('|');
    if(seenBank.has(key))continue;seenBank.add(key);
-   const kind=bankKindWithHistory(r,st);
+   const kind=classifyBank(r);
    if(amount>0){
      if(kind==='income'){
        // The payroll deposit on the audited period's closing payday belongs
@@ -219,7 +266,7 @@ function calculate(st,month,basis='payday'){
  };
 }
 function bankFlow(st,month,basis='payday'){
- const p=period(st,month,basis),seen=new Set(),buckets=new Map();
+ const p=period(st,month,basis),seen=new Set(),buckets=new Map(),classifyBank=bankClassifier(st);
  const labels={
   cardSettlement:'カード精算（銀行残高管理のみ）',
   transfer:'ATM出金・口座間振替',
@@ -238,7 +285,7 @@ function bankFlow(st,month,basis='payday'){
   const sig=[r.source,r.account,date,amount,
     normalized(r.description_raw),r.balance_after??''].join('|');
   if(seen.has(sig))continue;seen.add(sig);
-  const kind=bankKindWithHistory(r,st);
+  const kind=classifyBank(r);
   if(!buckets.has(kind))buckets.set(kind,{id:kind,label:labels[kind],items:[],amount:0});
   const x=buckets.get(kind);
   x.items.push({identity:'bank:'+i,kind,date,label:r.description_raw||'銀行引落',

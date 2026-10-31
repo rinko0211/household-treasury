@@ -528,4 +528,73 @@ ok(semanticEditorSource.includes("o.potential_prepaid_topup=false"),
  eq(backups,2,'Pre-change backups taken for delete and restore');
  state.cashExpenses.pop();state.purchaseEvents.pop();app.render();
 }
+// v193: independent fixed/variable/personal selection. Pink expenses are
+// allocated to the recipient, without leaking to the variable-only share.
+{
+ const st=structuredClone(state);
+ st.privatePersonalSeedV186=true;
+ st.personalExpenseBudgets={wife:40000,self:20000};
+ st.personalExpenses=[
+  {id:'wife-old',owner:'wife',amount:40000,cycle_start:'2026-10-16',
+    description:'妻に渡した個人費（消費済み）'},
+  {id:'self-old',owner:'self',amount:6000,date:'2026-10-30',
+    cycle_start:'2026-10-16',description:'飲み会'}
+ ];
+ const base=window.householdUsageLedgerV157.calculate(st,'2026-10','payday');
+ const baseline=app.usageBuckets(base,st,true);
+ const beforeVariable=baseline.find(b=>b.id==='variable').amount;
+ const start=st.purchaseEvents.length;
+ st.purchaseEvents.push(
+  {purchase_id:'wife-private-v193',card:'Rakuten',purchase_date:'2026-10-22',
+   merchant_raw:'妻の私物',original_amount:900,category:'DAILY_GOODS',
+   subcategory:'OTHER',economic_type:'EXPENSE',spending_class:'NORMAL',
+   expense_bucket_v193:'PERSONAL',personal_owner_v193:'wife'},
+  {purchase_id:'self-private-v193',card:'MUFG/DC/JAL',purchase_date:'2026-10-23',
+   merchant_raw:'本人の飲料',original_amount:1500,category:'FOOD',
+   subcategory:'CAFE',economic_type:'EXPENSE',spending_class:'NORMAL',
+   expense_bucket_v193:'PERSONAL',personal_owner_v193:'self'},
+  {purchase_id:'unassigned-old-personal',card:'Rakuten',purchase_date:'2026-10-24',
+   merchant_raw:'以前の個人支出',original_amount:200,category:'PERSONAL',
+   subcategory:'OTHER',economic_type:'EXPENSE',spending_class:'NORMAL'},
+  {purchase_id:'explicit-variable-overrides-category',card:'Rakuten',
+   purchase_date:'2026-10-25',merchant_raw:'明示した家計変動費',original_amount:700,
+   category:'PERSONAL',subcategory:'OTHER',economic_type:'EXPENSE',
+   spending_class:'NORMAL',cost_nature:'VARIABLE',expense_bucket_v193:'VARIABLE'}
+ );
+ const usage=window.householdUsageLedgerV157.calculate(st,'2026-10','payday');
+ const owner=app.usageBuckets(usage,st,true),shared=app.usageBuckets(usage,st,false);
+ const pink=owner.find(x=>x.id==='personal');
+ eq(pink.amount,48600,'Pink personal = prior 46k + wife's 900 + self 1,500 + unassigned 200');
+ eq(owner.reduce((v,b)=>v+b.amount,0),usage.funds+46000,
+   'Rebucketed transactions never inflate accounting totals');
+ eq(shared.reduce((v,b)=>v+b.amount,0),usage.funds-2600,
+   'Variable-only shared source excludes all classified personal entries');
+ eq(shared.find(x=>x.id==='variable').amount,beforeVariable+700,
+   'Wife variable spending excludes newly classified personal receipts');
+ const recipients=app.categoryGroups(pink,'economic');
+ eq(recipients.find(x=>x.key==='PERSONAL_WIFE').amount,40900,
+   'Wife allowance and wife individual purchases reconcile');
+ eq(recipients.find(x=>x.key==='PERSONAL_SELF').amount,7500,
+   'Self original 6k plus new 1,500 tracked in same pink category');
+ eq(recipients.find(x=>x.key==='PERSONAL_UNASSIGNED').amount,200,
+   'Unknown old personal owner must not be guessed');
+ ok(recipients.find(x=>x.key==='PERSONAL_SELF').label.includes('12,500'),
+   'Self 20k budget remaining updates to 12,500');
+ const summary=window.householdPersonalLedgerV186.presentation(st,usage).summary;
+ eq(summary.wifeSpent,40900,'Wife personal spending summary includes tagged purchases');
+ eq(summary.selfSpent,7500,'Self personal spending summary includes tagged purchases');
+ eq(summary.unassignedSpent,200,'Legacy unassigned personal remains separate');
+ const matched=structuredClone(st);
+ matched.purchaseEvents.push({purchase_id:'exact-self-match',card:'Rakuten',
+   purchase_date:'2026-10-30',merchant_raw:'飲み会',original_amount:6000,
+   category:'FOOD',subcategory:'CAFE',economic_type:'EXPENSE',
+   spending_class:'NORMAL',expense_bucket_v193:'PERSONAL',personal_owner_v193:'self'});
+ const matchedUsage=window.householdUsageLedgerV157.calculate(matched,'2026-10','payday');
+ const linked=app.usageBuckets(matchedUsage,matched,true);
+ eq(linked.find(x=>x.id==='personal').amount,48600,
+   'Explicitly tagged card receipt matching recorded personal drink is counted once');
+ ok(!linked.find(x=>x.id==='variable').items.some(x=>x.label==='飲み会'),
+   'Personal drink must not appear in variable spending');
+ eq(st.purchaseEvents.length,start+4,'Rendering changes no source records');
+}
 console.log('PASS '+asserts+' expense unified v148 assertions');

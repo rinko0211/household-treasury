@@ -43,6 +43,7 @@ jobs:
           set -euo pipefail
           node tests/treasury-ledger-v145.test.js
           node tests/expense-unified-v148.test.js
+          node tests/release-assets-contract-v194.test.cjs
           node tests/personal-ledger-v186.test.cjs
           node tests/settings-mobile-layout-v171.test.cjs
           node tests/continuous-transaction-editor-v167.test.cjs
@@ -84,6 +85,22 @@ jobs:
           const html=fs.readFileSync('index.html','utf8');
           const sw=fs.readFileSync('sw.js','utf8');
           const loader=fs.readFileSync('sync-state-sanitizer-v22.js','utf8');
+          // Derive current versions from HTML/loader instead of pinning numbers.
+          function sourceAsset(filename,source){
+            const escaped=filename.replaceAll('.','\\.');
+            const url=source.match(new RegExp('\\./'+escaped+'\\?v=\\d+'))?.[0];
+            assert.ok(url,'Runtime source missing: '+filename);
+            assert.ok(sw.includes('"'+url+'"'),'PWA cache missing: '+url);
+            return url;
+          }
+          const appAsset=sourceAsset('app.js',html);
+          const expenseAsset=sourceAsset('expense-unified-v148.js',html);
+          const personalAsset=sourceAsset('personal-ledger-v186.js',html);
+          const loaderAsset=sourceAsset('sync-state-sanitizer-v22.js',html);
+          const familyAsset=sourceAsset('family-share-owner-v160.js',html);
+          const editorAsset=sourceAsset('semantic-ui-v48.js',loader);
+          const cashCardAsset=sourceAsset('cash-card-reclass-v178.js',loader);
+          const cardCashAsset=sourceAsset('card-cash-reclass-v179.js',loader);
           const hub=fs.readFileSync('expense-unified-v148.js','utf8');
           assert.ok(fs.readFileSync('manual-expense-delete-v192.js','utf8').includes('manually_deleted_v192'));
           const purchaseUsage=fs.readFileSync('purchase-usage-ledger-v157.js','utf8');
@@ -108,15 +125,15 @@ jobs:
           assert.ok(html.includes('expense-nature-rules-v152.js?v=159'));
           assert.ok(html.includes('purchase-usage-ledger-v157.js?v=186'));
           assert.ok(html.includes('manual-expense-delete-v192.js?v=192'));
-          assert.ok(html.includes('personal-ledger-v186.js?v=193'));
-          assert.ok(html.includes('expense-unified-v148.js?v=193'));
+          assert.ok(html.includes(personalAsset));
+          assert.ok(html.includes(expenseAsset));
           assert.ok(html.indexOf('expense-nature-rules-v152.js?v=159') < html.indexOf('purchase-usage-ledger-v157.js?v=186'));
-          assert.ok(html.indexOf('purchase-usage-ledger-v157.js?v=186') < html.indexOf('expense-unified-v148.js?v=193'));
+          assert.ok(html.indexOf('purchase-usage-ledger-v157.js?v=186') < html.indexOf(expenseAsset));
           assert.ok(html.includes('expense-unified-v148.css?v=192'));
           assert.ok(html.includes('ui-modern-v169.css?v=180'));
           assert.ok(!html.includes('card-budget-allocation-v170.js'),'Removed recommendation panel must not be mounted');
           assert.ok(sw.includes('./ui-modern-v169.css?v=180'));
-          assert.ok(html.includes('sync-state-sanitizer-v22.js?v=193'));
+          assert.ok(html.includes(loaderAsset));
           assert.ok(sw.includes('./fixed-master-unified-v43.js?v=171'));
           assert.ok(sw.includes('./card-settings-unified-v77.js?v=171'));
           assert.ok(loader.includes('fixed-master-unified-v43.js?v=171'));
@@ -130,7 +147,7 @@ jobs:
 
           assert.ok(hub.includes('この明細を確認・編集'));
           assert.ok(hub.includes('チャージ・資金移動の疑い'));
-          assert.ok(loader.includes('semantic-ui-v48.js?v=193'));
+          assert.ok(loader.includes(editorAsset));
           assert.ok(fs.readFileSync('semantic-ui-v48.js','utf8').includes('transactionEditorTopupV165'));
           assert.ok(fs.readFileSync('semantic-ui-v48.js','utf8').includes('data-v108-tx-next'));
           assert.ok(hub.includes('captureEditContext')&&hub.includes('restoreEditContext'));
@@ -138,12 +155,12 @@ jobs:
 
           assert.ok(fs.readFileSync('family/family.js','utf8').includes('管理アプリの「支出」'));
 
-          assert.ok(html.includes('sync-state-sanitizer-v22.js?v=193'));
+          assert.ok(html.includes(loaderAsset));
           assert.ok(html.includes('treasury-ledger-v145.js?v=153'));
-          assert.ok(sw.includes('household-treasury-v193-personal-bucket'));
-          assert.ok(sw.includes('./semantic-ui-v48.js?v=193'));
-          assert.ok(sw.includes('./app.js?v=184'));
-          assert.ok(html.includes('./app.js?v=184'));
+          assert.ok(/const CACHE="household-treasury-v\d+-[^"]+"/.test(sw));
+          assert.ok(sw.includes(editorAsset));
+          assert.ok(sw.includes(appAsset));
+          assert.ok(html.includes(appAsset));
           assert.ok(fs.readFileSync('semantic-ui-v48.js','utf8').includes('直前の保存を処理中です'));
           assert.ok(fs.readFileSync('app.js','utf8').includes('state=previous'));
           assert.ok(fs.readFileSync('semantic-ui-v48.js','utf8').includes('assertCashExpenseSaved'));
@@ -152,17 +169,17 @@ jobs:
           assert.ok(fs.readFileSync('app.js','utf8').includes('cash-expense-id:'));
           assert.ok(fs.readFileSync('family/index.html','utf8').includes('publishedTimeV183'));
           assert.ok(fs.readFileSync('family/family.js','utf8').includes('published_at'));
-          assert.ok(loader.includes('cash-card-reclass-v178.js?v=193'));
-          assert.ok(sw.includes('./cash-card-reclass-v178.js?v=193'));
-          assert.ok(loader.includes('card-cash-reclass-v179.js?v=193'));
-          assert.ok(sw.includes('./card-cash-reclass-v179.js?v=193'));
+          assert.ok(loader.includes(cashCardAsset));
+          assert.ok(sw.includes(cashCardAsset));
+          assert.ok(loader.includes(cardCashAsset));
+          assert.ok(sw.includes(cardCashAsset));
           assert.ok(sw.includes('./card-cycle-v81.js?v=179'));
           assert.ok(sw.includes('./card-forecast-v49.js?v=179'));
           assert.ok(sw.includes('./cash-expense-analytics-v106.js?v=178'));
           assert.ok(html.includes('cycle-audit-reconciliation-v153.js?v=161'));
           assert.ok(html.includes('payment-reclass-patch-v159.js?v=161'));
-          assert.ok(html.includes('family-share-owner-v160.js?v=193'));
-          assert.ok(sw.includes('./family-share-owner-v160.js?v=193'));
+          assert.ok(html.includes(familyAsset));
+          assert.ok(sw.includes(familyAsset));
           assert.ok(sw.includes('./settings-ux-v45.js?v=180'));
           assert.ok(sw.includes('./ui-modern-v169.css?v=180'));
           assert.ok(fs.readFileSync('settings-ux-v45.js','utf8').includes('treasuryHeaderActionsV180'));
@@ -190,8 +207,8 @@ jobs:
           assert.ok(!loader.includes("injectClassic('./expense-tab-v130.js"), 'old expense renderer was not retired');
           assert.ok(!sw.includes('./expense-tab-v130.js?v=130'), 'old expense renderer remains precached');
           assert.ok(loader.includes('cash-expense-analytics-v106.js?v=178'));
-          assert.ok(loader.includes('semantic-ui-v48.js?v=193'));
-          assert.ok(!html.includes('<script src="./semantic-ui-v48.js?v=193"'), 'duplicate legacy editor loader');
+          assert.ok(loader.includes(editorAsset));
+          assert.ok(!html.includes('<script src="'+editorAsset+'"'), 'duplicate legacy editor loader');
           assert.ok(audit.includes('planPatch')&&audit.includes('reallocateResidual'));
           assert.ok(audit.includes('元明細の項目が第三の値に変更されています'));
           assert.ok(audit.includes('guardIsOld'));
@@ -200,12 +217,12 @@ jobs:
           assert.ok(html.includes('verified-correction-patch-v149.js?v=161'));
           assert.ok(correction.includes('treasuryRecoverySnapshot')&&correction.includes('replaceTreasuryState'));
           for(const path of [
-            'sync-state-sanitizer-v22.js?v=193',
+            loaderAsset.slice(2),
             'expense-nature-rules-v152.js?v=159',
             'purchase-usage-ledger-v157.js?v=186',
-            'personal-ledger-v186.js?v=193',
+            personalAsset.slice(2),
             'manual-expense-delete-v192.js?v=192',
-            'expense-unified-v148.js?v=193',
+            expenseAsset.slice(2),
             'expense-unified-v148.css?v=192',
             'verified-correction-patch-v149.js?v=161',
             'cycle-audit-reconciliation-v153.js?v=161',

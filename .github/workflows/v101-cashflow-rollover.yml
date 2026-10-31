@@ -3,6 +3,12 @@ name: Check v105 Current Balance Authority
 on:
   push:
     branches: [main]
+    paths:
+      - 'cashflow-reconciliation-v102.js'
+      - 'cashflow-rollover-v101.js'
+      - 'account-transfer-v83.js'
+      - 'app.js'
+      - '.github/workflows/v101-cashflow-rollover.yml'
   workflow_dispatch:
 
 permissions:

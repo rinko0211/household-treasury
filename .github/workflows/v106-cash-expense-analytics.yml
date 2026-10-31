@@ -4,6 +4,13 @@ name: Check v116 Unified Transactions
 on:
   push:
     branches: [main]
+    paths:
+      - 'semantic-ui-v48.js'
+      - 'semantic-model-v47.js'
+      - 'cash-expense-analytics-v106.js'
+      - 'app.js'
+      - 'dashboard-v39.js'
+      - '.github/workflows/v106-cash-expense-analytics.yml'
   workflow_dispatch:
 
 permissions:

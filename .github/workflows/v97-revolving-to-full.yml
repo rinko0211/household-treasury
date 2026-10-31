@@ -3,6 +3,11 @@ name: Check v97 Revolving To Full
 on:
   push:
     branches: [main]
+    paths:
+      - 'revolving-to-full-v97.js'
+      - 'card-cycle-v81.js'
+      - 'card-cycle-ui-v81.js'
+      - '.github/workflows/v97-revolving-to-full.yml'
   workflow_dispatch:
 
 permissions:

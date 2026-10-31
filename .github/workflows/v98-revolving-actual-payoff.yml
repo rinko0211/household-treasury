@@ -3,6 +3,10 @@ name: Check v98 Revolving Actual Payoff
 on:
   push:
     branches: [main]
+    paths:
+      - 'revolving-actual-payoff-v98.js'
+      - 'card-cycle-defaults-v96.js'
+      - '.github/workflows/v98-revolving-actual-payoff.yml'
   workflow_dispatch:
 
 permissions:

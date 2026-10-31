@@ -2,10 +2,9 @@ name: Check v88 Card Settings Stability
 
 on:
   push:
+    branches: [main]
     paths:
       - 'card-settings-stability-v88.js'
-      - 'sync-state-sanitizer-v22.js'
-      - 'sw.js'
       - '.github/workflows/v88-card-settings-stability.yml'
   workflow_dispatch:
 

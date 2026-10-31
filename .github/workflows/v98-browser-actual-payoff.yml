@@ -3,6 +3,10 @@ name: Browser Check v98 Actual Revolving Payoff
 on:
   push:
     branches: [main]
+    paths:
+      - 'revolving-actual-payoff-v98.js'
+      - 'revolving-to-full-v97.js'
+      - '.github/workflows/v98-browser-actual-payoff.yml'
   workflow_dispatch:
 
 permissions:

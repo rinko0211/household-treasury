@@ -76,6 +76,7 @@ jobs:
           node tests/mdc-pdf-bulk-review-v189.test.cjs
           node tests/mdc-pdf-post-import-v190.test.cjs
           node tests/manual-expense-delete-v192.test.cjs
+          node tests/kabu-card-v198.test.cjs
           node tests/mdc-pdf-import.test.cjs
           node tests/structured-payment-and-pdf-v168.test.cjs
       - name: Check release links against actual app version

@@ -166,10 +166,6 @@ function mountInto(container){
  };
 }
 window.householdJalCrossSourceV166={scan,scanPdfPreview,plan,apply,mountInto};
-function mount(){
- const box=$('mdcDuplicateAuditV144');if(box)mountInto(box);
-}
-if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',mount,{once:true});
-else setTimeout(mount,0);
-window.addEventListener('treasury:expenses-imported',()=>setTimeout(mount,0));
+// Import view is read-only for previously registered source statements.
+// Old assistant-generated receipts can be removed via individual expense rows.
 })();

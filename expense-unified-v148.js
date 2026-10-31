@@ -122,8 +122,10 @@ function rowDetails(row,st){
  const rule=window.householdExpenseNatureV152?.classify({
    category,subcategory,source,kind:row.kind,label:row.label,semantic:sem
  })||{nature:'REVIEW',key:''};
+ const deletable=window.householdManualExpenseDeleteV192?.locate?.(st,row.identity);
  return {...row,category,subcategory,costNature:rule.nature,
-   costNatureKey:rule.key,costNatureReason:rule.reason,editKind,editId};
+   costNatureKey:rule.key,costNatureReason:rule.reason,editKind,editId,
+   manualDeleteIdentity:deletable?.identity||''};
 }
 function usageBuckets(usage,st,includePersonal=false){
  const privateSummary=window.householdPersonalLedgerV186?.presentation?.(st,usage);
@@ -292,6 +294,9 @@ function detailPanel(bucket){
          '<div class="hub-muted">'+esc(x.date||'日付未確定')+' ・ '+esc(x.source||'')+
            (x.provisional?' ・ 仮記帳':'')+(x.needsReview?' ・ 要確認':'')+'</div>'+
          (x.editKind&&x.editId?'<button type="button" class="hub-edit" data-hub-edit="'+esc(x.editKind)+'" data-hub-editid="'+esc(x.editId)+'">明細を編集</button>':'')+
+         (x.manualDeleteIdentity?'<button type="button" class="hub-delete" data-hub-delete="'+
+           esc(x.manualDeleteIdentity)+'">手動明細を削除</button>':
+           '<span class="hub-muted" style="display:block;margin-top:6px">公式取込・口座記録（削除不可）</span>')+
          '</div><b class="hub-amt">'+yen(Math.abs(n(x.amount)))+'</b></div>';
      }
      if(g.items.length>150)markup+='<p class="hub-muted">先頭150件を表示。残りは対象期間を絞るか明細タブで確認してください。</p>';
@@ -409,6 +414,15 @@ function render(){
          '</div><b class="hub-amt">'+yen(r.amount)+'</b></div></div>';
      }).join('')+'</details>';
  }
+ const removed=window.householdManualExpenseDeleteV192?.removed?.(st)||[];
+ html+='<details class="hub-card" id="hubManualDeletedV192"><summary style="cursor:pointer;font-weight:700">'+
+   '削除した手動明細を復元（'+removed.length+'件）</summary>'+
+   '<p class="hub-muted">元の識別情報を残して集計から除外しています。公式カード・PDF・銀行の明細には影響しません。</p>'+
+   (removed.length?removed.map(x=>'<div class="hub-detailrow"><div class="hub-merchant"><b>'+
+     esc(x.label)+'</b><div class="hub-muted">'+esc(x.date||'日付未確定')+
+     '</div><button type="button" class="hub-edit" data-hub-restore="'+esc(x.identity)+'">この手動明細を復元</button></div>'+
+     '<b>'+yen(x.amount)+'</b></div>').join(''):
+     '<div class="hub-muted">削除した手動明細はありません。</div>')+'</details>';
  const budget=budgetReference(st,month);
  html+='<details class="hub-card" id="hubBudgetV151"><summary style="cursor:pointer;font-size:16px;font-weight:750">'+
    '毎月の基本予算（参考）'+yen(budget.total)+'</summary>'+
@@ -458,6 +472,14 @@ function bind(root){
  }));
  root.querySelectorAll('[data-hub-subcategory]').forEach(btn=>btn.addEventListener('click',()=>{
    const k=btn.dataset.hubSubcategory;openSubcategory=openSubcategory===k?'':k;render();
+ }));
+ root.querySelectorAll('[data-hub-delete]').forEach(btn=>btn.addEventListener('click',()=>{
+   try{window.householdManualExpenseDeleteV192?.apply?.(btn.dataset.hubDelete,'delete')}
+   catch(e){window.alert?.('削除できません：'+String(e?.message||e))}
+ }));
+ root.querySelectorAll('[data-hub-restore]').forEach(btn=>btn.addEventListener('click',()=>{
+   try{window.householdManualExpenseDeleteV192?.apply?.(btn.dataset.hubRestore,'restore')}
+   catch(e){window.alert?.('復元できません：'+String(e?.message||e))}
  }));
  root.querySelectorAll('[data-hub-edit]').forEach(btn=>btn.addEventListener('click',()=>{
    if(typeof window.openSemanticTransactionEditorV108==='function')

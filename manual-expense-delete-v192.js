@@ -102,5 +102,47 @@ function removed(st=stateNow()){
  }
  return results.sort((a,b)=>b.date.localeCompare(a.date)).slice(0,100);
 }
-window.householdManualExpenseDeleteV192={isOfficialCard,manual,locate,validate,apply,removed};
+
+// One-time recovery for old v190 imports that the prior UI wrongly let users
+// exclude. Canonical PDF evidence is never deleted. This operation ONLY
+// restores previously suppressed official rows after explicit confirmation.
+function legacyExcludedPdf(st=stateNow()){
+ return (st.purchaseEvents||[]).map((record,index)=>({record,index}))
+   .filter(({record})=>record?.mdc_pdf_user_excluded_v190===true&&
+     record.count_in_spending===false&&isOfficialCard(record))
+   .map(({record,index})=>({index,date:record.purchase_date||'',
+     label:record.merchant_raw||record.merchant_normalized||'JAL PDF',
+     amount:Math.abs(Number(record.original_amount)||0),
+     signature:JSON.stringify([record.purchase_id,record.purchase_date,record.original_amount,
+       record.mdc_pdf_signature_v168||'',record.pdf_card_identity||''])}))
+   .sort((a,b)=>b.date.localeCompare(a.date));
+}
+function restoreOldCanonical(index){
+ if(!Number.isSafeInteger(index)||index<0)throw Error('対象が不正です。');
+ const original=legacyExcludedPdf().find(x=>x.index===index);
+ if(!original)throw Error('過去に除外された公式PDF明細ではありません。');
+ if(typeof window.replaceTreasuryState!=='function'||
+    typeof window.treasuryRecoverySnapshot!=='function')throw Error('安全な保存が利用できません。');
+ if(!window.confirm?.(original.date+' '+original.label+' '+yen(original.amount)+
+   '\n以前の除外を解除し、公式PDF明細を正本として再計上しますか？'+
+   '\n同じ買い物の手動入力が残っている場合は、支出ページで手動入力を削除してください。'))
+   return {cancelled:true};
+ const st=stateNow(),fresh=legacyExcludedPdf(st).find(x=>x.index===index);
+ if(!fresh||fresh.signature!==original.signature)throw Error('元のPDF明細が変更されています。');
+ const next=structuredClone(st),row=next.purchaseEvents[index],prior=row.mdc_pdf_original_count_in_spending_v190;
+ if(prior===undefined||prior===null)delete row.count_in_spending;
+ else row.count_in_spending=prior;
+ row.mdc_pdf_user_excluded_v190=false;
+ delete row.mdc_pdf_original_count_in_spending_v190;
+ delete row.mdc_pdf_excluded_at_v190;
+ row.mdc_pdf_review_history_v190=[...(row.mdc_pdf_review_history_v190||[]),
+   {at:new Date().toISOString(),operation:'restore',source:'EXPENSES_V192_RECOVERY'}];
+ window.treasuryRecoverySnapshot('旧版で除外した正本PDFの復旧前');
+ if(window.replaceTreasuryState(next)===false)throw Error('保存できませんでした。');
+ window.cloudSyncOnLocalSave?.();
+ window.householdExpenseUnifiedV148?.render?.();
+ return {restored:true,index};
+}
+
+window.householdManualExpenseDeleteV192={isOfficialCard,manual,locate,validate,apply,removed,legacyExcludedPdf,restoreOldCanonical};
 })();

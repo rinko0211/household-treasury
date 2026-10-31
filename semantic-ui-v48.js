@@ -337,7 +337,12 @@
   function ensureTransactionEditor(){
     let m=$('transactionEditorV108');if(m)return m;m=document.createElement('div');m.id='transactionEditorV108';m.style.cssText='display:none;position:fixed;inset:0;z-index:13000;background:rgba(3,8,20,.72);padding:14px;overflow:auto';
     m.innerHTML=`<div class="card" style="max-width:720px;margin:5vh auto"><div style="display:flex;justify-content:space-between;gap:10px;align-items:flex-start"><div><div class="title" id="transactionEditorTitleV108" style="margin:0"></div><div class="tiny" id="transactionEditorMetaV108"></div></div><button type="button" class="btn secondary" data-v108-tx-close>閉じる</button></div><div id="transactionEditorRawV110"></div><div class="form" style="grid-template-columns:repeat(4,1fr);gap:8px;margin-top:12px"><div class="field"><label>お金の性質</label><select id="transactionEditorEconV108">${ECON.map(x=>`<option value="${x}">${ECON_LABEL[x]}</option>`).join('')}</select></div><div class="field"><label>通常 / 特別</label><select id="transactionEditorSpendV108"><option value="NORMAL">通常費</option><option value="SPECIAL">特別費</option></select></div><div class="field"><label>支出区分（固定費・変動費・個人費）</label><select id="transactionEditorNatureV159"><option value="AUTO">自動判定</option><option value="FIXED">固定費</option><option value="VARIABLE">変動費</option><option value="PERSONAL">個人費</option><option value="REVIEW">未確定・要確認</option></select></div><div class="field" id="transactionEditorPersonalOwnerFieldV193" style="display:none"><label>個人費の対象</label><select id="transactionEditorPersonalOwnerV193"><option value="">妻・本人を選択</option><option value="wife">妻</option><option value="self">本人</option></select></div><div class="field"><label>カテゴリ</label><select id="transactionEditorCatV108"></select></div><div class="field"><label>サブカテゴリ</label><select id="transactionEditorSubV108"></select></div><div class="field" id="transactionEditorTopupFieldV165" style="display:none"><label>チャージ・資金移動の確認</label><select id="transactionEditorTopupV165"><option value="PENDING">保留（要確認のまま）</option><option value="EXPENSE">買い物・支出と確認</option><option value="TRANSFER">チャージ・資金移動と確認（支出から除外）</option></select></div></div><div class="note" style="margin-top:10px">自分の口座間移動やカード支払用の資金移動は「資金移動」にすると、支出集計から除外されます。</div><p id="transactionSaveFeedbackV184" role="alert" class="note" style="margin-top:10px" hidden></p><div class="controls" style="margin-top:12px"><button type="button" class="btn" data-v108-tx-save>保存</button><button type="button" class="btn secondary" data-v108-tx-next>保存して次へ</button><button type="button" class="btn secondary" data-v108-tx-remember>保存して記憶</button></div></div>`;
-    document.body.appendChild(m);m.addEventListener('click',e=>{if(e.target===m||e.target.closest?.('[data-v108-tx-close]'))closeTransactionEditor();if(e.target.closest?.('[data-v108-tx-save]'))saveTransactionEditor(false,false);if(e.target.closest?.('[data-v108-tx-next]'))saveTransactionEditor(false,true);if(e.target.closest?.('[data-v108-tx-remember]'))saveTransactionEditor(true,false)});$('transactionEditorRawV110').addEventListener('change',e=>{if(['transactionCashCardMasterV178','transactionRawDateV110'].includes(e.target?.id))refreshCashCardHint()});$('transactionEditorEconV108').addEventListener('change',syncTransactionEditor);$('transactionEditorNatureV159').addEventListener('change',syncTransactionEditor);$('transactionEditorCatV108').addEventListener('change',()=>{$('transactionEditorSubV108').innerHTML=subOptions($('transactionEditorCatV108').value,$('transactionEditorSubV108').value)});$('transactionEditorTopupV165').addEventListener('change',()=>{
+    document.body.appendChild(m);m.addEventListener('click',e=>{if(e.target===m||e.target.closest?.('[data-v108-tx-close]'))closeTransactionEditor();if(e.target.closest?.('[data-v108-tx-save]'))saveTransactionEditor(false,false);if(e.target.closest?.('[data-v108-tx-next]'))saveTransactionEditor(false,true);if(e.target.closest?.('[data-v108-tx-remember]'))saveTransactionEditor(true,false)});$('transactionEditorRawV110').addEventListener('change',e=>{if(['transactionCashCardMasterV178','transactionRawDateV110'].includes(e.target?.id))refreshCashCardHint()});$('transactionEditorEconV108').addEventListener('change',syncTransactionEditor);$('transactionEditorNatureV159').addEventListener('change',syncTransactionEditor);$('transactionEditorCatV108').addEventListener('change',()=>{
+    $('transactionEditorSubV108').innerHTML=subOptions($('transactionEditorCatV108').value,$('transactionEditorSubV108').value);
+    if($('transactionEditorCatV108').value==='PERSONAL'&&$('transactionEditorNatureV159').value==='AUTO'){
+      $('transactionEditorNatureV159').value='PERSONAL';syncTransactionEditor();
+    }
+  });$('transactionEditorTopupV165').addEventListener('change',()=>{
     const choice=$('transactionEditorTopupV165').value;
     if(choice==='EXPENSE'||choice==='TRANSFER'){$('transactionEditorEconV108').value=choice;syncTransactionEditor()}
   });return m
@@ -432,7 +437,7 @@
         id,date:o.purchase_date,description:o.merchant_raw||o.merchant_normalized||'',
         amount:Math.abs(Number(o.original_amount)||0),
         economicType:econ,spendingClass:spend,category:cat,subcategory:sub,
-        costNature:$('transactionEditorNatureV159')?.value||'AUTO'
+        costNature:bucket,expenseBucket:bucket,personalOwner:owner
       },()=>{
         closeTransactionEditor();window.householdExpenseUnifiedV148?.render?.();
         restoreTransactionEditContext(editContext);
@@ -454,7 +459,7 @@
           description:$('transactionRawNameV110')?.value||'',
           amount:Number($('transactionRawAmountV110')?.value),
           economicType:econ,spendingClass:spend,category:cat,
-          subcategory:sub,costNature:$('transactionEditorNatureV159')?.value||'AUTO'
+          subcategory:sub,costNature:bucket,expenseBucket:bucket,personalOwner:owner
         });
       }catch(e){return alert('変更できません：'+String(e.message||e))}
       if(typeof window.treasuryRecoverySnapshot!=='function'||typeof window.replaceTreasuryState!=='function')

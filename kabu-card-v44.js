@@ -178,6 +178,8 @@
        (verified.kind==='manual_purchase'&&isOfficial(x))||
        (verified.kind==='manual_cash'&&!/(?:KABU[&＆]?|KABUAND|カブアンド|株アンド)/i.test(String(x.payment_method||x.payment_route||''))))
       throw Error('正本の照合に失敗しました。');
+    x.kabu_original_count_v198=x.count_in_spending===undefined?null:x.count_in_spending;
+    x.kabu_original_status_v198=x.reconciliation_status===undefined?null:x.reconciliation_status;
     x.count_in_spending=false;
     x.reconciliation_status='ABSORBED_DUPLICATE';
     x.kabu_canonical_purchase_id=String(canonical.purchase_id||'');
@@ -191,5 +193,55 @@
   }
 
   window.parseKabuCardV44=parseKabuCard;
-  window.householdKabuCardV198={usageKey,isKabuCard,scanDuplicates,applyDuplicate};
+
+  function excludedDuplicates(st=state){
+    const rows=[];
+    for(const [kind,arr] of [['purchase',st.purchaseEvents||[]],['cash',st.cashExpenses||[]]]){
+      for(const [index,x] of arr.entries()){
+        if(x?.count_in_spending!==false||!x.kabu_duplicate_reviewed_at_v198)continue;
+        rows.push({kind,index,date:x.purchase_date||x.date||'',
+          label:String(x.merchant_raw||x.description||x.merchant_normalized||''),
+          amount:Math.abs(Number(x.original_amount??x.purchase_total??x.amount)||0),
+          canonicalId:String(x.kabu_canonical_purchase_id||'')});
+      }
+    }
+    return rows.sort((a,b)=>b.date.localeCompare(a.date));
+  }
+  function restoreDuplicate(ref){
+    const [kind,indexStr]=String(ref||'').split(':'),index=Number(indexStr);
+    if(!['purchase','cash'].includes(kind)||!Number.isSafeInteger(index)||index<0)
+      throw Error('復元対象が不正です。');
+    const prev=excludedDuplicates().find(x=>x.kind===kind&&x.index===index);
+    if(!prev)throw Error('復元できる株アンドの重複除外はありません。');
+    if(typeof window.treasuryRecoverySnapshot!=='function'||
+       typeof window.replaceTreasuryState!=='function')
+      throw Error('安全な保存と復旧履歴が利用できません。');
+    if(!window.confirm?.('株アンドの二重計上解除を取り消し、再び計上しますか？\n'+
+      prev.date+'　'+prev.label+'　'+prev.amount+'円\n'+
+      '本当に別々の購入だった場合に選択してください。'))
+      return {cancelled:true};
+    const latest=typeof window.getTreasuryStateRaw==='function'?window.getTreasuryStateRaw():state;
+    const check=excludedDuplicates(latest).find(x=>x.kind===kind&&x.index===index);
+    if(!check||check.canonicalId!==prev.canonicalId||
+       check.amount!==prev.amount||check.label!==prev.label||
+       check.date!==prev.date)throw Error('明細が更新されています。再確認してください。');
+    const next=structuredClone(latest),row=(kind==='purchase'?next.purchaseEvents:next.cashExpenses)[index];
+    if(row.kabu_original_count_v198===null||row.kabu_original_count_v198===undefined)
+      delete row.count_in_spending;
+    else row.count_in_spending=row.kabu_original_count_v198;
+    if(row.kabu_original_status_v198===null||row.kabu_original_status_v198===undefined)
+      delete row.reconciliation_status;
+    else row.reconciliation_status=row.kabu_original_status_v198;
+    delete row.kabu_original_count_v198;
+    delete row.kabu_original_status_v198;
+    delete row.kabu_duplicate_reviewed_at_v198;
+    row.kabu_duplicate_restored_at_v198=new Date().toISOString();
+    window.treasuryRecoverySnapshot('株アンドCSV重複解除の復元直前');
+    if(window.replaceTreasuryState(next)===false)throw Error('復元を保存できませんでした。');
+    window.cloudSyncOnLocalSave?.();
+    window.householdExpenseUnifiedV148?.render?.();
+    return {restored:1,amount:prev.amount};
+  }
+
+  window.householdKabuCardV198={usageKey,isKabuCard,scanDuplicates,applyDuplicate,excludedDuplicates,restoreDuplicate};
 })();

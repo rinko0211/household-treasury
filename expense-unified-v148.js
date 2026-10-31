@@ -452,6 +452,26 @@ function render(){
    '</b><div class="hub-muted">'+esc(x.date)+'</div><button type="button" class="hub-edit" data-hub-restorepdf="'+
    x.index+'">公式PDFの計上を復旧</button></div><b>'+yen(x.amount)+'</b></div>').join('')+
    '</details>';
+ const kabuOverlaps=window.householdKabuCardV198?.scanDuplicates?.(st)||[];
+ const kabuRestorable=window.householdKabuCardV198?.excludedDuplicates?.(st)||[];
+ if(kabuOverlaps.length||kabuRestorable.length){
+   html+='<details class="hub-card" id="hubKabuOverlapsV198">'+
+     '<summary style="cursor:pointer;font-weight:700">株アンドの重複確認（候補 '+kabuOverlaps.length+'件／復元可能 '+kabuRestorable.length+'件）</summary>'+
+     '<p class="hub-muted">同一利用日・加盟店・金額・利用回数を照合しました。同じ店で実際に複数回購入した場合は解除しないでください。記録は削除せず、選んだ候補だけ計上対象外にします。</p>'+
+     kabuOverlaps.slice(0,80).map(x=>'<div class="hub-detailrow"><div class="hub-merchant">'+
+       '<b>'+esc(x.date)+' '+esc(x.label)+'</b>'+
+       '<div class="hub-muted">'+esc(x.kind.startsWith('manual')?'手動登録との重複候補':'公式CSV同士の重複候補')+
+       ' ・ 正本 '+esc(x.canonicalFile)+' ・ 対象 '+esc(x.sourceFile)+'</div>'+
+       '<button type="button" class="hub-edit" data-hub-kabu-fix="'+x.kind+':'+x.index+'">この候補の二重計上を解除</button></div>'+
+       '<b>'+yen(x.amount)+'</b></div>').join('')+
+     (kabuOverlaps.length>80?'<p class="hub-muted">先頭80件まで表示しています。</p>':'')+
+     (kabuRestorable.length?'<p class="hub-muted" style="margin-top:12px">計上解除を取り消す</p>'+
+       kabuRestorable.slice(0,80).map(x=>'<div class="hub-detailrow"><div class="hub-merchant">'+
+       '<b>'+esc(x.date)+' '+esc(x.label)+'</b>'+
+       '<button type="button" class="hub-edit" data-hub-kabu-restore="'+x.kind+':'+x.index+
+       '">この明細を再計上</button></div><b>'+yen(x.amount)+'</b></div>').join(''):'')+
+     '</details>';
+ }
  const removed=window.householdManualExpenseDeleteV192?.removed?.(st)||[];
  html+='<details class="hub-card" id="hubManualDeletedV192"><summary style="cursor:pointer;font-weight:700">'+
    '削除した手動明細を復元（'+removed.length+'件）</summary>'+
@@ -540,6 +560,14 @@ function bind(root){
    const k=btn.dataset.hubBucket;openBucket=openBucket===k?'':k;openCategory='';openSubcategory='';render();
  }));
  // PDF/cash deletes, restores and edits keep their old guarded actions.
+ root.querySelectorAll('[data-hub-kabu-fix]').forEach(btn=>btn.addEventListener('click',()=>{
+   try{window.householdKabuCardV198?.applyDuplicate?.(btn.dataset.hubKabuFix)}
+   catch(e){window.alert?.('株アンドの重複解除ができません：'+String(e?.message||e))}
+ }));
+ root.querySelectorAll('[data-hub-kabu-restore]').forEach(btn=>btn.addEventListener('click',()=>{
+   try{window.householdKabuCardV198?.restoreDuplicate?.(btn.dataset.hubKabuRestore)}
+   catch(e){window.alert?.('株アンドの計上復元ができません：'+String(e?.message||e))}
+ }));
  root.querySelectorAll('[data-hub-restorepdf]').forEach(btn=>btn.addEventListener('click',()=>{
    try{window.householdManualExpenseDeleteV192?.restoreOldCanonical?.(Number(btn.dataset.hubRestorepdf))}
    catch(e){window.alert?.('正本を復旧できません：'+String(e?.message||e))}

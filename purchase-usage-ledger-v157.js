@@ -75,8 +75,10 @@ function buildBankHistoryIndex(st){
    if(!matches){matches=[];groups.set(key,matches)}
    matches.push({row,date:String(row.date||'')});
  }
- for(const groups of accounts.values())for(const matches of groups.values())
+ for(const groups of accounts.values())for(const matches of groups.values()){
    matches.sort((a,b)=>String(b.row.date).localeCompare(String(a.row.date)));
+   matches.isoDates=matches.every(x=>/^\d{4}-\d{2}-\d{2}$/.test(x.date));
+ }
  return {
    previous(target,key){
      // Map uses SameValueZero; the original === comparison rejects NaN.
@@ -86,8 +88,7 @@ function buildBankHistoryIndex(st){
      const date=String(target.date||'');
      // ISO YYYY-MM-DD sorts identically under lexical and locale order.
      // For legacy malformed dates, preserve the original linear predicate.
-     const isoOnly=/^\d{4}-\d{2}-\d{2}$/.test(date)&&
-       matches.every(x=>/^\d{4}-\d{2}-\d{2}$/.test(x.date));
+     const isoOnly=/^\d{4}-\d{2}-\d{2}$/.test(date)&&matches.isoDates;
      if(!isoOnly)return matches.find(x=>x.row!==target&&x.date<date)?.row||null;
      let low=0,high=matches.length;
      while(low<high){

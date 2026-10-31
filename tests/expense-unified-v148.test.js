@@ -564,7 +564,7 @@ ok(semanticEditorSource.includes("o.potential_prepaid_topup=false"),
  const usage=window.householdUsageLedgerV157.calculate(st,'2026-10','payday');
  const owner=app.usageBuckets(usage,st,true),shared=app.usageBuckets(usage,st,false);
  const pink=owner.find(x=>x.id==='personal');
- eq(pink.amount,48600,'Pink personal = prior 46k + wife's 900 + self 1,500 + unassigned 200');
+ eq(pink.amount,48600,'Pink personal = prior 46k + wife 900 + self 1,500 + unassigned 200');
  eq(owner.reduce((v,b)=>v+b.amount,0),usage.funds+46000,
    'Rebucketed transactions never inflate accounting totals');
  eq(shared.reduce((v,b)=>v+b.amount,0),usage.funds-2600,

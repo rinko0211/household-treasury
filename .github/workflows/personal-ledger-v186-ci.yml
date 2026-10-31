@@ -31,6 +31,10 @@ jobs:
           node --check kabu-card-v44.js
           node --check cross-source-audit-v201.js
           node tests/cross-source-audit-v201.test.cjs
+          node tests/dcard-csv-import.test.cjs
+          node tests/mdc-cross-source-v166.test.cjs
+          node tests/kabu-card-v198.test.cjs
+          node tests/ci-current-assets-v180.cjs cross-source-audit-v201.js
           node tests/private-ledger-repair-v199.test.cjs
           node tests/kabu-card-v198.test.cjs
           node --check mdc-pdf-delta-v144.js

@@ -353,7 +353,12 @@ function render(){
  // An owner-only personal expense adds only its unmatched portion.
  const privateAdjustment=(personal?.amount||0)-(personal?.matchedConsumption||0);
  const consumption=usage.consumption+privateAdjustment;
- const ordinary=usage.ordinary-(personal?.matchedOrdinary||0);
+ // A personal purchase contributes to total spending, not household living
+ // spending. The previously reported 6,000 yen is adjusted only once.
+ const allocatedNormal=(all.find(x=>x.id==='personal')?.items||[])
+   .filter(x=>x.kind!=='personal'&&x.spendingClass!=='SPECIAL')
+   .reduce((sum,x)=>sum+n(x.amount),0);
+ const ordinary=usage.ordinary-(personal?.matchedOrdinary||0)-allocatedNormal;
  const total=economic?usage.funds+privateAdjustment:bank.total;
  const income=usage.income;
  const difference=income-total,ratio=income>0?total*100/income:null;

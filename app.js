@@ -76,7 +76,10 @@ function forecastUntil(date){const days=Math.max(0,Math.ceil((new Date(date)-new
 function net(){const a=state.assets;return (a.bank||0)+(a.investment||0)+(a.ideco||0)+(a.other||0)-(a.liabilities||0)}
 function monthEconomicTotals(){
   const m=ym(new Date());let ordinary=0,special=0,investment=0,debt=0;
-  for(const p of state.purchaseEvents.filter(x=>String(x.purchase_date||'').startsWith(m))){const a=Math.abs(Number(p.original_amount)||0);if(p.ordinary_or_special==='SPECIAL')special+=a;else if(p.ordinary_or_special==='INVESTMENT')investment+=a;else if(p.ordinary_or_special==='DEBT')debt+=a;else ordinary+=a}
+  for(const p of state.purchaseEvents.filter(x=>String(x.purchase_date||'').startsWith(m)&&
+     x.count_in_spending!==false&&x.reconciliation_status!=='ABSORBED_DUPLICATE'&&
+     !x.is_refinanced&&!x.is_refinance_adjustment&&
+     String(x.economic_type||'EXPENSE').toUpperCase()==='EXPENSE')){const a=Math.abs(Number(p.original_amount)||0);if(p.ordinary_or_special==='SPECIAL')special+=a;else if(p.ordinary_or_special==='INVESTMENT')investment+=a;else if(p.ordinary_or_special==='DEBT')debt+=a;else ordinary+=a}
   for(const t of state.cashTransactions.filter(x=>String(x.date||'').startsWith(m))){const a=Math.abs(Math.min(0,Number(t.amount)||0));if(!a)continue;if(t.cashflow_type==='INVESTMENT_CONTRIBUTION')investment+=a;else if(t.cashflow_type==='DEBT_PRINCIPAL'||t.cashflow_type==='DEBT_INTEREST')debt+=a;else if(!t.is_transfer&&!['CARD_SETTLEMENT'].includes(t.cashflow_type)){if(t.ordinary_or_special==='SPECIAL')special+=a;else ordinary+=a}}
   return{ordinary,special,investment,debt};
 }

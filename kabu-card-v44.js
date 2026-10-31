@@ -1,7 +1,7 @@
 (() => {
   const CARD_NAME='KABU&';
   const SOURCE_LABEL='KABU&カード';
-  const norm=s=>String(s??'').normalize('NFKC').replace(/[\s　()（）［］\[\]・\-_/]/g,'').toUpperCase();
+  const norm=s=>String(s??'').normalize('NFKC').replace(/[\s　()（）［］\[\]〔〕【】・\-_/]/g,'').toUpperCase();
   const isKabuCard=x=>/^(?:KABU&|KABUAND|カブアンド|株アンド)(?:カード|CARD)?$/i.test(norm(x?.card||''));
   const counted=x=>x?.count_in_spending!==false&&x?.reconciliation_status!=='ABSORBED_DUPLICATE';
   // The purchase identity is independent of statement month, export filename,

@@ -5,6 +5,8 @@ on:
       - 'personal-ledger-v186.js'
       - 'expense-unified-v148.js'
       - 'manual-expense-delete-v192.js'
+      - 'private-ledger-repair-v199.js'
+      - 'kabu-card-v44.js'
       - 'index.html'
       - 'sw.js'
       - 'tests/**'
@@ -23,6 +25,10 @@ jobs:
           node --check personal-ledger-v186.js
           node --check expense-unified-v148.js
           node --check manual-expense-delete-v192.js
+          node --check private-ledger-repair-v199.js
+          node --check kabu-card-v44.js
+          node tests/private-ledger-repair-v199.test.cjs
+          node tests/kabu-card-v198.test.cjs
           node --check mdc-pdf-delta-v144.js
           node --check mdc-pdf-import-v136.js
           node tests/mdc-pdf-csv-preflight-v188.test.cjs

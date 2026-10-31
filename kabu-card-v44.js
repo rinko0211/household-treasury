@@ -60,7 +60,7 @@
     // Index the entire previously imported history before adding this file.
     // Count old occurrence numbers even if a duplicate was later suppressed.
     for(const p of state.purchaseEvents||[]){
-      if(!isKabuCard(p))continue;
+      if(!isOfficial(p))continue;
       const key=usageKey(p);
       if(!existing.has(key))existing.set(key,new Set());
       existing.get(key).add(Number(p.occurrence_index||1));
@@ -120,6 +120,32 @@
         amount:Math.abs(Number(p.original_amount)||0),
         sourceFile:String(p.source_file||''),canonicalFile:String(first.p.source_file||'')});
     }
+    // Explicitly KABU-tagged hand-entered purchases can be reviewed in
+    // Expenses, but must never block ingestion of an official statement.
+    // Cash paid with untagged method is excluded from automatic candidates.
+    for(const [i,p] of (st.purchaseEvents||[]).entries()){
+      if(isOfficial(p)||!counted(p)||!isKabuCard(p))continue;
+      const confirmed=groups.get(usageKey(p)+'|'+Number(p.occurrence_index||1));
+      if(!confirmed||confirmed.index===i)continue;
+      out.push({kind:'manual_purchase',index:i,canonicalIndex:confirmed.index,
+        key:usageKey(p)+'|manual_purchase|'+i,date:p.purchase_date||'',
+        label:p.merchant_raw||p.merchant_normalized||'',
+        amount:Math.abs(Number(p.original_amount)||0),
+        sourceFile:String(p.source_file||'手動登録'),canonicalFile:String(confirmed.p.source_file||'')});
+    }
+    for(const [i,p] of (st.cashExpenses||[]).entries()){
+      if(!counted(p)||!/(?:KABU[&＆]?|KABUAND|カブアンド|株アンド)/i.test(
+        String(p.payment_method||p.payment_route||'')))continue;
+      const key=[p.date,norm(p.description||p.description_raw||p.name),
+        Math.abs(Number(p.purchase_total??p.amount)||0)].join('|');
+      const confirmed=groups.get(key+'|1');
+      if(!confirmed)continue;
+      out.push({kind:'manual_cash',index:i,canonicalIndex:confirmed.index,
+        key:key+'|manual_cash|'+i,date:p.date||'',
+        label:p.description||p.description_raw||p.name||'',
+        amount:Math.abs(Number(p.purchase_total??p.amount)||0),
+        sourceFile:String(p.source_file||'手動登録'),canonicalFile:String(confirmed.p.source_file||'')});
+    }
     return out.sort((a,b)=>b.date.localeCompare(a.date)||a.index-b.index);
   }
   function applyDuplicate(index){
@@ -133,7 +159,7 @@
       proposed.date+'　'+proposed.label+'　'+yen.format(proposed.amount)+'\\n'+
       '保持する正本：'+proposed.canonicalFile+'\\n重複候補：'+proposed.sourceFile+
       '\\n実際に2回買い物をした場合はキャンセルしてください。\\n'+
-      '明細は削除せず、候補の二重計上だけ解除します。'))
+      '明細は削除せず、'+(proposed.kind.startsWith('manual')?'手動入力':'重複登録分')+'の二重計上だけ解除します。'))
       return {cancelled:true};
     const latest=typeof window.getTreasuryStateRaw==='function'?window.getTreasuryStateRaw():state;
     const verified=scanDuplicates(latest).find(x=>x.index===index);
@@ -141,13 +167,17 @@
        verified.canonicalIndex!==proposed.canonicalIndex)
       throw Error('照合中に家計データが変わりました。再確認してください。');
     const next=structuredClone(latest);
-    const x=next.purchaseEvents[index];
+    const x=verified.kind==='manual_cash'?next.cashExpenses[index]:next.purchaseEvents[index];
     const canonical=next.purchaseEvents[verified.canonicalIndex];
-    if(!x||!canonical||!isOfficial(x)||!isOfficial(canonical)||!counted(x)||!counted(canonical))
+    if(!x||!canonical||!isOfficial(canonical)||!counted(x)||!counted(canonical)||
+       (verified.kind==='purchase'&&!isOfficial(x))||
+       (verified.kind==='manual_purchase'&&isOfficial(x))||
+       (verified.kind==='manual_cash'&&!/(?:KABU[&＆]?|KABUAND|カブアンド|株アンド)/i.test(String(x.payment_method||x.payment_route||''))))
       throw Error('正本の照合に失敗しました。');
     x.count_in_spending=false;
     x.reconciliation_status='ABSORBED_DUPLICATE';
     x.kabu_canonical_purchase_id=String(canonical.purchase_id||'');
+    x.kabu_duplicate_kind_v198=verified.kind;
     x.kabu_duplicate_reviewed_at_v198=new Date().toISOString();
     window.treasuryRecoverySnapshot('株アンドCSV同一利用の二重計上解除直前');
     if(window.replaceTreasuryState(next)===false)throw Error('保存に失敗しました。');

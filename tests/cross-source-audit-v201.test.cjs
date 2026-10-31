@@ -128,3 +128,36 @@ test('tombstoned source and changed candidate signatures stop application before
  assert.throws(()=>e.audit.apply(choice,true),/照合対象/);
  assert.equal(e.writes,0);
 });
+
+
+test('reviewed separate decision expires if the source transaction is edited',()=>{
+ const e=make({purchaseEvents:[entry('a','a.csv'),entry('b','b.csv')]});
+ const first=e.audit.scan().candidates[0];
+ e.audit.apply([{key:first.key,keepSig:first.keepSig,duplicateSig:first.duplicateSig,
+   action:'SEPARATE'}],true);
+ assert.equal(e.audit.scan().candidates.length,0);
+ e.state.purchaseEvents[1].merchant_raw='KABU&〔プラス〕';
+ assert.equal(e.audit.scan().candidates.length,1,'a changed source requires another review');
+});
+test('a confirmed wrong suppression is restorable with original state',()=>{
+ const e=make({purchaseEvents:[entry('a','a.csv'),entry('b','b.csv',{
+   reconciliation_status:'CHECKED',count_in_spending:true})]});
+ const p=e.audit.scan().candidates[0];
+ const old=e.state.purchaseEvents.map(x=>({count:x.count_in_spending,status:x.reconciliation_status}));
+ e.audit.apply(selections([p]),true);
+ const excluded=e.audit.excluded();
+ assert.equal(excluded.length,1);
+ assert.equal(e.audit.restore(excluded[0].ref,true).restored,1);
+ assert.deepEqual(e.state.purchaseEvents.map(x=>({count:x.count_in_spending,status:x.reconciliation_status})),old);
+ assert.equal(e.audit.excluded().length,0);
+ assert.equal(e.writes,2);
+ assert.equal(e.backups,2);
+});
+test('two separately reported manual entries are warning candidates, not auto-excluded',()=>{
+ const e=make({cashExpenses:[
+  {id:'m1',date:'2026-10-11',description:'手書き経費',amount:1000,payment_method:'CASH'},
+  {id:'m2',date:'2026-10-11',description:'手書き経費',amount:1000,payment_method:'CASH'}]});
+ const q=e.audit.scan();
+ assert.equal(q.review,1);
+ assert.equal(e.writes,0);
+});

@@ -106,9 +106,9 @@ jobs:
           assert.ok(html.includes('expense-nature-rules-v152.js?v=159'));
           assert.ok(html.includes('purchase-usage-ledger-v157.js?v=186'));
           assert.ok(html.includes('personal-ledger-v186.js?v=187'));
-          assert.ok(html.includes('expense-unified-v148.js?v=187'));
+          assert.ok(html.includes('expense-unified-v148.js?v=191'));
           assert.ok(html.indexOf('expense-nature-rules-v152.js?v=159') < html.indexOf('purchase-usage-ledger-v157.js?v=186'));
-          assert.ok(html.indexOf('purchase-usage-ledger-v157.js?v=186') < html.indexOf('expense-unified-v148.js?v=187'));
+          assert.ok(html.indexOf('purchase-usage-ledger-v157.js?v=186') < html.indexOf('expense-unified-v148.js?v=191'));
           assert.ok(html.includes('expense-unified-v148.css?v=169'));
           assert.ok(html.includes('ui-modern-v169.css?v=180'));
           assert.ok(!html.includes('card-budget-allocation-v170.js'),'Removed recommendation panel must not be mounted');
@@ -137,7 +137,7 @@ jobs:
 
           assert.ok(html.includes('sync-state-sanitizer-v22.js?v=190'));
           assert.ok(html.includes('treasury-ledger-v145.js?v=153'));
-          assert.ok(sw.includes('household-treasury-v190-post-import-exclude'));
+          assert.ok(sw.includes('household-treasury-v191-expense-date-order'));
           assert.ok(sw.includes('./semantic-ui-v48.js?v=184'));
           assert.ok(sw.includes('./app.js?v=184'));
           assert.ok(html.includes('./app.js?v=184'));
@@ -201,7 +201,7 @@ jobs:
             'expense-nature-rules-v152.js?v=159',
             'purchase-usage-ledger-v157.js?v=186',
             'personal-ledger-v186.js?v=187',
-            'expense-unified-v148.js?v=187',
+            'expense-unified-v148.js?v=191',
             'expense-unified-v148.css?v=169',
             'verified-correction-patch-v149.js?v=161',
             'cycle-audit-reconciliation-v153.js?v=161',

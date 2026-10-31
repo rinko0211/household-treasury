@@ -84,13 +84,16 @@ assert.equal(merged.purchaseEvents[0].cost_nature,'VARIABLE');
    {kind:'cash',identity:'cash:0',date:'2026-10-29',amount:6000,
      label:'妻　個人費　手渡し',spendingClass:'NORMAL'},
    {kind:'purchase',identity:'purchase:3',date:'2026-10-30',amount:6001,
-     label:'飲み会',spendingClass:'NORMAL'}
+     label:'飲み会',spendingClass:'NORMAL'},
+   {kind:'purchase',identity:'purchase:4',date:'2026-10-28',amount:5000,
+     label:'本人・妻未指定',spendingClass:'NORMAL'}
  ];
  base.purchaseEvents=[
    {purchase_id:'a',expense_bucket_v193:'PERSONAL',personal_owner_v193:'self'},
    {purchase_id:'b',expense_bucket_v193:'PERSONAL',personal_owner_v193:'self'},
    {purchase_id:'c',expense_bucket_v193:'PERSONAL',personal_owner_v193:'wife'},
-   {purchase_id:'d',expense_bucket_v193:'PERSONAL',personal_owner_v193:'self'}
+   {purchase_id:'d',expense_bucket_v193:'PERSONAL',personal_owner_v193:'self'},
+   {purchase_id:'e',expense_bucket_v193:'PERSONAL',category:'PERSONAL'}
  ];
  base.cashExpenses=[{id:'wife-cash',expense_bucket_v193:'PERSONAL',
    personal_owner_v193:'wife'}];
@@ -99,17 +102,17 @@ assert.equal(merged.purchaseEvents[0].cost_nature,'VARIABLE');
    'First two matching self receipts and first wife cash are absorbed in order');
  assert.equal(result.matchedConsumption,18000);
  assert.equal(result.matchedOrdinary,18000);
- assert.equal(result.allocated.wife,0);
+ assert.equal(result.allocated.wife,6000,'Wrong-owner personal card stays with wife');
  assert.equal(result.allocated.self,6001,
    'Different amount remains separately allocated, never matched accidentally');
- assert.equal(result.allocated.unassigned,6000,
+ assert.equal(result.allocated.unassigned,5000,
    'Wrong-owner receipt is not matched to self or wife');
  assert.equal(result.summary.selfSpent,18001,
    'Personal 12k from past reports plus 6001 new card entry');
- assert.equal(result.summary.wifeSpent,6000);
+ assert.equal(result.summary.wifeSpent,12000);
  assert.equal(result.items.length,3);
  assert.equal(result.amount,18000,'Stored pink reports not duplicated');
- assert.equal(base.purchaseEvents.length,4,'Source records untouched');
+ assert.equal(base.purchaseEvents.length,5,'Source records untouched');
 }
 
 console.log('PERSONAL_LEDGER_V186_PASS',{wife:summary.wifeSpent,self:summary.selfSpent,

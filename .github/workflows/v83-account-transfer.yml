@@ -3,6 +3,10 @@ name: Check v99 Account Balance Authority
 on:
   push:
     branches: [main]
+    paths:
+      - 'account-transfer-v83.js'
+      - 'account-transfer-actions-v84.js'
+      - '.github/workflows/v83-account-transfer.yml'
   workflow_dispatch:
 
 permissions:

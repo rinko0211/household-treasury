@@ -3,6 +3,11 @@ name: Check v81 Card Cycle Bank Dashboard
 on:
   push:
     branches: [main]
+    paths:
+      - 'card-cycle-v81.js'
+      - 'card-cycle-ui-v81.js'
+      - 'dashboard-bank-v81.js'
+      - '.github/workflows/v81-card-cycle-bank.yml'
   workflow_dispatch:
 
 permissions:

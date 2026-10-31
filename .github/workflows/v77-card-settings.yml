@@ -3,6 +3,11 @@ name: Check v77 Card Settings
 on:
   push:
     branches: [main]
+    paths:
+      - 'card-settings-unified-v77.js'
+      - 'fixed-master-unified-v43.js'
+      - 'settings-list-integrity-v54.js'
+      - '.github/workflows/v77-card-settings.yml'
   workflow_dispatch:
 
 permissions:

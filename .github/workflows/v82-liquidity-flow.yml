@@ -3,6 +3,11 @@ name: Check Import Isolation
 on:
   push:
     branches: [main]
+    paths:
+      - 'mobile-cashflow-v59.js'
+      - 'account-transfer-v83.js'
+      - 'cashflow-integration-v41.js'
+      - '.github/workflows/v82-liquidity-flow.yml'
   workflow_dispatch:
 
 permissions:

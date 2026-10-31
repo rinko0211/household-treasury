@@ -236,7 +236,7 @@ jobs:
           assert.ok(purchaseUsage.includes('fullAmount')&&purchaseUsage.includes('auditCycle'));
           assert.ok(purchaseUsage.includes('bankFlow')&&purchaseUsage.includes('reviewCount'));
           assert.ok(purchaseUsage.includes('normalFixed')&&purchaseUsage.includes('normalVariable')&&purchaseUsage.includes('normalUndetermined'));
-          assert.ok(hub.includes('固定費・ローン')&&hub.includes('ローン・借入返済（消費外）')&&hub.includes('通常費（変動費）')&&hub.includes('通常費（固定・変動未確定）'));
+          assert.ok(hub.includes('固定費・ローン')&&hub.includes('ローン・借入返済（消費外）')&&hub.includes("label:'変動費'")&&hub.includes("label:'個人費'")&&hub.includes('通常費（固定・変動未確定）'));
           assert.ok(!hub.includes("{id:'debt',label:"),'Loan bucket must only appear inside fixed commitments');
           assert.ok(hub.includes("lens='economic'"));
           assert.ok(hub.includes('通常の消費・生活費'));

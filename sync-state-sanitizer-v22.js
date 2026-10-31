@@ -92,7 +92,7 @@
   injectClassic('./cashflow-integration-v41.js?v=135', 'data-household-cashflow-integration-v41');
   injectClassic('./payment-routing-v42.js?v=42', 'data-household-payment-routing-v42');
   injectClassic('./fixed-master-unified-v43.js?v=171', 'data-household-fixed-master-unified-v43');
-  injectClassic('./kabu-card-v44.js?v=198', 'data-household-kabu-card-v44');
+  injectClassic('./kabu-card-v44.js?v=199', 'data-household-kabu-card-v44');
   injectClassic('./settings-ux-v45.js?v=180', 'data-household-settings-ux-v45');
   injectClassic('./card-autolink-v46.js?v=46', 'data-household-card-autolink-v46');
   injectClassic('./observer-guard-v50.js?v=50', 'data-household-observer-guard-v50');

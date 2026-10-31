@@ -160,3 +160,20 @@ test('unmodified source bytes are not imported twice',async()=>{
  assert.equal(e.state.imports.length,1);
 });
 console.log('KABU_CARD_V198_DUPLICATE_REGRESSION_REGISTERED');
+
+
+test('Japanese bracket variants of the same KABU subscription are one purchase',()=>{
+ const e=env();
+ const old=['2026/10/01','ＫＡＢＵ＆（プラス／プレミアム）',500];
+ const newer=['2026/10/01','ＫＡＢＵ＆〔プラス／プレミアム〕',500];
+ assert.equal(e.parse(csv([old]),'older-export.csv').added,1);
+ const again=e.parse(csv([newer],'2026/11/10'),'newer-export.csv');
+ assert.equal(again.added,0);
+ assert.equal(again.duplicates,1);
+ assert.equal(e.state.purchaseEvents.length,1);
+ // Previously imported duplicates remain reviewable but never auto deleted.
+ e.state.purchaseEvents.push({...e.state.purchaseEvents[0],
+   purchase_id:'kabu:legacy-brackets:1',source_file:'legacy.csv',
+   merchant_raw:'ＫＡＢＵ＆〔プラス／プレミアム〕'});
+ assert.equal(e.win.householdKabuCardV198.scanDuplicates(e.state).length,1);
+});

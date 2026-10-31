@@ -68,6 +68,7 @@ function loanReference(st,viewMonth){
 function fixedReference(st,viewMonth){return referenceFor(st,viewMonth,false)}
 function seasonalReference(st,viewMonth){return referenceFor(st,viewMonth,true)}
 let cycle='payday',lens='economic',month='',openBucket='',openCategory='',openSubcategory='',groups=[],annualOpen=false,reviewOpen=false;
+let currentDetailBucket=null;
 function budgetReference(st,viewMonth){
  const fixed=fixedReference(st,viewMonth),loans=loanReference(st,viewMonth);
  let living=0,ideco=0,investment=0;
@@ -390,6 +391,7 @@ function render(){
  '<div class="hub-totals"><span>確認済み収入</span><b>'+yen(income)+'</b></div>'+
  '<div class="hub-tablehead"><span>'+ (economic?'消費・資金用途':'銀行引落・資金移動') +'</span><span>金額</span></div>';
  if(economic)html+='<div class="hub-totals"><span>通常の消費・生活費（ローンを除く）</span><b>'+yen(ordinary)+'</b></div>';
+ currentDetailBucket=all.find(b=>b.id===openBucket)||null;
  for(const b of all){
    const expanded=openBucket===b.id;
    html+='<button type="button" class="hub-line" data-hub-bucket="'+esc(b.id)+'" aria-expanded="'+expanded+'">'+
@@ -483,6 +485,40 @@ function render(){
  bind(root);
  return true;
 }
+// Replace just the expanded drilldown on category/subcategory taps. This
+// keeps the period summary and balance chart intact and avoids recalculating
+// the ledger, annual forecast, and personal budgets on a pure disclosure tap.
+// Non-DOM test hosts fall back to the previous full-render behavior.
+function updateDrilldown(){
+ const old=$('expenseHubDrilldownV148');
+ if(!old||typeof old.replaceWith!=='function'||!currentDetailBucket)return false;
+ const wrapper=document.createElement('div');
+ wrapper.innerHTML=detailPanel(currentDetailBucket);
+ const next=wrapper.firstElementChild;
+ if(!next)return false;
+ old.replaceWith(next);
+ bindDrilldown(next);
+ return true;
+}
+function bindDrilldown(container){
+ container.querySelectorAll('[data-hub-category]').forEach(btn=>btn.addEventListener('click',()=>{
+   const k=btn.dataset.hubCategory;openCategory=openCategory===k?'':k;openSubcategory='';
+   if(!updateDrilldown())render();
+ }));
+ container.querySelectorAll('[data-hub-subcategory]').forEach(btn=>btn.addEventListener('click',()=>{
+   const k=btn.dataset.hubSubcategory;openSubcategory=openSubcategory===k?'':k;
+   if(!updateDrilldown())render();
+ }));
+ container.querySelectorAll('[data-hub-delete]').forEach(btn=>btn.addEventListener('click',()=>{
+   try{window.householdManualExpenseDeleteV192?.apply?.(btn.dataset.hubDelete,'delete')}
+   catch(e){window.alert?.('削除できません：'+String(e?.message||e))}
+ }));
+ container.querySelectorAll('[data-hub-edit]').forEach(btn=>btn.addEventListener('click',()=>{
+   if(typeof window.openSemanticTransactionEditorV108==='function')
+     window.openSemanticTransactionEditorV108(btn.dataset.hubEdit,btn.dataset.hubEditid);
+   else window.alert?.('明細編集機能の読み込みが完了していません。再読み込みしてください。');
+ }));
+}
 function bind(root){
  const annually=$('hubAnnualV148');if(annually)annually.addEventListener('toggle',()=>{annualOpen=annually.open});
  const review=$('hubReviewV157');if(review)review.addEventListener('toggle',()=>{reviewOpen=review.open});
@@ -503,16 +539,7 @@ function bind(root){
  root.querySelectorAll('[data-hub-bucket]').forEach(btn=>btn.addEventListener('click',()=>{
    const k=btn.dataset.hubBucket;openBucket=openBucket===k?'':k;openCategory='';openSubcategory='';render();
  }));
- root.querySelectorAll('[data-hub-category]').forEach(btn=>btn.addEventListener('click',()=>{
-   const k=btn.dataset.hubCategory;openCategory=openCategory===k?'':k;openSubcategory='';render();
- }));
- root.querySelectorAll('[data-hub-subcategory]').forEach(btn=>btn.addEventListener('click',()=>{
-   const k=btn.dataset.hubSubcategory;openSubcategory=openSubcategory===k?'':k;render();
- }));
- root.querySelectorAll('[data-hub-delete]').forEach(btn=>btn.addEventListener('click',()=>{
-   try{window.householdManualExpenseDeleteV192?.apply?.(btn.dataset.hubDelete,'delete')}
-   catch(e){window.alert?.('削除できません：'+String(e?.message||e))}
- }));
+ // PDF/cash deletes, restores and edits keep their old guarded actions.
  root.querySelectorAll('[data-hub-restorepdf]').forEach(btn=>btn.addEventListener('click',()=>{
    try{window.householdManualExpenseDeleteV192?.restoreOldCanonical?.(Number(btn.dataset.hubRestorepdf))}
    catch(e){window.alert?.('正本を復旧できません：'+String(e?.message||e))}
@@ -521,11 +548,7 @@ function bind(root){
    try{window.householdManualExpenseDeleteV192?.apply?.(btn.dataset.hubRestore,'restore')}
    catch(e){window.alert?.('復元できません：'+String(e?.message||e))}
  }));
- root.querySelectorAll('[data-hub-edit]').forEach(btn=>btn.addEventListener('click',()=>{
-   if(typeof window.openSemanticTransactionEditorV108==='function')
-     window.openSemanticTransactionEditorV108(btn.dataset.hubEdit,btn.dataset.hubEditid);
-   else window.alert?.('明細編集機能の読み込みが完了していません。再読み込みしてください。');
- }));
+ bindDrilldown(root);
 }
 // Keep the edited row's surrounding disclosure and position stable even
 // though saving replaces the expense hub's DOM. Capture the NEXT visible edit

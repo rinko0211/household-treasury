@@ -44,6 +44,7 @@ jobs:
           node tests/treasury-ledger-v145.test.js
           node tests/expense-unified-v148.test.js
           node tests/release-assets-contract-v194.test.cjs
+          node tests/workflow-scope-v194.test.cjs
           node tests/personal-ledger-v186.test.cjs
           node tests/settings-mobile-layout-v171.test.cjs
           node tests/continuous-transaction-editor-v167.test.cjs

@@ -4,6 +4,7 @@ on:
     paths:
       - 'personal-ledger-v186.js'
       - 'expense-unified-v148.js'
+      - 'manual-expense-delete-v192.js'
       - 'index.html'
       - 'sw.js'
       - 'tests/**'
@@ -21,11 +22,13 @@ jobs:
         run: |
           node --check personal-ledger-v186.js
           node --check expense-unified-v148.js
+          node --check manual-expense-delete-v192.js
           node --check mdc-pdf-delta-v144.js
           node --check mdc-pdf-import-v136.js
           node tests/mdc-pdf-csv-preflight-v188.test.cjs
           node tests/mdc-pdf-bulk-review-v189.test.cjs
           node tests/mdc-pdf-post-import-v190.test.cjs
+          node tests/manual-expense-delete-v192.test.cjs
           node tests/mdc-pdf-import.test.cjs
           node tests/structured-payment-and-pdf-v168.test.cjs
           node tests/personal-ledger-v186.test.cjs
@@ -33,4 +36,4 @@ jobs:
           node tests/purchase-usage-v157.test.js
           node tests/family-share-v160.test.js
           node tests/family-sync-v164.test.js
-          node tests/ci-current-assets-v180.cjs personal-ledger-v186.js expense-unified-v148.js mdc-pdf-delta-v144.js mdc-pdf-import-v136.js
+          node tests/ci-current-assets-v180.cjs personal-ledger-v186.js expense-unified-v148.js manual-expense-delete-v192.js mdc-pdf-delta-v144.js mdc-pdf-import-v136.js

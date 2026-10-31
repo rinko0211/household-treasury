@@ -93,6 +93,14 @@ function plan(input,rows,fileName=''){
  const now=new Date().toISOString(),actions=[],seen=new Set();
  for(const row of rows){
   if(seen.has(row.dedup))throw Error('CSV内の重複キーが重複しています');seen.add(row.dedup);
+  // Manual deletions survive a later repeat of the same receipt CSV.
+  // The old entry is retained as a tombstone, never re-inserted.
+  const removed=[...(st.cashExpenses||[]),...(st.purchaseEvents||[])]
+    .some(x=>x.manually_deleted_v192===true&&x.count_in_spending===false&&
+      (String(x.dedup_key||'')===row.dedup||
+       String(x.id||'')==='cash-expense:structured:'+row.dedup||
+       String(x.purchase_id||'')==='receipt:v168:'+row.dedup));
+  if(removed){existing++;actions.push({type:'manual-deleted-preserved',row});continue}
   const cash=st.cashExpenses.map((rec,i)=>({rec,i})).filter(({rec})=>candidate(row,rec,'cash'));
   const purchases=st.purchaseEvents.map((rec,i)=>({rec,i})).filter(({rec})=>
     counted(rec)&&row.method==='QUICPAY'&&

@@ -72,6 +72,7 @@ function ensure(input){
 function recordsFor(st,p,cycle){
  const records=Array.isArray(st.personalExpenses)?st.personalExpenses:[];
  return records.filter(r=>{
+  if(r.count_in_spending===false||r.manually_deleted_v192===true)return false;
    if(cycle==='payday'&&r.cycle_start)return r.cycle_start===p.start;
    // For undated handovers, anchor only the accounting month, not the
    // actual transaction date. Never invent the handover day.

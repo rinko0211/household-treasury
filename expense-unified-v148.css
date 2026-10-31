@@ -25,6 +25,8 @@
 #expenseHubV148 .hub-detailrow{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;padding:11px 3px;border-bottom:1px solid #2d3946;font-size:13px}
 #expenseHubV148 .hub-merchant{flex:1;min-width:0;overflow-wrap:anywhere;font-size:13px;line-height:1.5}
 #expenseHubV148 .hub-merchant>b{font-weight:650}
+#expenseHubV148 .hub-delete{background:transparent;border:1px solid #b15b5b;color:#ffc9c7;border-radius:8px;margin:8px 0 0 8px;padding:7px 10px;min-height:36px;cursor:pointer;font-size:12px}
+#expenseHubV148 .hub-delete:hover{background:rgba(255,120,120,.08)}
 #expenseHubV148 .hub-edit{background:transparent;border:1px solid #44586b;color:#dbeaf8;border-radius:8px;margin-top:8px;padding:7px 10px;min-height:36px;cursor:pointer;font-size:12px}
 #expenseHubV148 .hub-note{background:#132231;border:1px solid #2c4760;color:#d7e7f4;border-radius:15px;padding:15px;font-size:13px;line-height:1.7}
 #expenseHubV148 .hub-note b{color:#67baff;font-size:15px}

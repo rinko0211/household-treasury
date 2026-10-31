@@ -99,6 +99,7 @@ vm.runInContext(fs.readFileSync('treasury-ledger-v145.js','utf8'),context);
 vm.runInContext(fs.readFileSync('expense-nature-rules-v152.js','utf8'),context);
 vm.runInContext(fs.readFileSync('purchase-usage-ledger-v157.js','utf8'),context);
 vm.runInContext(fs.readFileSync('personal-ledger-v186.js','utf8'),context);
+vm.runInContext(fs.readFileSync('manual-expense-delete-v192.js','utf8'),context);
 vm.runInContext(fs.readFileSync('expense-unified-v148.js','utf8'),context);
 const app=window.householdExpenseUnifiedV148;
 ok(!!app,'Unified expense API mounted');
@@ -205,7 +206,7 @@ ok(root.innerHTML.includes('毎月の基本予算（参考）'),'Plan shown sepa
 ok(root.innerHTML.includes('電気'),'Fixed reference contains electricity');
 ok(root.innerHTML.includes('カード払い'),'Card-route reference labeled');
 ok(!fs.readFileSync('index.html','utf8').includes('id="monthlyTreasuryTabV142"'),'Redundant monthly tab removed');
-ok(fs.readFileSync('index.html','utf8').includes('expense-unified-v148.js?v=191'),'Unified hub loaded');
+ok(fs.readFileSync('index.html','utf8').includes('expense-unified-v148.js?v=192'),'Unified hub loaded');
 // v158: fixed and variable are PRESENTATION cost-behavior within economic NORMAL;
 // source category overrides and review badges do not change booked consumption.
 {
@@ -475,5 +476,56 @@ ok(semanticEditorSource.includes("o.potential_prepaid_topup=false"),
  eq(originalCalc.consumption-restoredCalc.consumption,303,
    'Date ordering does not modify financial calculation');
  app.render();
+}
+// v192: delete only manually entered rows IN the expense detail; imported
+// PDF/card transactions are immutable. The restore control stays on Expenses.
+{
+ // Bypass the legacy one-time welfare migration during this isolated assertion.
+ state.privatePersonalSeedV186=true;
+ let backups=0;
+ window.treasuryRecoverySnapshot=()=>{backups++};
+ window.confirm=()=>true;
+ window.replaceTreasuryState=next=>{
+   for(const key of Object.keys(state))delete state[key];
+   Object.assign(state,structuredClone(next));
+   return true;
+ };
+ const idx=state.cashExpenses.length;
+ state.cashExpenses.push({id:'v192-manual-duplicate',date:'2026-10-21',
+   description:'手動入力テスト削除',amount:777,
+   economic_type:'EXPENSE',spending_class:'NORMAL',category:'FOOD',
+   subcategory:'CAFE',payment_method:'CASH',source_file:'chat-generated.csv'});
+ const pIdx=state.purchaseEvents.length;
+ state.purchaseEvents.push({purchase_id:'pdf-v192-untouchable',card:'MUFG/DC/JAL',
+   pdf_card_identity:'JAL-1234',mdc_import_v144:true,
+   source_file:'MDC_PDF_2026-12.csv',purchase_date:'2026-10-21',
+   original_amount:777,merchant_raw:'公式JALの正本',economic_type:'EXPENSE',
+   spending_class:'NORMAL',category:'FOOD',subcategory:'CAFE'});
+ const before=window.householdUsageLedgerV157.calculate(state,'2026-10','payday').consumption;
+ app.render();
+ if(app.getSelection().lens!=='economic')btn('lens','economic');
+ if(app.getSelection().openBucket!=='variable')btn('bucket','variable');
+ if(app.getSelection().openCategory!=='FOOD')btn('category','FOOD');
+ if(app.getSelection().openSubcategory!=='FOOD.CAFE')btn('subcategory','FOOD.CAFE');
+ ok(root.innerHTML.includes('手動明細を削除'),'Each manual detail has a delete control');
+ ok(!root.innerHTML.includes('data-hub-delete="purchase:'+pIdx+'"'),
+   'PDF statement has no delete action');
+ const button=root.querySelectorAll('[data-hub-delete]').find(x=>x.dataset.hubDelete==='cash:'+idx);
+ ok(!!button,'Delete button linked to the specific manual record');
+ button.click();
+ eq(state.cashExpenses[idx].count_in_spending,false,'Soft deletion saved in canonical ledger');
+ eq(state.cashExpenses[idx].manually_deleted_v192,true,'Deleted manual row gets audit marker');
+ eq(state.purchaseEvents[pIdx].count_in_spending,undefined,'PDF canonical row untouched');
+ const after=window.householdUsageLedgerV157.calculate(state,'2026-10','payday').consumption;
+ eq(before-after,777,'Only manual duplicate removed from expenses totals');
+ ok(root.innerHTML.includes('削除した手動明細を復元'),'Restore section remains on expense page');
+ const restore=root.querySelectorAll('[data-hub-restore]').find(x=>x.dataset.hubRestore==='cash:'+idx);
+ ok(!!restore,'Restore link points to same record');
+ restore.click();
+ eq(state.cashExpenses[idx].count_in_spending,undefined,'Restored original counting state');
+ eq(window.householdUsageLedgerV157.calculate(state,'2026-10','payday').consumption,before,
+   'Restoration makes exactly one manual expense count again');
+ eq(backups,2,'Pre-change backups taken for delete and restore');
+ state.cashExpenses.pop();state.purchaseEvents.pop();app.render();
 }
 console.log('PASS '+asserts+' expense unified v148 assertions');

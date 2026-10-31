@@ -162,16 +162,16 @@
   // v139: scope MDC statement purchases by physical card, not generic JAL card name.
   injectClassic('./mdc-card-import-scope-v139.js?v=139', 'data-household-mdc-card-scope-v139');
   // v136: parse validated MDC card PDF locally, preview, then route through existing card CSV importer.
-  injectClassic('./mdc-pdf-import-v136.js?v=190', 'data-household-mdc-pdf-import-v136');
+  injectClassic('./mdc-pdf-import-v136.js?v=192', 'data-household-mdc-pdf-import-v136');
   // v140: d-card statement CSV has its own validated ingestion and economic categories.
   // Preserve the legacy MUFG/JAL parser for every other card statement.
   // v141: opt-in read-only audit for handoff QA; no canonical state mutation.
   injectClassic('./handoff-audit-readonly-v141.js?v=141', 'data-household-handoff-audit-v141');
   injectClassic('./dcard-csv-import-v140.js?v=141', 'data-household-dcard-csv-v140');
   // v144: final PDF statement delta resolver; must load after all CSV wrappers.
-  injectClassic('./mdc-pdf-delta-v144.js?v=190', 'data-household-mdc-pdf-delta-v144');
-  injectClassic('./mdc-cross-source-reconcile-v166.js?v=166', 'data-household-mdc-cross-source-v166');
+  injectClassic('./mdc-pdf-delta-v144.js?v=192', 'data-household-mdc-pdf-delta-v144');
+  injectClassic('./mdc-cross-source-reconcile-v166.js?v=192', 'data-household-mdc-cross-source-v166');
   // v168: final owner of structured receipt CSV, after other CSV/PDF wrappers.
-  injectClassic('./structured-expense-import-v168.js?v=168', 'data-household-structured-expense-v168');
+  injectClassic('./structured-expense-import-v168.js?v=192', 'data-household-structured-expense-v168');
   // v92/v93 exact d-card overlay retired in v94.
 })();

@@ -62,6 +62,7 @@ jobs:
           node tests/verified-correction-v149.test.js
           node tests/cycle-audit-reconciliation-v153.test.js
           node tests/purchase-usage-v157.test.js
+          node tests/bank-history-index-v196.test.cjs
           node tests/payment-reclass-v159.test.js
           node tests/family-share-v160.test.js
           node tests/family-share-v163.test.js
@@ -124,12 +125,12 @@ jobs:
           assert.ok(html.includes('data-page="expenses"'));
           assert.ok(!html.includes('monthly-treasury-v142.js?v=146'));
           assert.ok(html.includes('expense-nature-rules-v152.js?v=159'));
-          assert.ok(html.includes('purchase-usage-ledger-v157.js?v=195'));
+          assert.ok(html.includes('purchase-usage-ledger-v157.js?v=196'));
           assert.ok(html.includes('manual-expense-delete-v192.js?v=192'));
           assert.ok(html.includes(personalAsset));
           assert.ok(html.includes(expenseAsset));
-          assert.ok(html.indexOf('expense-nature-rules-v152.js?v=159') < html.indexOf('purchase-usage-ledger-v157.js?v=195'));
-          assert.ok(html.indexOf('purchase-usage-ledger-v157.js?v=195') < html.indexOf(expenseAsset));
+          assert.ok(html.indexOf('expense-nature-rules-v152.js?v=159') < html.indexOf('purchase-usage-ledger-v157.js?v=196'));
+          assert.ok(html.indexOf('purchase-usage-ledger-v157.js?v=196') < html.indexOf(expenseAsset));
           assert.ok(html.includes('expense-unified-v148.css?v=192'));
           assert.ok(html.includes('ui-modern-v169.css?v=180'));
           assert.ok(!html.includes('card-budget-allocation-v170.js'),'Removed recommendation panel must not be mounted');
@@ -220,7 +221,7 @@ jobs:
           for(const path of [
             loaderAsset.slice(2),
             'expense-nature-rules-v152.js?v=159',
-            'purchase-usage-ledger-v157.js?v=195',
+            'purchase-usage-ledger-v157.js?v=196',
             personalAsset.slice(2),
             'manual-expense-delete-v192.js?v=192',
             expenseAsset.slice(2),

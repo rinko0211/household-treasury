@@ -381,11 +381,9 @@ function render(){
  const variableBudget=budgetInfo?.ready?budgetInfo.amount:null;
  const budgetMetric=(id,spent)=>economic?window.householdExpenseBudgetV203?.get?.(
     st,month,id,spent,variableBudget):null;
- const budgetHtml=(id,spent)=>{
-   const m=budgetMetric(id,spent);
-   return m?'<span style="display:block;font-size:11px;font-weight:500;color:'+
-     (m.over?'#d57f5b':'#8fa9aa')+';white-space:nowrap;margin-top:3px">'+
-     esc(m.text)+'</span>':'';
+ const budgetProgressHtml=(bucket)=>{
+   const m=budgetMetric(bucket.id,bucket.amount);
+   return m?window.householdExpenseBudgetV203?.progress?.(m,bucket.label)||'':'';
  };
  const root=$('expenseHubV148');
  let html='<div class="hub-card"><div class="hub-period"><div class="hub-title">月次支出サマリー</div>'+
@@ -409,10 +407,11 @@ function render(){
  currentDetailBucket=all.find(b=>b.id===openBucket)||null;
  for(const b of all){
    const expanded=openBucket===b.id;
-   html+='<button type="button" class="hub-line" data-hub-bucket="'+esc(b.id)+'" aria-expanded="'+expanded+'">'+
+   html+='<div class="hub-budget-group"><button type="button" class="hub-line" data-hub-bucket="'+esc(b.id)+'" aria-expanded="'+expanded+'">'+
      '<span class="hub-rowtitle"><i class="hub-dot" style="background:'+b.color+'"></i>'+esc(b.label)+'</span>'+
-     '<span class="hub-amt">'+yen(b.amount)+budgetHtml(b.id,b.amount)+
-     '<span aria-hidden="true" style="color:#a3bed0">'+(expanded?'⌄':'›')+'</span></span></button>';
+     '<span class="hub-amt">'+yen(b.amount)+
+     '<span aria-hidden="true" class="hub-chevron">'+(expanded?'⌄':'›')+'</span></span></button>'+
+     budgetProgressHtml(b)+'</div>';
    if(expanded)html+=detailPanel(b);
  }
  if(economic)html+='<div class="hub-totals"><span>消費・購入額（個人費を含む）</span><b>'+yen(consumption)+'</b></div>';

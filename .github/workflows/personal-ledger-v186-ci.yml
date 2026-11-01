@@ -4,6 +4,7 @@ on:
     paths:
       - 'personal-ledger-v186.js'
       - 'expense-unified-v148.js'
+      - 'expense-unified-v148.css'
       - 'manual-expense-delete-v192.js'
       - 'private-ledger-repair-v199.js'
       - 'kabu-card-v44.js'

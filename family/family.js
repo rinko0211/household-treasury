@@ -134,7 +134,7 @@ function render(d){
  $('publishedTimeV183').textContent=last;
  $('publishedBadgeV183').classList.toggle('is-stale',stale);
  $('publishedStaleV183').hidden=!stale;
- $('updated').textContent='共有データの最終反映：'+last;
+ $('updated').textContent='妻へ反映した日時：'+last;
  message(stale?'※ 24時間以上前の共有データです。更新を依頼してください。':'');
 }
 async function load(){

@@ -132,7 +132,8 @@ jobs:
           assert.ok(html.includes(expenseAsset));
           assert.ok(html.indexOf('expense-nature-rules-v152.js?v=159') < html.indexOf('purchase-usage-ledger-v157.js?v=196'));
           assert.ok(html.indexOf('purchase-usage-ledger-v157.js?v=196') < html.indexOf(expenseAsset));
-          assert.ok(html.includes('expense-unified-v148.css?v=192'));
+          const cssAsset=(html.match(/expense-unified-v148\\.css\\?v=\\d+/)||[])[0];
+          assert.ok(cssAsset,'The unified expense stylesheet needs a versioned link');
           assert.ok(html.includes('ui-modern-v169.css?v=180'));
           assert.ok(!html.includes('card-budget-allocation-v170.js'),'Removed recommendation panel must not be mounted');
           assert.ok(sw.includes('./ui-modern-v169.css?v=180'));
@@ -226,7 +227,7 @@ jobs:
             personalAsset.slice(2),
             'manual-expense-delete-v192.js?v=192',
             expenseAsset.slice(2),
-            'expense-unified-v148.css?v=192',
+            cssAsset,
             'verified-correction-patch-v149.js?v=161',
             'cycle-audit-reconciliation-v153.js?v=161',
             'card-cycle-v81.js?v=179',

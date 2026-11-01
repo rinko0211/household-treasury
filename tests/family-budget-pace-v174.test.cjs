@@ -11,8 +11,8 @@ for(const id of ['budgetMeter','progressFill','budgetRatio','calendarMeter','cal
 }
 assert.ok(html.indexOf('id="budgetMeter"')<html.indexOf('id="calendarMeter"'),'Spending bar must be above day bar');
 assert.ok(html.indexOf('id="spent"')<html.indexOf('id="budget"'),'Spending amount must be primary');
-assert.ok(html.includes('family.js?v=183')&&html.includes('family.css?v=183'));
-assert.ok(sw.includes('./family/family.js?v=183')&&sw.includes('./family/family.css?v=183'));
+assert.ok(html.includes('family.js?v=206')&&html.includes('family.css?v=183'));
+assert.ok(sw.includes('./family/family.js?v=206')&&sw.includes('./family/family.css?v=183'));
 assert.ok(css.includes('.pace-evaluation.is-behind')&&css.includes('.pace-evaluation.is-balanced')&&css.includes('.pace-evaluation.is-ahead'));
 assert.ok(css.includes('.calendar-progress>div{background:#8999a9}'),'Calendar bar must have a consistent neutral color');
 class Node{

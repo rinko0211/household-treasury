@@ -53,5 +53,30 @@ function get(st,month,bucketId,spent,shareBudget){
  return {budget,kind,spent:number(spent),ratio,over:ratio>100,
   text:kind+' '+money(budget)+' ・ '+ratio.toFixed(1)+'%'};
 }
-window.householdExpenseBudgetV203={get,planned};
+// UI-only presentation: the percentage is calculated from the same budget
+// and amount as the text metrics. A missing budget never produces a bar.
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>
+ ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+function progress(metric,label='費目'){
+ if(!metric||!Number.isFinite(metric.budget)||metric.budget<=0||
+    !Number.isFinite(metric.ratio)||!Number.isFinite(metric.spent))return '';
+ const ratio=Math.max(0,metric.ratio),width=Math.min(100,ratio);
+ const tone=ratio>=100?'over':ratio>=80?'warn':'good';
+ const percentage=ratio.toFixed(1),difference=metric.budget-metric.spent;
+ const category=String(metric.kind||'月予算');
+ const isPlan=category==='月額計画',isContribution=category==='月額拠出';
+ const restLabel=difference<0?
+   (isPlan?'計画との差額':isContribution?'予定超過':'予算超過'):
+   (isPlan?'計画残額':isContribution?'拠出予定残':'残り');
+ return '<div class="hub-budget-indicator hub-budget-'+tone+'" data-hub-budget-kind="'+esc(category)+'">'+
+    '<div class="hub-budget-meta"><span>'+esc(category)+' '+money(metric.budget)+
+    '</span><strong>'+percentage+'% 使用</strong></div>'+
+    '<div class="hub-budget-track" role="progressbar" aria-label="'+esc(label)+'の'+esc(category)+'使用率"'+
+    ' aria-valuemin="0" aria-valuemax="100" aria-valuenow="'+width.toFixed(1)+'"'+
+    ' aria-valuetext="'+percentage+'パーセント">'+
+    '<span class="hub-budget-fill" style="width:'+width.toFixed(2)+'%"></span></div>'+
+    '<div class="hub-budget-remaining">'+restLabel+' '+money(Math.abs(difference))+
+    (ratio>100?'（'+percentage+'%）':'')+'</div></div>';
+}
+window.householdExpenseBudgetV203={get,planned,progress};
 })();

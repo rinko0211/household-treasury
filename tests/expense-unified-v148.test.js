@@ -669,4 +669,36 @@ ok(semanticEditorSource.includes("o.potential_prepaid_topup=false"),
    app.render();
  }
 }
+// v204: budget usage bars are below each amount, not squeezed into the
+// amount label. They are never shown for a category without a configured budget.
+{
+ vm.runInContext(fs.readFileSync('expense-budget-metrics-v203.js','utf8'),context);
+ const previous=window.householdFamilyShareV160;
+ window.householdFamilyShareV160={budgetInfo:()=>({ready:true,amount:270000})};
+ try{
+   if(app.getSelection().lens!=='economic')btn('lens','economic');
+   app.render();
+   ok(root.innerHTML.includes('class="hub-budget-group"'),
+     'Major expense categories each have an independent budget row');
+   ok(root.innerHTML.includes('class="hub-budget-track" role="progressbar"'),
+     'Budget indicator is accessible and rendered below the amount');
+   ok(root.innerHTML.includes('月予算 ￥270,000'),
+     'Variable budget uses actual owner configured budget, not a hardcoded fixture');
+   ok(root.innerHTML.includes('残り ￥256,200'),
+     'Remaining variable budget matches actual consumption');
+   ok(root.innerHTML.includes('data-hub-bucket="variable"'),
+     'Expense expansion actions remain unchanged by the new progress UI');
+   ok(!root.innerHTML.includes('data-hub-budget-kind="月予算"')||
+     root.innerHTML.includes('月予算 ￥270,000'),
+     'Budget indicator never claims a configured budget without amount');
+   const before=JSON.stringify(state);
+   window.householdFamilyShareV160={budgetInfo:()=>({ready:false,amount:null})};
+   app.render();
+   ok(!root.innerHTML.includes('月予算 ￥270,000'),
+     'A missing shared budget never generates a misleading percent bar');
+   eq(JSON.stringify(state),before,'Progress-only rerender never changes original ledger');
+ }finally{
+   window.householdFamilyShareV160=previous;
+ }
+}
 console.log('PASS '+asserts+' expense unified v148 assertions');

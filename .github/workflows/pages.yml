@@ -106,6 +106,7 @@ jobs:
           const editorAsset=sourceAsset('semantic-ui-v48.js',loader);
           const cashCardAsset=sourceAsset('cash-card-reclass-v178.js',loader);
           const cardCashAsset=sourceAsset('card-cash-reclass-v179.js',loader);
+          const cycleAsset=sourceAsset('card-cycle-v81.js',loader);
           const hub=fs.readFileSync('expense-unified-v148.js','utf8');
           assert.ok(fs.readFileSync('manual-expense-delete-v192.js','utf8').includes('manually_deleted_v192'));
           const purchaseUsage=fs.readFileSync('purchase-usage-ledger-v157.js','utf8');
@@ -179,7 +180,7 @@ jobs:
           assert.ok(sw.includes(cashCardAsset));
           assert.ok(loader.includes(cardCashAsset));
           assert.ok(sw.includes(cardCashAsset));
-          assert.ok(sw.includes('./card-cycle-v81.js?v=179'));
+          assert.ok(sw.includes(cycleAsset));
           assert.ok(sw.includes('./card-forecast-v49.js?v=179'));
           assert.ok(sw.includes('./cash-expense-analytics-v106.js?v=178'));
           assert.ok(html.includes('cycle-audit-reconciliation-v153.js?v=161'));
@@ -219,7 +220,7 @@ jobs:
           assert.ok(audit.includes('元明細の項目が第三の値に変更されています'));
           assert.ok(audit.includes('guardIsOld'));
           assert.ok(audit.includes('verifySameBankSettlement'));
-          assert.ok(loader.includes('card-cycle-v81.js?v=179'));
+          assert.ok(loader.includes(cycleAsset));
           assert.ok(html.includes('verified-correction-patch-v149.js?v=161'));
           assert.ok(correction.includes('treasuryRecoverySnapshot')&&correction.includes('replaceTreasuryState'));
           for(const path of [
@@ -232,7 +233,7 @@ jobs:
             cssAsset,
             'verified-correction-patch-v149.js?v=161',
             'cycle-audit-reconciliation-v153.js?v=161',
-            'card-cycle-v81.js?v=179',
+            cycleAsset.slice(2),
             'treasury-ledger-v145.js?v=153',
             'mdc-pdf-delta-v144.js?v=192'
           ])assert.ok(sw.includes('./'+path),'PWA cache missing '+path);

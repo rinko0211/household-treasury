@@ -377,6 +377,16 @@ function render(){
  // category composition bar useful by using total spending as its basis.
  const chartBaseline=economic&&income<=0?total:income;
  const bars=ratioParts(all,chartBaseline);
+ const budgetInfo=window.householdFamilyShareV160?.budgetInfo?.();
+ const variableBudget=budgetInfo?.ready?budgetInfo.amount:null;
+ const budgetMetric=(id,spent)=>economic?window.householdExpenseBudgetV203?.get?.(
+    st,month,id,spent,variableBudget):null;
+ const budgetHtml=(id,spent)=>{
+   const m=budgetMetric(id,spent);
+   return m?'<span style="display:block;font-size:11px;font-weight:500;color:'+
+     (m.over?'#d57f5b':'#8fa9aa')+';white-space:nowrap;margin-top:3px">'+
+     esc(m.text)+'</span>':'';
+ };
  const root=$('expenseHubV148');
  let html='<div class="hub-card"><div class="hub-period"><div class="hub-title">月次支出サマリー</div>'+
  '<div class="hub-toolbar"><button type="button" class="hub-arrow" id="hubPrevV148" aria-label="前月">‹</button>'+
@@ -401,7 +411,8 @@ function render(){
    const expanded=openBucket===b.id;
    html+='<button type="button" class="hub-line" data-hub-bucket="'+esc(b.id)+'" aria-expanded="'+expanded+'">'+
      '<span class="hub-rowtitle"><i class="hub-dot" style="background:'+b.color+'"></i>'+esc(b.label)+'</span>'+
-     '<span class="hub-amt">'+yen(b.amount)+' <span aria-hidden="true" style="color:#a3bed0">'+(expanded?'⌄':'›')+'</span></span></button>';
+     '<span class="hub-amt">'+yen(b.amount)+budgetHtml(b.id,b.amount)+
+     '<span aria-hidden="true" style="color:#a3bed0">'+(expanded?'⌄':'›')+'</span></span></button>';
    if(expanded)html+=detailPanel(b);
  }
  if(economic)html+='<div class="hub-totals"><span>消費・購入額（個人費を含む）</span><b>'+yen(consumption)+'</b></div>';

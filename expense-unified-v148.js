@@ -312,13 +312,24 @@ function detailPanel(bucket){
      markup+='<div class="hub-group-details" data-hub-details="'+esc(g.key)+'">';
      for(const x of g.items.slice(0,150)){
        const receiptLines=window.householdReceiptBundleV202?.detailsFor?.(stateNow(),x.identity)||[];
+       const wifeTarget=x.referenceIdentity||
+         (x.personalOwner==='wife'?x.identity:'');
+       const wifeMatch=String(wifeTarget).match(/^(purchase|cash):(\d+)$/);
+       const wifeEligibility=wifeMatch?
+         window.householdWifeReferenceV205?.eligibility?.(stateNow(),wifeMatch[1],Number(wifeMatch[2])):null;
+       const wifeChoice=wifeEligibility?
+         '<button type="button" class="hub-edit hub-wife-ref" data-hub-wife-ref="'+
+         esc(wifeEligibility.identity)+'" data-hub-wife-mode="'+
+         (wifeEligibility.mode==='COUNTED'?'REFERENCE':'COUNTED')+'">'+
+         (wifeEligibility.mode==='COUNTED'?'妻の個人費・参考のみにする':'支出計上に戻す')+
+         '</button>':'';
        const receiptParts=receiptLines.length?
          '<details style="margin:6px 0"><summary class="hub-muted">レシート商品内訳 '+receiptLines.length+'行（親取引に含む・追加計上なし）</summary>'+
          receiptLines.map(d=>'<div class="hub-muted" style="padding:3px 0">'+esc(d.label)+
            ' ×'+Number(d.qty||1)+'　'+yen(d.amount)+'</div>').join('')+'</details>':'';
        markup+='<div class="hub-detailrow"><div class="hub-merchant"><b>'+esc(x.label)+'</b>'+
          '<div class="hub-muted">'+esc(x.date||'日付未確定')+' ・ '+esc(x.source||'')+
-           (x.provisional?' ・ 仮記帳':'')+(x.needsReview?' ・ 要確認':'')+'</div>'+receiptParts+
+           (x.provisional?' ・ 仮記帳':'')+(x.needsReview?' ・ 要確認':'')+'</div>'+receiptParts+wifeChoice+
          (x.editKind&&x.editId?'<button type="button" class="hub-edit" data-hub-edit="'+esc(x.editKind)+'" data-hub-editid="'+esc(x.editId)+'">明細を編集</button>':'')+
          (x.manualDeleteIdentity?'<button type="button" class="hub-delete" data-hub-delete="'+
            esc(x.manualDeleteIdentity)+'">手動明細を削除</button>':
@@ -547,6 +558,10 @@ function bindDrilldown(container){
  container.querySelectorAll('[data-hub-delete]').forEach(btn=>btn.addEventListener('click',()=>{
    try{window.householdManualExpenseDeleteV192?.apply?.(btn.dataset.hubDelete,'delete')}
    catch(e){window.alert?.('削除できません：'+String(e?.message||e))}
+ }));
+ container.querySelectorAll('[data-hub-wife-ref]').forEach(btn=>btn.addEventListener('click',()=>{
+   try{window.householdWifeReferenceV205?.apply?.(btn.dataset.hubWifeRef,btn.dataset.hubWifeMode)}
+   catch(e){window.alert?.('参考記録に変更できません：'+String(e?.message||e))}
  }));
  container.querySelectorAll('[data-hub-edit]').forEach(btn=>btn.addEventListener('click',()=>{
    if(typeof window.openSemanticTransactionEditorV108==='function')

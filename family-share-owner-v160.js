@@ -8,7 +8,7 @@ const STORAGE='householdFamilyShareTokenV160';
 const yen=v=>new Intl.NumberFormat('ja-JP',{style:'currency',currency:'JPY',maximumFractionDigits:0}).format(Number(v)||0);
 const $=s=>document.getElementById(s);
 const TODAY=()=>new Intl.DateTimeFormat('sv-SE',{timeZone:'Asia/Tokyo',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
-let shareExists=false,enabled=false,budget=0,busy=false,autoTimer=null,lastPublishedRevision=-1,initialAutoScheduled=false,lastPublishedVersion=0;
+let shareExists=false,enabled=false,budget=0,budgetReady=false,busy=false,autoTimer=null,lastPublishedRevision=-1,initialAutoScheduled=false,lastPublishedVersion=0;
 const context=()=>window.householdShareSyncContext?.()||{};
 function setNote(msg,warning=false){
  const el=$('familyShareNoteV160');
@@ -131,7 +131,8 @@ async function refreshStatus(silent=false){
  if(!context().token){setNote('共有を設定するには家計アプリへのサインインが必要です。',true);return}
  try{
   const r=await api('owner');
-  shareExists=!!r.exists;enabled=!!r.enabled;budget=Number(r.budget)||0;
+  shareExists=!!r.exists;enabled=!!r.enabled;budget=Number(r.budget)||0;budgetReady=enabled&&budget>0;
+  window.dispatchEvent?.(new Event('household:family-budget-updated'));
   const legacyShared=enabled&&Number(r.snapshot_version||1)<2;
   if($('familyShareBudgetV160'))$('familyShareBudgetV160').value=String(budget);
   if($('familyShareCreateV160'))$('familyShareCreateV160').textContent=shareExists?'リンクを再発行':'共有リンクを作成';
@@ -194,7 +195,9 @@ function mount(){
   if(!shareExists)throw Error('先に共有リンクを作成してください。');
   const val=Number($('familyShareBudgetV160').value);
   if(!Number.isSafeInteger(val)||val<0||val>5000000)throw Error('予算は0〜500万円の整数で入力してください。');
-  const r=await api('budget',{budget:val});budget=r.budget;setNote('変動費の予算を '+yen(budget)+' に設定しました。');
+  const r=await api('budget',{budget:val});budget=r.budget;budgetReady=enabled&&budget>0;
+  window.dispatchEvent?.(new Event('household:family-budget-updated'));
+  setNote('変動費の予算を '+yen(budget)+' に設定しました。');
  });
  $('familyShareStopV160').onclick=()=>guarded(async()=>{
   if(!confirm('奥さんのURLを無効にして共有を停止しますか？'))return;
@@ -223,6 +226,6 @@ window.addEventListener('householdShareCloudSyncedV160',()=>{
  },450);
 });
 window.addEventListener('focus',()=>{if($('familySharePanelV160'))refreshStatus(true)});
-window.householdFamilyShareV160={mount,makeSnapshot,publish,refreshStatus};
+window.householdFamilyShareV160={mount,makeSnapshot,publish,refreshStatus,budgetInfo:()=>({ready:budgetReady&&enabled,amount:budgetReady?budget:null})};
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',mount,{once:true});else mount();
 })();

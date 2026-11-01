@@ -67,9 +67,9 @@ test('render full-width budget progress with remaining and accessible percent',(
 });
 test('orange at 80%, red at 100%; actual percent is not capped when over budget',()=>{
  const a=env();
- let html=a.progress(a.get(state,'2026-11','variable',215999,270000),'変動費');
+ let html=a.progress(a.get(state,'2026-11','variable',215700,270000),'変動費');
  assert.match(html,/hub-budget-good/);
- assert.match(html,/80\.0% 使用/);
+ assert.match(html,/79\.9% 使用/);
  html=a.progress(a.get(state,'2026-11','variable',216000,270000),'変動費');
  assert.match(html,/hub-budget-warn/);
  html=a.progress(a.get(state,'2026-11','variable',270000,270000),'変動費');

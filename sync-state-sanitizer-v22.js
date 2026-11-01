@@ -175,5 +175,7 @@
   injectClassic('./structured-expense-import-v168.js?v=192', 'data-household-structured-expense-v168');
   // v201: conservative all-source reconciliation audit, loaded after CSV/PDF wrappers.
   injectClassic('./cross-source-audit-v201.js?v=201', 'data-household-cross-source-audit-v201');
+  // v202: read the three receipt / detail / provisional shopping CSVs after existing providers.
+  injectClassic('./receipt-bundle-import-v202.js?v=202', 'data-household-receipt-bundle-v202');
   // v92/v93 exact d-card overlay retired in v94.
 })();

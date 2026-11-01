@@ -57,7 +57,14 @@ equal(row('INSURANCE.OTHER','Medical insurance',{
 }).nature,'FIXED','A real fixed-master link resolves a case-by-case subcategory');
 equal(row('MEDICAL.CONTACTS','Monthly contact lens',{
  is_fixed_expense:true,fixed_expense_master_id:'verified-master-contact'
-}).nature,'VARIABLE','Approved contacts variable rule wins even against master link');
+}).nature,'FIXED','Verified monthly contact plan is fixed even if ordinary contacts are variable');
+equal(row('MEDICAL.CONTACTS','Monthly contact lens',{
+ is_fixed_expense:true,fixed_expense_master_id:'verified-master-contact',
+ cost_nature:'VARIABLE'
+}).nature,'VARIABLE','Manual per-transaction variable decision still wins');
+equal(row('SUBSCRIPTION.MEMBERSHIP','KABU& premium',{
+ is_fixed_expense:true,fixed_expense_master_id:'verified-master-prime'
+}).nature,'FIXED','Recurring monthly membership with verified fixed master is fixed');
 equal(row('INSURANCE.OTHER','Unknown insurance',{
  is_fixed_expense:true
 }).nature,'REVIEW','A naked recurring flag without a confirmed master ID is not enough');

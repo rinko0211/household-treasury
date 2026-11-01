@@ -149,14 +149,16 @@
     // a default subcategory rule. Keep economics and payment channels separate.
     if(['FIXED','VARIABLE','SPECIAL','REVIEW'].includes(explicit))
       return {nature:explicit,key,reason:'record-override',economicType:eco||'EXPENSE'};
+    // Verified recurring masters outrank a generic purchase-category rule,
+    // but not an explicit per-transaction choice handled just above.
+    // This prevents MELS monthly fees and KABU& membership fees being
+    // incorrectly charged against the variable allowance.
+    if(source?.is_fixed_expense===true&&
+       String(source?.fixed_expense_master_id||'').trim()&&
+       eco!=='TRANSFER'&&eco!=='INVESTMENT')
+      return {nature:'FIXED',key,reason:'verified-fixed-master-link',economicType:eco||'EXPENSE'};
     if(configured&&configured!=='REVIEW')
       return {nature:configured,key,reason:'approved-rule',economicType:eco||'EXPENSE'};
-    // For subcategories explicitly left to individual judgement, an existing
-    // verified fixed-master link is that individual judgement. Do not let a
-    // master override a user's FIXED/VARIABLE/SPECIAL subcategory selection.
-    if((!configured||configured==='REVIEW')&&source?.is_fixed_expense===true&&
-       String(source?.fixed_expense_master_id||'').trim())
-      return {nature:'FIXED',key,reason:'verified-fixed-master-link',economicType:eco||'EXPENSE'};
     const prev=String(source?.spending_class||source?.expense_scope||source?.ordinary_or_special||'').toUpperCase();
     return {nature:prev==='SPECIAL'?'SPECIAL':'REVIEW',key,reason:'manual-review',economicType:eco||'EXPENSE'};
   }

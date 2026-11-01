@@ -87,7 +87,12 @@
     return byYm;
   }
   function countedPurchase(p){
-    return p?.count_in_spending!==false &&
+    // Reference-only wife items are excluded from consumption, but the real
+    // card liability must remain in the cash-flow forecast until settled.
+    const preserveCardClaim=p?.wife_card_claim_preserved_v205===true&&
+      p?.reference_only_v200===true&&p?.personal_owner_v193==='wife'&&
+      p?.count_in_spending===false;
+    return (p?.count_in_spending!==false||preserveCardClaim) &&
       !['ABSORBED_DUPLICATE','RECLASSIFIED_CASH_PAYMENT'].includes(String(p?.reconciliation_status||'')) &&
       !p?.is_refinance_adjustment&&!p?.is_refinanced;
   }

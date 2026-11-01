@@ -4,6 +4,9 @@ on:
     paths:
       - 'personal-ledger-v186.js'
       - 'expense-unified-v148.js'
+      - 'wife-personal-reference-v205.js'
+      - 'card-cycle-v81.js'
+      - 'supabase/functions/family-variable-share/index.ts'
       - 'expense-unified-v148.css'
       - 'manual-expense-delete-v192.js'
       - 'private-ledger-repair-v199.js'
@@ -31,6 +34,10 @@ jobs:
         run: |
           node --check personal-ledger-v186.js
           node --check expense-unified-v148.js
+          node --check wife-personal-reference-v205.js
+          node tests/wife-personal-reference-v205.test.cjs
+          node tests/family-share-manual-publish-v206.test.cjs
+          node tests/family-sync-v164.test.js
           node --check manual-expense-delete-v192.js
           node --check private-ledger-repair-v199.js
           node --check kabu-card-v44.js

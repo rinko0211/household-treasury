@@ -10,6 +10,7 @@ on:
       - 'cross-source-audit-v201.js'
       - 'receipt-bundle-import-v202.js'
       - 'expense-budget-metrics-v203.js'
+      - 'expense-nature-rules-v152.js'
       - 'family-share-owner-v160.js'
       - 'sync-state-sanitizer-v22.js'
       - 'index.html'
@@ -35,6 +36,7 @@ jobs:
           node --check cross-source-audit-v201.js
           node --check receipt-bundle-import-v202.js
           node --check expense-budget-metrics-v203.js
+          node tests/expense-nature-rules-v152.test.js
           node tests/expense-budget-metrics-v203.test.cjs
           node tests/ci-current-assets-v180.cjs expense-budget-metrics-v203.js
           node tests/receipt-bundle-import-v202.test.cjs

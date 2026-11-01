@@ -127,6 +127,11 @@ Deno.serve(async(req)=>{
     return respond({budget:data.monthly_budget});
   }
   if(action==='publish'){
+    // v206: old browser tabs published automatically during page load/sync,
+    // resetting the wife's visible "updated" time without a human request.
+    // Require the new UI's explicit publish action; stale tabs must reload.
+    if(input?.manual_trigger!=='wife-publish-button-v206')
+      return respond({error:'共有の手動反映専用です。家計アプリを再読み込みし「妻へ反映」を押してください。'},409);
     // v164: a prior open v160 tab can otherwise overwrite the newer
     // hierarchy with a flat summary, even after the wife page is updated.
     if(input?.snapshot?.schema_version!==2)

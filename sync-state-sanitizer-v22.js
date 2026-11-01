@@ -136,7 +136,7 @@
   injectClassic('./planning-model-v80.js?v=91', 'data-household-planning-model-v80');
   injectClassic('./planning-ui-v80.js?v=80', 'data-household-planning-ui-v80');
   // v81 is the card-cycle authority and restores bank balances to the planning dashboard.
-  injectClassic('./card-cycle-v81.js?v=179', 'data-household-card-cycle-v81');
+  injectClassic('./card-cycle-v81.js?v=205', 'data-household-card-cycle-v81');
   // v97 preserves unsaved draft card selections in annual/fixed editors.
   injectClassic('./card-cycle-ui-v81.js?v=97', 'data-household-card-cycle-ui-v81');
   injectClassic('./dashboard-bank-v81.js?v=81', 'data-household-dashboard-bank-v81');
@@ -179,5 +179,7 @@
   injectClassic('./receipt-bundle-import-v202.js?v=202', 'data-household-receipt-bundle-v202');
   // v203: independent budget metrics for the expense summary.
   injectClassic('./expense-budget-metrics-v203.js?v=204','data-household-expense-budget-v203');
+  // v205: wife-only reference view, direct toggles, and reversible payment evidence.
+  injectClassic('./wife-personal-reference-v205.js?v=205','data-household-wife-reference-v205');
   // v92/v93 exact d-card overlay retired in v94.
 })();

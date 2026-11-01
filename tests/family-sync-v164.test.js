@@ -50,7 +50,9 @@ for(let i=0;i<12&&tasks.length;i++){
  for(let j=0;j<8;j++)await Promise.resolve();
 }
 assert.ok(apiCalls.includes('owner'),'Owner status fetched after delayed sync');
-assert.ok(apiCalls.includes('publish'),'Share published even when enabled state was initially unknown');
+assert.ok(!apiCalls.includes('publish'),'Delayed cloud sync must not auto-publish wife share');
+assert.equal(published.length,0,'Published timestamp remains frozen until wife publish click');
+await window.householdFamilyShareV160.publish();
 assert.equal(published.length,1);
 assert.equal(published[0].schema_version,2);
 assert.equal(published[0].variable,36085);

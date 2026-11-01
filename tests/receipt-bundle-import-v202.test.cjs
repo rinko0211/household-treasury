@@ -134,6 +134,6 @@ test('unknown CSV forwards to existing importer unchanged',async()=>{
 });
 test('quoted commas and escaped quotes survive parser',()=>{
  const e=env();
- const list=e.api.parseCsvText('\"a,b\",\"a\"\"b\"\\r\\n');
+ const list=e.api.parseCsvText('\"a,b\",\"a\"\"b\"\r\n');
  assert.equal(list[0][0],'a,b');assert.equal(list[0][1],'a\"b');
 });

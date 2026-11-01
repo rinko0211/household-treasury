@@ -311,9 +311,14 @@ function detailPanel(bucket){
      if(!subExpanded)continue;
      markup+='<div class="hub-group-details" data-hub-details="'+esc(g.key)+'">';
      for(const x of g.items.slice(0,150)){
+       const receiptLines=window.householdReceiptBundleV202?.detailsFor?.(stateNow(),x.identity)||[];
+       const receiptParts=receiptLines.length?
+         '<details style="margin:6px 0"><summary class="hub-muted">レシート商品内訳 '+receiptLines.length+'行（親取引に含む・追加計上なし）</summary>'+
+         receiptLines.map(d=>'<div class="hub-muted" style="padding:3px 0">'+esc(d.label)+
+           ' ×'+Number(d.qty||1)+'　'+yen(d.amount)+'</div>').join('')+'</details>':'';
        markup+='<div class="hub-detailrow"><div class="hub-merchant"><b>'+esc(x.label)+'</b>'+
          '<div class="hub-muted">'+esc(x.date||'日付未確定')+' ・ '+esc(x.source||'')+
-           (x.provisional?' ・ 仮記帳':'')+(x.needsReview?' ・ 要確認':'')+'</div>'+
+           (x.provisional?' ・ 仮記帳':'')+(x.needsReview?' ・ 要確認':'')+'</div>'+receiptParts+
          (x.editKind&&x.editId?'<button type="button" class="hub-edit" data-hub-edit="'+esc(x.editKind)+'" data-hub-editid="'+esc(x.editId)+'">明細を編集</button>':'')+
          (x.manualDeleteIdentity?'<button type="button" class="hub-delete" data-hub-delete="'+
            esc(x.manualDeleteIdentity)+'">手動明細を削除</button>':

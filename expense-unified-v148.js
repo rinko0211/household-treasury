@@ -633,6 +633,7 @@ function boot(){
  mount();
  window.addEventListener('treasury:pagechange',e=>{if(e?.detail?.page==='expenses')render()});
  window.addEventListener('treasury:expenses-imported',()=>{if($('expenses')?.classList.contains('active'))render()});
+ window.addEventListener('household:family-budget-updated',()=>{if($('expenses')?.classList.contains('active'))render()});
  window.addEventListener('pageshow',()=>{if($('expenses')?.classList.contains('active'))render()});
  window.addEventListener('focus',()=>{if($('expenses')?.classList.contains('active'))render()});
  if($('expenses')?.classList.contains('active'))render();

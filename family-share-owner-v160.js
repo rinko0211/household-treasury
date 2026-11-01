@@ -8,7 +8,7 @@ const STORAGE='householdFamilyShareTokenV160';
 const yen=v=>new Intl.NumberFormat('ja-JP',{style:'currency',currency:'JPY',maximumFractionDigits:0}).format(Number(v)||0);
 const $=s=>document.getElementById(s);
 const TODAY=()=>new Intl.DateTimeFormat('sv-SE',{timeZone:'Asia/Tokyo',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
-let shareExists=false,enabled=false,budget=0,budgetReady=false,busy=false,autoTimer=null,lastPublishedRevision=-1,initialAutoScheduled=false,lastPublishedVersion=0;
+let shareExists=false,enabled=false,budget=0,budgetReady=false,busy=false;
 const context=()=>window.householdShareSyncContext?.()||{};
 function setNote(msg,warning=false){
  const el=$('familyShareNoteV160');
@@ -138,18 +138,18 @@ async function refreshStatus(silent=false){
   if($('familyShareCreateV160'))$('familyShareCreateV160').textContent=shareExists?'リンクを再発行':'共有リンクを作成';
   if($('familyShareStopV160'))$('familyShareStopV160').disabled=!enabled;
   showLink();
-  if(legacyShared)setNote('共有された細目は旧形式です。クラウド同期後に自動更新します。更新されない場合は「最新の変動費を反映」を押してください。',true);
+  if(legacyShared)setNote('共有された細目は旧形式です。「妻へ反映」を押すと最新版に更新します。',true);
   else if(!silent)setNote(enabled?'共有中・最終更新 '+(r.published_at?new Date(r.published_at).toLocaleString('ja-JP'):'未更新'):'共有は停止中です。');
-  if(enabled&&context().ready&&!initialAutoScheduled&&!busy){initialAutoScheduled=true;setTimeout(()=>publish(true).catch(e=>setNote('共有の自動更新に失敗：'+e.message,true)),1700)}
  }catch(e){if(!silent)setNote(e.message,true)}
 }
-async function publish(silent=false){
+async function publish(){
  const ctx=context();
- if(!ctx.ready||ctx.blocked){if(!silent)throw Error('家計アプリのクラウド同期が完了してから実行してください。');return}
+ if(!ctx.ready||ctx.blocked)throw Error('家計アプリのクラウド同期が完了してから実行してください。');
  const snapshot=makeSnapshot();
- if(silent&&snapshot.source_revision===lastPublishedRevision&&lastPublishedVersion===2)return;
- const r=await api('publish',{snapshot});
- enabled=!!r.enabled;lastPublishedRevision=snapshot.source_revision;lastPublishedVersion=2;
+ // v206: a successful manual click is the ONLY event allowed to change
+ // the shared snapshot's published_at timestamp.
+ const r=await api('publish',{snapshot,manual_trigger:'wife-publish-button-v206'});
+ enabled=!!r.enabled;budgetReady=enabled&&budget>0;
  showLink();
  setNote('更新済み：変動費 '+yen(snapshot.variable)+' / '+snapshot.period_start+'〜'+snapshot.period_end+
   (snapshot.undetermined?'（未分類 '+yen(snapshot.undetermined)+' あり）':''));
@@ -179,16 +179,15 @@ function mount(){
   '<button class="btn secondary" id="familyShareCopyV160" disabled>URLをコピー</button>'+
   '<button class="btn secondary" id="familyShareStopV160" disabled>共有停止</button></div>'+
   '<div id="familyShareNoteV160" class="tiny" style="margin-top:12px">ログイン状態を確認しています。</div>'+
-  '<div class="tiny" style="margin-top:8px">クラウド同期後にカテゴリ内訳まで自動反映します。更新されない場合は「最新の変動費を反映」を押してください。共有URLの再発行は不要です。</div>';
+  '<div class="tiny" style="margin-top:8px">妻の共有画面の支出と最終更新日時は「妻へ反映」を押したときだけ更新します。再読み込みや自動同期では更新しません。</div>';
  cloud.parentElement.appendChild(panel);
  $('familyShareCreateV160').onclick=()=>guarded(async()=>{
   if(!context().ready||context().blocked)throw Error('まず家計アプリのクラウド同期を完了してください。');
   if(shareExists&&!confirm('リンクを再発行すると、現在の奥さん用URLは使えなくなります。続けますか？'))return;
   const r=await api(shareExists?'rotate':'create');
   shareExists=true;enabled=false;storeToken(r.token);showLink();
-  await publish();
   $('familyShareCreateV160').textContent='リンクを再発行';
-  setNote('共有を開始しました。URLをコピーして奥さんへ送ってください。');
+  setNote('リンクを作成しました。「妻へ反映」を押して公開を開始してください。');
  });
  $('familySharePublishV160').onclick=()=>guarded(async()=>{if(!shareExists)throw Error('先に共有リンクを作成してください。');await publish()});
  $('familyShareSaveBudgetV160').onclick=()=>guarded(async()=>{
@@ -213,17 +212,9 @@ function mount(){
  setTimeout(()=>refreshStatus(true),5500);
 }
 window.addEventListener('householdShareCloudSyncedV160',()=>{
- clearTimeout(autoTimer);
- if(busy)return;
- // Cloud initialization can finish AFTER the Settings card's earlier
- // status checks. Resolve the share's actual enabled state before publishing.
- autoTimer=setTimeout(async()=>{
-   try{
-     if(!context().ready||context().blocked)return;
-     if(!shareExists||!enabled)await refreshStatus(true);
-     else await publish(true);
-   }catch(e){setNote('共有の自動更新に失敗：'+e.message,true)}
- },450);
+ // Cloud sync changes only the owner's copy. Never rewrite the wife's
+ // published snapshot merely because a tab was reopened or synchronized.
+ if(!busy&&context().ready&&!context().blocked)refreshStatus(true);
 });
 window.addEventListener('focus',()=>{if($('familySharePanelV160'))refreshStatus(true)});
 window.householdFamilyShareV160={mount,makeSnapshot,publish,refreshStatus,budgetInfo:()=>({ready:budgetReady&&enabled,amount:budgetReady?budget:null})};

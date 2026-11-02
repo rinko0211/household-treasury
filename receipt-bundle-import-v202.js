@@ -131,7 +131,9 @@ function plan(data,parsed,name=''){
  st.purchaseEvents=Array.isArray(st.purchaseEvents)?st.purchaseEvents:[];
  st.receiptItemDetailsV202=Array.isArray(st.receiptItemDetailsV202)?st.receiptItemDetailsV202:[];
  const lookup=makeLookup(st);
- const detailById=new Map(st.receiptItemDetailsV202.map(x=>[x.id,x]));
+ const detailById=new Map();
+ // The legacy .find() returned the first matching detail if IDs collided.
+ for(const row of st.receiptItemDetailsV202)if(!detailById.has(row.id))detailById.set(row.id,row);
  const result={next:st,type:parsed.type,read:parsed.rows.length,
    newPurchases:0,details:0,duplicates:0,updated:0,review:0,provisional:0,newSpending:0};
  const register=(p,itemOnly=false)=>{

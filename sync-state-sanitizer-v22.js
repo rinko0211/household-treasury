@@ -176,7 +176,7 @@
   // v201: conservative all-source reconciliation audit, loaded after CSV/PDF wrappers.
   injectClassic('./cross-source-audit-v201.js?v=201', 'data-household-cross-source-audit-v201');
   // v202: read the three receipt / detail / provisional shopping CSVs after existing providers.
-  injectClassic('./receipt-bundle-import-v202.js?v=202', 'data-household-receipt-bundle-v202');
+  injectClassic('./receipt-bundle-import-v202.js?v=209', 'data-household-receipt-bundle-v202');
   // v203: independent budget metrics for the expense summary.
   injectClassic('./expense-budget-metrics-v203.js?v=204','data-household-expense-budget-v203');
   // v205: wife-only reference view, direct toggles, and reversible payment evidence.

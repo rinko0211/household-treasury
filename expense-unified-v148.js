@@ -68,7 +68,7 @@ function loanReference(st,viewMonth){
 function fixedReference(st,viewMonth){return referenceFor(st,viewMonth,false)}
 function seasonalReference(st,viewMonth){return referenceFor(st,viewMonth,true)}
 let cycle='payday',lens='economic',month='',openBucket='',openCategory='',openSubcategory='',groups=[],annualOpen=false,reviewOpen=false;
-let currentDetailBucket=null;
+let currentDetailBucket=null,currentDetailState=null;
 function budgetReference(st,viewMonth){
  const fixed=fixedReference(st,viewMonth),loans=loanReference(st,viewMonth);
  let living=0,ideco=0,investment=0;
@@ -288,7 +288,7 @@ function reviewReasons(row,st){
     reasons.push('通常費・特別費の判定相違');
   return reasons.length?reasons:['分類の再確認'];
 }
-function detailPanel(bucket){
+function detailPanel(bucket,st){
  groups=categoryGroups(bucket);
  if(openCategory&&!groups.some(g=>g.key===openCategory)){openCategory='';openSubcategory=''}
  const chosen=groups.find(g=>g.key===openCategory);
@@ -311,12 +311,12 @@ function detailPanel(bucket){
      if(!subExpanded)continue;
      markup+='<div class="hub-group-details" data-hub-details="'+esc(g.key)+'">';
      for(const x of g.items.slice(0,150)){
-       const receiptLines=window.householdReceiptBundleV202?.detailsFor?.(stateNow(),x.identity)||[];
+       const receiptLines=window.householdReceiptBundleV202?.detailsFor?.(st,x.identity)||[];
        const wifeTarget=x.referenceIdentity||
          (x.personalOwner==='wife'?x.identity:'');
        const wifeMatch=String(wifeTarget).match(/^(purchase|cash):(\d+)$/);
        const wifeEligibility=wifeMatch?
-         window.householdWifeReferenceV205?.eligibility?.(stateNow(),wifeMatch[1],Number(wifeMatch[2])):null;
+         window.householdWifeReferenceV205?.eligibility?.(st,wifeMatch[1],Number(wifeMatch[2])):null;
        const wifeChoice=wifeEligibility?
          '<button type="button" class="hub-edit hub-wife-ref" data-hub-wife-ref="'+
          esc(wifeEligibility.identity)+'" data-hub-wife-mode="'+
@@ -342,7 +342,7 @@ function detailPanel(bucket){
    markup+='</div>';
  }
  if(bucket.id==='fixed'&&lens==='economic'){
-   const reference=fixedReference(stateNow(),month),loans=loanReference(stateNow(),month),seasonal=seasonalReference(stateNow(),month);
+   const reference=fixedReference(st,month),loans=loanReference(st,month),seasonal=seasonalReference(st,month);
    markup+='<details class="hub-fixed-ref">'+
      '<summary>固定支払マスターの月額内訳（ローン含む・参考） '+yen(reference.total+loans.total)+'</summary>'+
      '<p class="hub-muted">内訳：固定の生活費 '+yen(reference.total)+'、ローン返済 '+yen(loans.total)+'。ローン元金は消費・購入額に加算しません。</p>'+
@@ -416,6 +416,7 @@ function render(){
  '<div class="hub-tablehead"><span>'+ (economic?'消費・資金用途':'銀行引落・資金移動') +'</span><span>金額</span></div>';
  if(economic)html+='<div class="hub-totals"><span>通常の消費・生活費（ローンを除く）</span><b>'+yen(ordinary)+'</b></div>';
  currentDetailBucket=all.find(b=>b.id===openBucket)||null;
+ currentDetailState=st;
  for(const b of all){
    const expanded=openBucket===b.id;
    html+='<div class="hub-budget-group"><button type="button" class="hub-line" data-hub-bucket="'+esc(b.id)+'" aria-expanded="'+expanded+'">'+
@@ -423,7 +424,7 @@ function render(){
      '<span class="hub-amt">'+yen(b.amount)+
      '<span aria-hidden="true" class="hub-chevron">'+(expanded?'⌄':'›')+'</span></span></button>'+
      budgetProgressHtml(b)+'</div>';
-   if(expanded)html+=detailPanel(b);
+   if(expanded)html+=detailPanel(b,st);
  }
  if(economic)html+='<div class="hub-totals"><span>消費・購入額（個人費を含む）</span><b>'+yen(consumption)+'</b></div>';
  html+='<div class="hub-totals"><span>'+(economic?'支出・資金用途合計':'口座資金流出合計（消費とは別）')+'</span><b>'+yen(total)+'</b></div>'+
@@ -539,7 +540,7 @@ function updateDrilldown(){
  const old=$('expenseHubDrilldownV148');
  if(!old||typeof old.replaceWith!=='function'||!currentDetailBucket)return false;
  const wrapper=document.createElement('div');
- wrapper.innerHTML=detailPanel(currentDetailBucket);
+ wrapper.innerHTML=detailPanel(currentDetailBucket,currentDetailState||stateNow());
  const next=wrapper.firstElementChild;
  if(!next)return false;
  old.replaceWith(next);

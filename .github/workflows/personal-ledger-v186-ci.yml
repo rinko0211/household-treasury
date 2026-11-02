@@ -4,6 +4,9 @@ on:
     paths:
       - 'personal-ledger-v186.js'
       - 'expense-unified-v148.js'
+      - 'ui-modern-v169.css'
+      - 'semantic-ui-v48.js'
+      - 'app.js'
       - 'wife-personal-reference-v205.js'
       - 'card-cycle-v81.js'
       - 'supabase/functions/family-variable-share/index.ts'
@@ -34,6 +37,9 @@ jobs:
         run: |
           node --check personal-ledger-v186.js
           node --check expense-unified-v148.js
+          node --check semantic-ui-v48.js
+          node --check app.js
+          node tests/mobile-import-editor-v208.test.cjs
           node --check wife-personal-reference-v205.js
           node tests/wife-personal-reference-v205.test.cjs
           node tests/family-share-manual-publish-v206.test.cjs

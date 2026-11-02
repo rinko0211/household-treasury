@@ -22,8 +22,9 @@ assert.ok(css.includes('#treasuryHeaderActionsV180'),'Responsive header styles m
 assert.ok(css.includes('@media(max-width:420px)'),'Narrow mobile layout must remain safe');
 const publishedScript=html.match(/\.\/family-share-owner-v160\.js\?v=\d+/)?.[0];
 assert.ok(publishedScript,'Family sharing script must be present in HTML');
-assert.ok(html.includes('ui-modern-v169.css?v=180'));
+const uiAsset=html.match(/ui-modern-v169\.css\?v=\d+/)?.[0];
+assert.ok(uiAsset,'HTML must link a versioned responsive stylesheet');
 assert.ok(sw.includes('"'+publishedScript+'"'),'PWA must cache the exact current family sharing script');
 assert.ok(sw.includes('./settings-ux-v45.js?v=180'));
-assert.ok(sw.includes('./ui-modern-v169.css?v=180'));
+assert.ok(sw.includes('./'+uiAsset),'PWA must cache the exact responsive stylesheet version');
 console.log('HEADER_ACTIONS_V180_PASS');

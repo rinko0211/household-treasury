@@ -81,24 +81,48 @@ function hash(s){let h=2166136261;for(let i=0;i<s.length;i++){
  h^=s.charCodeAt(i);h=Math.imul(h,16777619)}
  return (h>>>0).toString(16);
 }
-function exact(st,key){
- const matches=[];
- for(const arr of [st.cashExpenses||[],st.purchaseEvents||[]]){
-  for(const r of arr)if(r.dedup_key===key||r.receipt_bundle_key_v202===key||
-   String(r.id||r.purchase_id||'')==='cash-expense:structured:'+key)matches.push(r);
- }
- return matches;
-}
-function overlapping(st,p){
- const list=[...(st.cashExpenses||[]).map(r=>({r,kind:'cash'})),
-  ...(st.purchaseEvents||[]).map(r=>({r,kind:'card'}))];
- return list.some(({r,kind})=>{
-  if(r.count_in_spending===false||r.manually_deleted_v192===true)return false;
+// v209: index the cloned ledger once per preview/apply. The previous
+// exact()/overlapping() loop scanned the complete cash+card history for
+// every imported receipt, becoming O(history × imported rows).
+// Indexes remain local to one plan(), never cached across edits or sync.
+const overlapKey=(date,amount,label)=>JSON.stringify([date,money(amount),norm(label)]);
+function makeLookup(st){
+ const byExact=new Map(),overlaps=new Set(),provisionalCash=new Map();
+ const append=(map,key,row)=>{
+  const rows=map.get(key);
+  if(rows)rows.push(row);
+  else map.set(key,[row]);
+ };
+ const add=(r,kind)=>{
+  // Match the old exact predicate once per record, including excluded rows.
+  const keys=new Set();
+  if(r.dedup_key!==undefined)keys.add(r.dedup_key);
+  if(r.receipt_bundle_key_v202!==undefined)keys.add(r.receipt_bundle_key_v202);
+  const identity=String(r.id||r.purchase_id||'');
+  if(identity.startsWith('cash-expense:structured:'))
+   keys.add(identity.slice('cash-expense:structured:'.length));
+  for(const key of keys)append(byExact,key,r);
+  if(kind==='cash'){
+   for(const key of [r.dedup_key,r.id]){
+    if(key!==undefined&&!provisionalCash.has(key))provisionalCash.set(key,r);
+   }
+  }
+  // Preserve cash-first / card-second matching and explicit excluded flags.
+  if(r.count_in_spending===false||r.manually_deleted_v192===true)return;
   const date=kind==='cash'?r.date:r.purchase_date;
-  const sum=kind==='cash'?r.amount:r.original_amount;
-  const label=kind==='cash'?r.description||r.description_raw:r.merchant_raw||r.merchant_normalized;
-  return date===p.date&&money(sum)===p.amount&&norm(label)===norm(p.merchant);
- });
+  const amount=kind==='cash'?r.amount:r.original_amount;
+  const label=kind==='cash'?r.description||r.description_raw:
+    r.merchant_raw||r.merchant_normalized;
+  overlaps.add(overlapKey(date,amount,label));
+ };
+ for(const r of st.cashExpenses||[])add(r,'cash');
+ for(const r of st.purchaseEvents||[])add(r,'card');
+ return {
+  exact:key=>byExact.get(key)||[],
+  overlapping:p=>overlaps.has(overlapKey(p.date,p.amount,p.merchant)),
+  provisional:key=>provisionalCash.get(key),
+  add
+ };
 }
 function plan(data,parsed,name=''){
  assert(parsed&&Array.isArray(parsed.rows)&&['transactions','items','amazon'].includes(parsed.type),'CSV形式が不正です');
@@ -106,10 +130,12 @@ function plan(data,parsed,name=''){
  st.cashExpenses=Array.isArray(st.cashExpenses)?st.cashExpenses:[];
  st.purchaseEvents=Array.isArray(st.purchaseEvents)?st.purchaseEvents:[];
  st.receiptItemDetailsV202=Array.isArray(st.receiptItemDetailsV202)?st.receiptItemDetailsV202:[];
+ const lookup=makeLookup(st);
+ const detailById=new Map(st.receiptItemDetailsV202.map(x=>[x.id,x]));
  const result={next:st,type:parsed.type,read:parsed.rows.length,
    newPurchases:0,details:0,duplicates:0,updated:0,review:0,provisional:0,newSpending:0};
  const register=(p,itemOnly=false)=>{
-  const hits=exact(st,p.key);
+  const hits=lookup.exact(p.key);
   assert(hits.length<=1,'同一レシートIDが複数登録されています: '+p.key);
   if(hits.length){
    const r=hits[0],storedDate=r.purchase_date||r.date;
@@ -128,10 +154,10 @@ function plan(data,parsed,name=''){
    }else result.duplicates++;
    return;
   }
-  assert(!overlapping(st,p),'同日・同店・同額の支出 '+p.merchant+' '+yen(p.amount)+
+  assert(!lookup.overlapping(p),'同日・同店・同額の支出 '+p.merchant+' '+yen(p.amount)+
    ' は既に登録されています。二重計上を避けるため登録を中止しました。横断重複点検で確認してください。');
   const pay=itemOnly?'UNCONFIRMED':method(p.payment);
-  st.cashExpenses.push({
+  const savedReceipt={
    id:'receipt-v202:'+p.key,receipt_bundle_key_v202:p.key,dedup_key:p.key,
    receipt_bundle_v202:true,receipt_payment_unresolved_v202:pay==='UNCONFIRMED',
    date:p.date,description:p.merchant,amount:p.amount,
@@ -144,7 +170,9 @@ function plan(data,parsed,name=''){
    receipt_time_v202:p.time||'',source_file:name,
    manual_reconciliation_pending:true,review_status:pay==='CASH'?'RESOLVED':'NEEDS_REVIEW',
    count_in_spending:true,imported_at:now
-  });
+  };
+  st.cashExpenses.push(savedReceipt);
+  lookup.add(savedReceipt,'cash');
   result.newPurchases++;result.newSpending+=p.amount;
   if(pay!=='CASH')result.review++;
  };
@@ -168,17 +196,20 @@ function plan(data,parsed,name=''){
      category:g.rows.some(x=>category(x.category)==='CHILD')?'子ども用品':'食費'},true);
    for(const p of g.rows){
     const id='line-v202:'+p.key+':'+p.line;
-    const old=st.receiptItemDetailsV202.find(x=>x.id===id);
+    const old=detailById.get(id);
     if(old){
      assert(old.amount===p.amount&&old.label===p.label&&old.qty===p.qty,
       '同一商品IDの内容が変わっています');result.duplicates++;continue;
     }
-    st.receiptItemDetailsV202.push({
+    const detail={
      id,receipt_key:key,date:p.date,merchant:p.merchant,label:p.label,
      qty:p.qty,unit_price:p.unit,amount:p.amount,category:category(p.category),
      source_image:p.image,source_file:name,record_kind:'RECEIPT_LINE',
      count_in_spending:false
-    });result.details++;
+    };
+    st.receiptItemDetailsV202.push(detail);
+    detailById.set(id,detail);
+    result.details++;
    }
   }
  }else{
@@ -186,12 +217,12 @@ function plan(data,parsed,name=''){
   for(const p of parsed.rows){
    const key='amazon-provisional:'+p.date+':'+norm(p.image)+':'+hash(norm(p.label)+'|'+norm(p.variant));
    assert(!seen.has(key),'同じAmazon商品候補が重複しています');seen.add(key);
-   const prior=st.cashExpenses.find(x=>x.dedup_key===key||x.id===key);
+   const prior=lookup.provisional(key);
    if(prior){
     assert(money(prior.amount)===p.amount,'既存の仮計上と金額が異なります。修正は支出ページで行ってください');
     result.duplicates++;continue;
    }
-   st.cashExpenses.push({
+   const pending={
     id:key,dedup_key:key,date:p.date,description:p.label,amount:p.amount,
     category:/セーター|シャツ|パンツ|こども|キッズ/.test(p.label)?'CHILD':'DAILY_GOODS',
     subcategory:'OTHER',cost_nature:'VARIABLE',spending_class:'NORMAL',
@@ -205,7 +236,9 @@ function plan(data,parsed,name=''){
     provisional_price_excludes_shipping_v202:true,
     source_file:name,provisional_source_image_v202:p.image,
     imported_at:now,note:'商品画面のみ・購入未確認。送料/割引を含まない仮予算。 '+p.note
-   });
+   };
+   st.cashExpenses.push(pending);
+   lookup.add(pending,'cash');
    result.newPurchases++;result.newSpending+=p.amount;result.provisional++;result.review++;
   }
  }

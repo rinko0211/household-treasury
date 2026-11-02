@@ -137,3 +137,84 @@ test('quoted commas and escaped quotes survive parser',()=>{
  const list=e.api.parseCsvText('\"a,b\",\"a\"\"b\"\r\n');
  assert.equal(list[0][0],'a,b');assert.equal(list[0][1],'a\"b');
 });
+
+
+test('large prior ledger replays are indexed without changing monetary output',()=>{
+ const existingCash=Array.from({length:14000},(_,i)=>({
+  id:'old-cash:'+i, date:'2026-07-01',description:'既存現金店舗'+i,
+  amount:i+50,count_in_spending:true
+ }));
+ const existingCards=Array.from({length:14000},(_,i)=>({
+  purchase_id:'old-card:'+i, purchase_date:'2026-07-02',merchant_raw:'既存カード店舗'+i,
+  original_amount:i+60,count_in_spending:true
+ }));
+ const e=env({cashExpenses:existingCash,purchaseEvents:existingCards});
+ const rows=Array.from({length:200},(_,i)=>({
+  key:'receipt:2026-11-02:bench:'+i+':'+(200+i)+':unit',
+  date:'2026-11-02',merchant:'ベンチ店舗'+i,amount:200+i,
+  payment:'現金',category:'食費',note:''
+ }));
+ const parsed={type:'transactions',rows};
+ const start=performance.now(),preview=e.api.plan(e.state,parsed,'bench.csv'),elapsed=performance.now()-start;
+ assert.equal(preview.newPurchases,200);
+ assert.equal(preview.newSpending,rows.reduce((sum,x)=>sum+x.amount,0));
+ assert.equal(preview.next.cashExpenses.length,14200);
+ assert.equal(preview.next.purchaseEvents.length,14000);
+ assert.equal(e.state.cashExpenses.length,14000,'preview must be immutable');
+ const replay=e.api.plan(preview.next,parsed,'rename.csv');
+ assert.equal(replay.newPurchases,0);
+ assert.equal(replay.duplicates,200);
+ assert.equal(replay.changed,0);
+ console.log('RECEIPT_INDEX_V209_BENCH',JSON.stringify({
+  existingRows:28000,receiptRows:200,previewMs:Math.round(elapsed)
+ }));
+});
+test('cash/card matching must reject true same-day same-amount same-merchant collisions',()=>{
+ const e=env({purchaseEvents:[{
+  purchase_id:'canonical-card',purchase_date:'2026-10-31',merchant_raw:'パン屋',
+  original_amount:1300,count_in_spending:true
+ }]});
+ assert.throws(()=>e.api.plan(e.state,e.api.read(t()),'reject.csv'),/二重計上/);
+ assert.equal(e.state.cashExpenses.length,0);
+});
+test('excluded old sources do not cause overlap, but exact tombstones block re-import',()=>{
+ const excluded=env({cashExpenses:[{
+  id:'deleted-not-the-current-key',dedup_key:'receipt:other',date:'2026-10-31',
+  description:'パン屋',amount:1300,count_in_spending:false,manually_deleted_v192:true
+ }]});
+ assert.equal(excluded.api.plan(excluded.state,excluded.api.read(t())).newPurchases,1);
+ const tombstone=env({cashExpenses:[{
+  id:'deleted-exact',dedup_key:key,date:'2026-10-31',
+  description:'パン屋',amount:1300,count_in_spending:false,manually_deleted_v192:true
+ }]});
+ const res=tombstone.api.plan(tombstone.state,tombstone.api.read(t()));
+ assert.equal(res.newPurchases,0);assert.equal(res.duplicates,1);
+});
+test('duplicate receipt ID across cash and card must still be blocked',()=>{
+ const e=env({cashExpenses:[{id:'one',dedup_key:key,date:'2026-10-31',description:'パン屋',amount:1300}],
+ purchaseEvents:[{purchase_id:'two',receipt_bundle_key_v202:key,purchase_date:'2026-10-31',
+ merchant_raw:'パン屋',original_amount:1300}]});
+ assert.throws(()=>e.api.plan(e.state,e.api.read(t())),/複数登録/);
+});
+test('new rows in the same CSV cannot bypass overlap protection with different keys',()=>{
+ const e=env();
+ const rows=[{key:'receipt:2026-10-31:bake-a:1300',date:'2026-10-31',merchant:'パン屋',amount:1300,payment:'現金'},
+ {key:'receipt:2026-10-31:bake-b:1300',date:'2026-10-31',merchant:'パン屋',amount:1300,payment:'現金'}];
+ assert.throws(()=>e.api.plan(e.state,{type:'transactions',rows}),/二重計上/);
+ assert.equal(e.state.cashExpenses.length,0,'invalid batch cannot mutate the source');
+});
+test('legacy provisional Amazon record matches by source id even when dedup is missing',()=>{
+ const parsed=env().api.read(a());
+ const sample=parsed.rows[0];
+ const normText=s=>String(s??'').normalize('NFKC').trim().toUpperCase()
+  .replace(/[\s　()（）［］\[\]〔〕【】・_\-／/.,，。．]/g,'');
+ let hash=2166136261;
+ for(const c of normText(sample.label)+'|'+normText(sample.variant)){
+  hash^=c.charCodeAt(0);hash=Math.imul(hash,16777619);
+ }
+ const id='amazon-provisional:'+sample.date+':'+normText(sample.image)+':'+(hash>>>0).toString(16);
+ const e=env({cashExpenses:[{id,date:sample.date,amount:sample.amount}]});
+ const res=e.api.plan(e.state,{type:'amazon',rows:[sample]});
+ assert.equal(res.duplicates,1);
+ assert.equal(res.newPurchases,0);
+});

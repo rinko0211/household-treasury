@@ -153,3 +153,81 @@ details>summary,
  #treasuryHeaderActionsV180>.tab,#treasuryHeaderActionsV180>.btn{padding:8px 10px}
  #treasuryHeaderShareNoteV180{flex:1 1 100%;max-width:100%;white-space:normal;max-height:32px}
 }
+
+
+/* v208: prevent percent-encoded CSV names from stretching Import to 2x viewport. */
+#imports, #imports .grid, #imports .grid>.card,
+#imports #importResults, #imports #importResults>.card {
+  min-width:0;max-width:100%;box-sizing:border-box;
+}
+#imports #importResults .title,
+#imports #importResults .tag,
+#imports #importResults .note {
+  max-width:100%;min-width:0;white-space:normal;
+  overflow-wrap:anywhere;word-break:normal;
+}
+#imports #importResults .title{
+  display:flex;flex-wrap:wrap;align-items:center;gap:6px 8px;
+}
+#imports #importResults .row{min-width:0;max-width:100%;flex-wrap:wrap}
+#imports #importResults .row>span{flex:1 1 0;min-width:0;overflow-wrap:anywhere}
+#imports #importResults .row>b{flex:0 0 auto}
+
+/* v208: dialogs are outside .page; legacy .page .form rules never reached them. */
+#transactionEditorV108,#transactionCardEditorV114 {
+  box-sizing:border-box;max-width:100%;overscroll-behavior:contain;
+  -webkit-overflow-scrolling:touch;
+}
+#transactionEditorV108 .v208-edit-dialog,
+#transactionCardEditorV114 .v208-edit-dialog{
+  box-sizing:border-box;width:100%;min-width:0;max-width:100%;
+  margin:clamp(4px,3vh,24px) auto 24px;
+}
+#transactionEditorV108 .v208-edit-dialog>div:first-child,
+#transactionCardEditorV114 .v208-edit-dialog>div:first-child{
+  min-width:0;flex-wrap:wrap;
+}
+#transactionEditorTitleV108,#transactionCardEditorTitleV114,
+#transactionEditorMetaV108,#transactionCardEditorMetaV114{
+  min-width:0;max-width:100%;overflow-wrap:anywhere;
+}
+#transactionEditorV108 .form,#transactionCardEditorV114 .form{
+  min-width:0;max-width:100%;grid-template-columns:repeat(4,minmax(0,1fr));
+}
+#transactionEditorV108 .v208-cash-fields{grid-template-columns:minmax(0,1fr) minmax(0,2fr) minmax(0,1fr)}
+#transactionCardEditorV114 .v208-card-fields{grid-template-columns:repeat(2,minmax(0,1fr))}
+#transactionEditorV108 .field,#transactionCardEditorV114 .field,
+#transactionEditorV108 .field>*,#transactionCardEditorV114 .field>*{
+  box-sizing:border-box;min-width:0;max-width:100%;
+}
+#transactionEditorV108 input,#transactionEditorV108 select,
+#transactionEditorV108 textarea,#transactionCardEditorV114 input,
+#transactionCardEditorV114 select,#transactionCardEditorV114 textarea{
+  width:100%;min-width:0;max-width:100%;box-sizing:border-box;
+}
+#transactionEditorV108 .field>label,#transactionCardEditorV114 .field>label,
+#transactionEditorV108 .tiny,#transactionCardEditorV114 .tiny{
+  overflow-wrap:anywhere;
+}
+#transactionEditorV108 .controls,#transactionCardEditorV114 .controls{
+  min-width:0;max-width:100%;flex-wrap:wrap;gap:8px;
+}
+#transactionEditorV108 .controls>.btn,#transactionCardEditorV114 .controls>.btn{
+  max-width:100%;white-space:normal;
+}
+@media(max-width:600px){
+  #transactionEditorV108,#transactionCardEditorV114{padding:9px!important}
+  #transactionEditorV108 .v208-edit-dialog,#transactionCardEditorV114 .v208-edit-dialog{
+    padding:14px;margin:2vh auto 16px;
+  }
+  #transactionEditorV108 .v208-editor-form{grid-template-columns:repeat(2,minmax(0,1fr))}
+  #transactionEditorV108 .v208-cash-fields,
+  #transactionCardEditorV114 .form{grid-template-columns:minmax(0,1fr)}
+  #transactionEditorV108 input,#transactionEditorV108 select,
+  #transactionCardEditorV114 input,#transactionCardEditorV114 select{
+    font-size:16px; /* prevent iOS auto-zoom on tap */
+  }
+}
+@media(max-width:460px){
+  #transactionEditorV108 .v208-editor-form{grid-template-columns:minmax(0,1fr)}
+}

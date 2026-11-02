@@ -214,8 +214,35 @@ async function importOne(file){
   if(src.type==='bank_main')result=parseBankMain(src,file);else if(src.type==='bank_yucho')result=parseYucho(src,file);else if(src.type==='rakuten_card')result=parseRakutenCard(src,file);else if(src.type==='mufg_dc_jal_card')result=parseMufg(src,file);else if(src.type==='broker_cashflow')result=parseBrokerCash(src,file);else if(src.type==='broker_asset_snapshot')result=parseAssetSnapshot(src,file);else if(src.type==='broker_trade_mutual_fund')result=parseTrade(src,file,'MUTUAL_FUND');else if(src.type==='broker_trade_jp')result=parseTrade(src,file,'JP_STOCK');else if(src.type==='broker_trade_us')result=parseTrade(src,file,'US_STOCK');else throw new Error('未対応CSVです。既知ヘッダーと一致しないため自動推測はしません。');
   state.imports.unshift({at:new Date().toISOString(),file:file.name,sha256:sha,type:src.type,...result});save();return result;
 }
+// Display-only decoding: percent-encoded iPhone file names remain unchanged as
+// source evidence, but are readable in the import result (no decode exceptions).
+function importDisplayName(file){
+ const raw=String(file?.name||'');
+ if(!/%[0-9a-f]{2}/i.test(raw))return raw;
+ try{return decodeURIComponent(raw)}catch{return raw}
+}
 async function readCsv(files){
-  for(const file of [...files]){const div=document.createElement('div');div.className='card';div.style.marginTop='10px';div.innerHTML=`<div class="title">${esc(file.name)}</div><div class="muted">解析中...</div>`;$('importResults').prepend(div);try{const r=await importOne(file);div.innerHTML=`<div class="title">${esc(file.name)} <span class="tag">${esc(r.source)}</span></div><div class="row"><span>追加</span><b>${r.added||0}件</b></div><div class="row"><span>重複除外</span><b>${r.duplicates||0}件</b></div><div class="row"><span>要確認</span><b>${r.review||0}件</b></div>${r.balance!==undefined?`<div class="row"><span>最新残高</span><b>${yen(r.balance)}</b></div>`:''}`;render()}catch(e){div.innerHTML=`<div class="title bad">${esc(file.name)} · 取込停止</div><div class="note">${esc(e.message)}</div>`}}
+ let changed=false;
+ for(const file of [...files]){
+  const div=document.createElement('div'),title=esc(importDisplayName(file));
+  div.className='card';div.style.marginTop='10px';
+  div.innerHTML='<div class="title">'+title+'</div><div class="muted">解析中...</div>';
+  $('importResults').prepend(div);
+  try{
+   const r=await importOne(file);
+   div.innerHTML='<div class="title">'+title+' <span class="tag">'+esc(r.source)+'</span></div>'+
+    '<div class="row"><span>追加</span><b>'+(r.added||0)+'件</b></div>'+
+    '<div class="row"><span>重複除外</span><b>'+(r.duplicates||0)+'件</b></div>'+
+    '<div class="row"><span>要確認</span><b>'+(r.review||0)+'件</b></div>'+
+    (r.balance!==undefined?'<div class="row"><span>最新残高</span><b>'+yen(r.balance)+'</b></div>':'');
+   if(!r.skipped)changed=true;
+  }catch(e){
+   div.innerHTML='<div class="title bad">'+title+' · 取込停止</div><div class="note">'+esc(e.message)+'</div>';
+  }
+ }
+ // A multi-file import should refresh the expensive dashboard once per batch,
+ // not once for every status card, while leaving ledger/import actions intact.
+ if(changed)render();
 }
 
 function importRuleSpec(obj){

@@ -114,16 +114,33 @@ function render(){
     $('wealthBody').innerHTML=[...state.history].reverse().map(h=>`<tr><td>${h.month}</td><td>${yen(h.bank)}</td><td>${yen((h.investment||0)+(h.ideco||0)+(h.other||0))}</td><td>${yen(h.liabilities||0)}</td><td>${yen((h.bank||0)+(h.investment||0)+(h.ideco||0)+(h.other||0)-(h.liabilities||0))}</td></tr>`).join('');
     return;
   }
-  const horizon=Number($('forecastHorizon')?.value)||90,f90=forecast(90),f=horizon===90?f90:forecast(horizon),monthEnd=forecastUntil(`${ym(new Date())}-${String(lastDay(new Date().getFullYear(),new Date().getMonth()+1)).padStart(2,'0')}`),salaryF=forecastUntil(nextSalaryDate()),tot=monthEconomicTotals();
+  // v214: calculate only what the visible page needs.
+  if(active==='cashflow'){
+    const horizon=Number($('forecastHorizon')?.value)||90,f=forecast(horizon);
+    $('eventsBody').innerHTML=f.rows.map(e=>`<tr><td>${e.date}</td><td>${esc(e.name)}</td><td>${esc(e.type||'')}</td><td class="${e.amount<0?'bad':'good'}">${e.amount>0?'+':''}${yen(e.amount)}</td><td>${yen(e.balance)}</td><td>${e.generated?'':`<button class="btn secondary" onclick="delEvent('${e.id}')">削除</button>`}</td></tr>`).join('');
+    return;
+  }
+  const f90=forecast(90);
+  // Month-end and next payday are both within these 90 days.
+  const forecastAt=limit=>{
+    let endBalance=Number(state.settings.cash)||0,low=endBalance,lowDate=today();
+    for(const row of f90.rows){
+      if(row.date>limit)break;
+      endBalance=row.balance;
+      if(endBalance<low){low=endBalance;lowDate=row.date}
+    }
+    return {endBalance,low,lowDate};
+  };
+  const monthEnd=forecastAt(`${ym(new Date())}-${String(lastDay(new Date().getFullYear(),new Date().getMonth()+1)).padStart(2,'0')}`);
+  const salaryF=forecastAt(nextSalaryDate()),tot=monthEconomicTotals();
   $('kpiNet').textContent=yen(net());$('kpiCash').textContent=yen(state.settings.cash);$('kpiLow').textContent=yen(f90.low);$('kpiLowDate').textContent=f90.lowDate;$('kpiInvest').textContent=yen(f90.safeToSpend);$('kpiInvest').className=f90.safeToSpend>100000?'good':f90.safeToSpend>0?'warn':'bad';
   $('safety').innerHTML=f90.low>=state.settings.reserve?`90日最低残高は安全資金を <b>${yen(f90.low-state.settings.reserve)}</b> 上回ります。`:`安全資金を <b>${yen(state.settings.reserve-f90.low)}</b> 下回る見込みです。`;
   $('nextEvents').innerHTML=f90.rows.slice(0,8).map(e=>`<div class="row"><div>${esc(e.name)}<div class="tiny">${e.date} · ${esc(e.type||'')}</div></div><div class="amt ${e.amount<0?'bad':'good'}">${e.amount>0?'+':''}${yen(e.amount)}</div></div>`).join('')||'<div class="muted">予定なし</div>';
   const a=state.assets;$('assets').innerHTML=[['預金/流動',a.bank],['投資',a.investment],['iDeCo',a.ideco],['その他',a.other],['負債',-a.liabilities],['リボ残高',-a.revolvingBalance]].map(x=>`<div class="row"><span>${x[0]}</span><span class="amt">${yen(x[1])}</span></div>`).join('');
-  $('eventsBody').innerHTML=f.rows.map(e=>`<tr><td>${e.date}</td><td>${esc(e.name)}</td><td>${esc(e.type||'')}</td><td class="${e.amount<0?'bad':'good'}">${e.amount>0?'+':''}${yen(e.amount)}</td><td>${yen(e.balance)}</td><td>${e.generated?'':`<button class="btn secondary" onclick="delEvent('${e.id}')">削除</button>`}</td></tr>`).join('');
-  $('wealthBody').innerHTML=[...state.history].reverse().map(h=>`<tr><td>${h.month}</td><td>${yen(h.bank)}</td><td>${yen((h.investment||0)+(h.ideco||0)+(h.other||0))}</td><td>${yen(h.liabilities||0)}</td><td>${yen((h.bank||0)+(h.investment||0)+(h.ideco||0)+(h.other||0)-(h.liabilities||0))}</td></tr>`).join('');
+  // Hidden Cash Flow and Wealth tables are not rebuilt on Dashboard.
   if($('cash'))$('cash').value=state.settings.cash;if($('reserve'))$('reserve').value=state.settings.reserve;if($('salary'))$('salary').value=state.settings.salary;if($('salaryDay'))$('salaryDay').value=state.settings.salaryDay;
   if($('kpiMonthEnd'))$('kpiMonthEnd').textContent=yen(monthEnd.endBalance);if($('kpiNextSalaryLow'))$('kpiNextSalaryLow').textContent=yen(salaryF.low);if($('kpiNextSalaryDate'))$('kpiNextSalaryDate').textContent=`最低日 ${salaryF.lowDate}`;if($('kpiOrdinary'))$('kpiOrdinary').textContent=yen(tot.ordinary);if($('kpiSpecialInv'))$('kpiSpecialInv').textContent=`${yen(tot.special)} / ${yen(tot.investment)}`;
-  renderRules();
+  // Settings rules render only on the Settings tab.
 }
 function renderRules(){$('rules').innerHTML=state.rules.map((r,i)=>`<div class="row"><div><b>${esc(r.name)}</b><div class="tiny">毎月${r.day}日 · ${esc(r.type||'fixed')}</div></div><div class="controls"><span class="amt ${r.amount<0?'bad':'good'}">${yen(r.amount)}</span><button class="btn secondary" onclick="editRule(${i})">編集</button><button class="btn secondary" onclick="delRule(${i})">削除</button></div></div>`).join('')||'<div class="muted">固定費ルールなし</div>'}
 window.delEvent=id=>{state.events=state.events.filter(e=>String(e.id)!==String(id));save();render()};
@@ -362,6 +379,34 @@ function importBackupState(obj){
 }
 $('importJson').onclick=()=>$('jsonInput').click();
 $('jsonInput').onchange=e=>{const input=e.target,f=input.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{const obj=JSON.parse(r.result);if(!importRuleSpec(obj))importBackupState(obj)}catch{alert('JSONを読み込めませんでした')}finally{input.value=''}};r.readAsText(f)};
+
+function ensureHeaderImportShortcut(){
+  // Use one header shortcut without changing the sticky Import tab or its router.
+  const top=document.querySelector('main.app .top');
+  const importTab=document.querySelector('nav.tabs .tab[data-page="imports"]');
+  if(!top||!importTab)return;
+  let actions=$('treasuryHeaderActionsV180');
+  if(!actions){
+    actions=document.createElement('div');
+    actions.id='treasuryHeaderActionsV180';
+    actions.setAttribute('role','group');
+    actions.setAttribute('aria-label','インポート・同期・家族共有');
+    top.insertBefore(actions,$('saveStatus')||null);
+  }
+  if($('treasuryHeaderImportV214'))return;
+  const b=document.createElement('button');
+  b.type='button';
+  b.id='treasuryHeaderImportV214';
+  b.className='btn secondary header-import-v214';
+  b.textContent='＋ Import';
+  b.setAttribute('aria-label','CSV・PDFをインポート');
+  b.onclick=()=>{
+    importTab.click();
+    $('imports')?.scrollIntoView?.({behavior:'auto',block:'start'});
+  };
+  actions.prepend(b);
+}
+
 document.querySelectorAll('.tab').forEach(b=>b.onclick=()=>{document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));document.querySelectorAll('.page').forEach(x=>x.classList.remove('active'));b.classList.add('active');$(b.dataset.page).classList.add('active');render()});
 function treasurySemanticComparable(input){
   const VOLATILE_TOP=new Set([
@@ -398,4 +443,5 @@ window.replaceTreasuryState=n=>{
   injectUi();render();return true
 };
 window.setTreasurySaveStatus=t=>$('saveStatus').textContent=t;
-load();render();
+load();render();ensureHeaderImportShortcut();
+window.addEventListener('treasury:pagechange',render);

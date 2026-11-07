@@ -214,8 +214,10 @@
             const overlapUI=(delta.pending||[]).map(item=>{
               const choices=item.candidates.map(c=>
                 '<option value="'+esc(c.ref)+'"'+(approvals[item.token]===c.ref?' selected':'')+'>'+
-                esc((c.kind==='cash'?'旧CSV/現金':'旧CSV/カード')+'：'+c.label+
-                  '（'+c.payment+'）')+'</option>').join('');
+                esc((c.ref.startsWith('replace:')?'金額差あり：旧明細を置換':c.kind==='cash'?'旧CSV/現金':'旧CSV/カード')+
+                  '：'+c.label+'（'+c.payment+'）'+
+                  (c.amount!=null?' '+yen(c.amount)+' → '+yen(item.amount)+' / 差額'+yen(item.amount-c.amount):''))
+                  +'</option>').join('');
               return '<div class="field" style="margin:9px 0;padding:8px;border:1px solid #506274;border-radius:8px">'+
                 '<label style="display:flex;align-items:flex-start;gap:8px">'+
                 '<input type="checkbox" data-mdc-bulk-duplicate="'+esc(item.token)+'" style="margin-top:4px">'+
@@ -243,10 +245,13 @@
               (newRows.length?'<details open style="margin-top:12px"><summary><b>新規登録の対象 '+newRows.length+'件（全件表示）</b></summary>'+
                 '<div class="tiny">チェックを外した明細は登録されません。</div>'+newUI+'</details>':
                 '<div class="tiny" style="margin-top:10px">今回、新規登録の対象はありません。</div>')+
-              (migratedRows.length?'<details open style="margin-top:10px"><summary><b>旧CSVから置換 '+migratedRows.length+'件</b></summary>'+
-                migratedRows.map(r=>'<div class="row"><span>'+esc(r.date+' '+r.merchant)+'</span><b>'+yen(r.amount)+'</b></div>').join('')+'</details>':'')+
-              (overlapUI?'<details open style="margin-top:12px"><summary><b>重複の可能性・要確認 '+(delta.pending||[]).length+'件</b></summary>'+
-                '<div class="tiny">重複と思われる明細にチェックを付けて一括で除外できます。異なる買い物なら個別に「別の支出」を選択してください。</div>'+
+              (migratedRows.length?'<details open style="margin-top:10px"><summary><b>既存支出から置換 '+migratedRows.length+'件</b></summary>'+
+                migratedRows.map(r=>'<div class="row"><span>'+esc(r.date+' '+r.merchant)+
+                  '<div class="tiny">'+esc(r.reason)+'</div></span><b>'+
+                  (r.oldAmount!=null?yen(r.oldAmount)+' → ':'')+yen(r.amount)+
+                  (r.adjustment?'（差額'+yen(r.adjustment)+'）':'')+'</b></div>').join('')+'</details>':'')+
+              (overlapUI?'<details open style="margin-top:12px"><summary><b>既存支出との照合・要確認 '+(delta.pending||[]).length+'件</b></summary>'+
+                '<div class="tiny">金額が違う旧登録も候補に表示します。同一取引なら旧明細を選んで確定額に置換し、違う取引なら「別の支出」を選びます。単なる重複除外では旧金額が残ります。</div>'+
                 '<div class="controls" style="margin:8px 0"><button type="button" class="btn secondary" id="mdcPdfBulkAllV189">候補を全選択</button>'+
                 '<button type="button" class="btn secondary" id="mdcPdfBulkSkipV189">選択した候補を一括で重複除外</button></div>'+
                 overlapUI+'</details>':'')+
@@ -297,12 +302,13 @@
           finalBox.innerHTML='<div class="note"><b>最終確認：まだ保存していません</b>'+
             '<div class="row"><span>新しく増える支出</span><b>'+delta.added+'件 / '+
             yen(sum(newRows.filter(r=>!r.migrated)))+'</b></div>'+
-            '<div class="row"><span>旧CSVとの置換（支出額は増えない）</span><b>'+delta.migratedCash+'件</b></div>'+
+            '<div class="row"><span>既存支出から置換</span><b>'+(delta.migratedCash+delta.manualReplaced)+'件</b></div>'+
+            '<div class="row"><span>置換による支出増減</span><b>'+yen(delta.netAdjustment||0)+'</b></div>'+
             '<div class="row"><span>重複として今回取り込まない</span><b>'+delta.skipped.length+'件</b></div>'+
             '<div class="row"><span>登録済み（変更不要）</span><b>'+delta.duplicates+'件</b></div>'+
             '<div class="tiny">登録後はこの取込画面に留まります。内容に問題がなければ下のボタンで確定してください。</div></div>';
           lockedReview={identity:String(labelInput.value||'').trim(),choices:JSON.stringify(approvals),
-            totals:JSON.stringify([delta.added,delta.migratedCash,delta.duplicates,delta.skipped.length,delta.additions.length,delta.updates.length])};
+            totals:JSON.stringify([delta.added,delta.migratedCash,delta.duplicates,delta.skipped.length,delta.additions.length,delta.updates.length,delta.manualReplaced,delta.netAdjustment])};
           saveBtn.hidden=false;saveBtn.disabled=false;
         };
         saveBtn.onclick=async()=>{
@@ -315,7 +321,7 @@
              authorized.choices!==JSON.stringify(approvals)||
              authorized.totals!==JSON.stringify([verifiedDelta.added,verifiedDelta.migratedCash,
                verifiedDelta.duplicates,verifiedDelta.skipped.length,
-               verifiedDelta.additions.length,verifiedDelta.updates.length])){
+               verifiedDelta.additions.length,verifiedDelta.updates.length,verifiedDelta.manualReplaced,verifiedDelta.netAdjustment])){
             resetFinal();status.textContent='確認内容が変わったため、登録予定をもう一度確認してください。';return;
           }
           // Unresolved CSV overlaps are blocked in checkDelta(), not merely
@@ -340,7 +346,7 @@
 
             const months=[...new Set(p.entries.map(e=>e.date.slice(0,7)))].sort();
             const counts=Object.fromEntries(months.map(month=>[month,p.entries.filter(e=>e.date.startsWith(month)).length]));
-            status.innerHTML='<b>取込済み</b>：新規'+Number(result.added||0)+'件、既存'+Number(result.duplicates||0)+'件、旧CSVから置換'+Number(result.migratedCash||0)+'件、旧版データ識別更新'+Number(result.upgraded||0)+'件。'+
+            status.innerHTML='<b>取込済み</b>：新規'+Number(result.added||0)+'件、既存'+Number(result.duplicates||0)+'件、旧CSVから置換'+Number(result.migratedCash||0)+'件、金額違いの旧明細から置換'+Number(result.manualReplaced||0)+'件、旧版データ識別更新'+Number(result.upgraded||0)+'件。'+
               ((result.issues||[]).length?'<div class="tiny">'+(result.issues||[]).map(esc).join(' / ')+'</div>':'')+
               (remainingCross.length?'<div class="note" style="color:#ffd38e">取込後にも未照合の候補 '+remainingCross.length+'組があります。二重計上の点検欄を確認してください。</div>':'')+
               '<div class="tiny">利用月：'+months.map(m=>m+'（'+counts[m]+'件）').join('、')+'。支払月'+p.paymentDate.slice(0,7)+'ではありません。</div>'+

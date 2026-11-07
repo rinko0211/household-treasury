@@ -274,14 +274,20 @@
         }else if(choice && choice!=='separate'){
           issues.push('MDC-X31: CSV照合先が見つかりません。選択内容を見直してください。');
           continue;
-        }else if(!possibilities.length && near.length && !choice){
-          pending.push({token,date:r.date,merchant:r.merchant,amount:r.amount,
-            candidates:near,amountMismatch:true});
-          issues.push('MDC-X35: 金額不一致を含む旧明細の照合が必要 '+r.date+' '+r.merchant+' '+r.amount+'円。');
-          continue;
         }
         const receipts=(choice==='separate'||cashLinked.some(x=>x.token===token)||
           manualLinked.some(x=>x.token===token))?[]:receiptMatch(st,r,used);
+        // Preserve established automatic absorption of a single verified
+        // JAL/QUICPay receipt. Only NEW, genuinely competing date/amount
+        // alternatives should demand the user's manual decision.
+        const onlyVerifiedReceipt=receipts.length===1&&near.every(c=>
+          c.kind==='purchase'&&c.index===receipts[0].i);
+        if(!possibilities.length&&near.length&&!choice&&!onlyVerifiedReceipt){
+          pending.push({token,date:r.date,merchant:r.merchant,amount:r.amount,
+            candidates:near,amountMismatch:true});
+          issues.push('MDC-X35: 金額不一致・日付差を含む旧明細の照合が必要 '+r.date+' '+r.merchant+' '+r.amount+'円。');
+          continue;
+        }
         if(receipts.length>1){
           issues.push('MDC-R18: '+r.date+' '+r.merchant+' '+r.amount+
             '円の領収書が複数一致します。自動吸収を中止し、元明細を確認してください。');

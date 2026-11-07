@@ -97,13 +97,13 @@ function validate(row){
  return r;
 }
 function plan(st,rows,sourceName='simple-expense.csv'){
- const i=index(st),out=[],warnings=[],seen=new Set(),now=new Date().toISOString();
+ const i=index(st),out=[],warnings=[],seen=new Set(),now=new Date().toISOString();let duplicates=0;
  for(const original of rows){
   if(!original.include)continue;
   const r=validate(original);
   if(seen.has(r.key))throw Error('CSV内で同じレコードが選択されています。');seen.add(r.key);
   const overlap=hint(r,i);
-  if(overlap?.exact){warnings.push(r.merchant+'：取込済みなので除外');continue}
+  if(overlap?.exact){duplicates++;continue}
   if(overlap&&!r.force){warnings.push(r.merchant+'：'+overlap.label);continue}
   const base={record_kind:'RECEIPT_PURCHASE',economic_type:'EXPENSE',
     category:r.category,subcategory:r.category==='UTILITIES'&&/ガス/.test(r.merchant+r.description)?'GAS':'OTHER',
@@ -131,7 +131,7 @@ function plan(st,rows,sourceName='simple-expense.csv'){
   i.byKey.add(r.key);
   i.possible.push({date:r.date,label:norm(r.merchant),amount:r.amount});
  }
- return {out,warnings,added:out.length,total:out.reduce((sum,x)=>sum+amount(x.data.amount??x.data.original_amount),0)};
+ return {out,warnings,duplicates,added:out.length,total:out.reduce((sum,x)=>sum+amount(x.data.amount??x.data.original_amount),0)};
 }
 function apply(rows,sourceName){
  const raw=stateNow(),checked=plan(raw,rows,sourceName);

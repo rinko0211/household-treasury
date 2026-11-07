@@ -98,4 +98,49 @@ assert.ok(ui.includes('mdcPdfFinalReviewV189'));
 assert.ok(ui.includes('saveBtn.hidden=true'));
 assert.ok(!ui.includes("if(typeof render==='function')render();"),
  'PDF registration does not force a page-level rerender or navigation');
+// v212: GAP case from the actual receipt schema, including a one-day card date shift.
+state={cashExpenses:[{
+ id:'receipt-v202:receipt:2026-11-03:childclothes:4000:userreport',
+ date:'2026-11-03',description:'子ども服(店名未確認)',amount:4000,
+ economic_type:'EXPENSE',count_in_spending:true,category:'CHILD',subcategory:'OTHER',
+ cost_nature:'VARIABLE',expense_bucket_v193:'VARIABLE',
+ receipt_payment_unresolved_v202:true,manual_reconciliation_pending:true,
+ receipt_original_note_v202:'ユーザー申告による概算。実際の利用額・加盟店・カード種をカード明細と照合して修正。',
+ payment_method:'UNCONFIRMED'
+}],purchaseEvents:[]};
+const gapPdf={paymentDate:'2026-12-10',entries:[{date:'2026-11-04',merchant:'ギャップジャパンカブシキガイシャ',amount:3985,count:1}]};
+const gapBefore=JSON.stringify(state);
+const gapFirst=api.previewPdf(gapPdf,'JAL-1234');
+assert.equal(gapFirst.pending.length,1,'GAP 4,000 yen provisional estimate is offered for one-day shift');
+assert.equal(gapFirst.added,0,'Date shifted expense stays blocked for user review');
+const gapCandidate=gapFirst.pending[0].candidates.find(x=>x.ref==='replace:cash:0');
+assert.ok(gapCandidate,'User can explicitly select old cash-coded/unknown-card record');
+assert.equal(gapCandidate.days,1);
+assert.equal(gapCandidate.provisional,true);
+assert.equal(gapCandidate.difference,-15);
+assert.equal(JSON.stringify(state),gapBefore,'Date-shifted review never mutates historical state');
+const gapChoices={[gapFirst.pending[0].token]:gapCandidate.ref};
+const gapPlanned=api.previewPdf(gapPdf,'JAL-1234',false,gapChoices);
+assert.equal(gapPlanned.manualReplaced,1);
+assert.equal(gapPlanned.netAdjustment,-15);
+assert.equal(gapPlanned.pending.length,0);
+api.setImportApprovals(gapPdf,'JAL-1234',gapChoices);
+const gapResult=ctx.parseMufg({text:csv(gapPdf)},{name:'MDC_PDF_2026-12_GAP.csv'});
+assert.equal(gapResult.manualReplaced,1);
+assert.equal(state.cashExpenses[0].count_in_spending,false,'Old approximate record excluded from economic spend');
+assert.equal(state.cashExpenses[0].mdc_pdf_original_amount,4000,'Old estimated value kept as audit');
+assert.equal(state.cashExpenses[0].mdc_pdf_previous_date,'2026-11-03','Original date preserved as audit');
+assert.equal(state.purchaseEvents[0].purchase_date,'2026-11-04','Official PDF purchase date is not altered');
+assert.equal(state.purchaseEvents[0].original_amount,3985,'Only 3,985 yen remains in spending');
+assert.equal(state.purchaseEvents[0].expense_bucket_v193,'VARIABLE','Budget bucket is inherited');
+assert.equal(ctx.parseMufg({text:csv(gapPdf)},{name:'MDC_PDF_2026-12_GAP.csv'}).added,0,'Reimport is idempotent');
+// ±2 days and 5% difference are suggested even if the original was cash-coded.
+state={cashExpenses:[{date:'2026-11-02',amount:3900,description:'服',payment_method:'CASH',economic_type:'EXPENSE'}],purchaseEvents:[]};
+const withinTwo=api.previewPdf(gapPdf,'JAL-1234');
+assert.equal(withinTwo.pending.length,1,'Two-day shifted cash-coded purchase appears for review');
+assert.equal(withinTwo.pending[0].candidates[0].days,2);
+state={cashExpenses:[{date:'2026-11-01',amount:3900,description:'服',payment_method:'CASH',economic_type:'EXPENSE'}],purchaseEvents:[]};
+assert.equal(api.previewPdf(gapPdf,'JAL-1234').pending.length,0,'Three-day dissimilar merchants do not create false positives');
+state={cashExpenses:[{date:'2026-11-03',amount:9000,description:' unrelated item ',payment_method:'CASH',economic_type:'EXPENSE'}],purchaseEvents:[]};
+assert.equal(api.previewPdf(gapPdf,'JAL-1234').pending.length,0,'Unrelated amount difference is not suggested');
 console.log('MDC_PDF_BULK_REVIEW_V189_PASS');

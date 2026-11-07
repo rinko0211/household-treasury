@@ -54,7 +54,7 @@ assert.ok(found&&!found.exact);
 assert.equal(a.plan(st,[approximate]).added,0,'Potential duplication is blocked before manual approval');
 const independent={...approximate,force:true};
 assert.equal(a.plan(st,[independent]).added,1,'Explicit distinct transaction can be imported');
-const cash={...list[0],key:'simple-v213:distinct-cash',merchant:'駐車場',payment:'CASH',card:'',bucket:'VARIABLE',category:'CAR'};
+const cash={...list[0],key:'simple-v213:distinct-cash',date:'2026-11-06',merchant:'駐車場',amount:400,payment:'CASH',card:'',bucket:'VARIABLE',category:'CAR'};
 assert.equal(a.plan(state,[cash]).out[0].kind,'cash');
 assert.throws(()=>a.plan(state,[{...cash,payment:'CARD'}]),/カード名/);
 assert.equal(state.purchaseEvents.length,1,'Tests never double charge');

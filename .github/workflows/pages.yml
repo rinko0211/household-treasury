@@ -239,11 +239,11 @@ jobs:
             'cycle-audit-reconciliation-v153.js?v=161',
             cycleAsset.slice(2),
             'treasury-ledger-v145.js?v=153',
-            'mdc-pdf-delta-v144.js?v=192'
+            'mdc-pdf-delta-v144.js?v=211'
           ])assert.ok(sw.includes('./'+path),'PWA cache missing '+path);
           assert.ok(sw.includes('./mdc-cross-source-reconcile-v166.js?v=192'));
           assert.ok(loader.includes('mdc-cross-source-reconcile-v166.js?v=192'));
-          assert.ok(loader.includes('mdc-pdf-import-v136.js?v=192'));
+          assert.ok(loader.includes('mdc-pdf-import-v136.js?v=211'));
           assert.ok(loader.includes('structured-expense-import-v168.js?v=192'));
           assert.ok(sw.includes('./structured-expense-import-v168.js?v=192'));
           assert.ok(fs.readFileSync('mdc-pdf-delta-v144.js','utf8').includes('receiptAbsorbed'));

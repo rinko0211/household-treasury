@@ -57,21 +57,31 @@
     return Number.isFinite(x)&&Number.isFinite(y)?Math.abs(x-y)/86400000:Infinity;
   };
   function nearLegacyCandidates(st,r){
-    const found=[],wanted=norm(r.merchant);
-    const offer=(kind,i,date,amount,label,payment)=>{
+    const found=[],wanted=norm(r.merchant),pdfLast4=tail(r.identity);
+    const offer=(kind,i,x,date,amount,label,payment)=>{
       const gap=dayDistance(date,r.date),clean=norm(label);
       if(gap>4||!Number.isFinite(amount)||amount<=0)return;
+      // A known, different card is never an eligible source for PDF replacement.
+      if(pdfLast4&&x.card_last4&&String(x.card_last4)!==pdfLast4)return;
       const nameSimilar=clean.length>=5&&wanted.length>=5&&
         (clean.includes(wanted)||wanted.includes(clean));
       const diff=Math.abs(amount-r.amount);
-      if(!nameSimilar&&(gap!==0||diff>Math.max(1500,r.amount*.30)))return;
+      const provisional=!!(x.manual_reconciliation_pending||x.receipt_payment_unresolved_v202||
+        /UNCONFIRMED|未確認/.test(String(payment||'').toUpperCase())||
+        /概算|仮登録|店名未確認|金額未確認|仮計上/.test(String(label||'')+' '+String(x.receipt_original_note_v202||'')));
+      // For unmatched merchants, a ±2-day shift is permitted only if the amounts
+      // are strongly similar, or the legacy amount was explicitly provisional.
+      const sameDay=gap===0&&diff<=Math.max(1500,r.amount*.30);
+      const closeShift=gap<=2&&diff<=Math.max(150,Math.round(r.amount*.05));
+      const provisionalShift=provisional&&gap<=2&&diff<=Math.max(1500,Math.round(r.amount*.30));
+      if(!nameSimilar&&!sameDay&&!closeShift&&!provisionalShift)return;
       found.push({ref:'replace:'+kind+':'+i,legacyRef:kind+':'+i,index:i,kind,
         label:String(label||'旧登録'),payment:String(payment||'未確認'),amount,date,
-        days:gap,difference:r.amount-amount,nameSimilar});
+        days:gap,difference:r.amount-amount,nameSimilar,provisional});
     };
     for(const [i,x] of (st.cashExpenses||[]).entries()){
       if(!included(x))continue;
-      offer('cash',i,x.date,Math.abs(Number(x.purchase_total??x.original_amount??x.amount)||0),
+      offer('cash',i,x,x.date,Math.abs(Number(x.purchase_total??x.original_amount??x.amount)||0),
         x.description||x.name||x.description_raw,x.payment_method);
     }
     for(const [i,x] of (st.purchaseEvents||[]).entries()){
@@ -79,13 +89,14 @@
       const card=norm(x.card||'');
       if(card&&!/JAL|MUFG|DC|CARD|カード|未特定|QUICPAY/.test(card)&&
         !x.receipt_reconciliation_pending&&!x.manual_reconciliation_pending)continue;
-      offer('purchase',i,x.purchase_date,
+      offer('purchase',i,x,x.purchase_date,
         Math.abs(Number(x.purchase_total??x.original_amount??x.amount)||0),
         x.merchant_raw||x.merchant_normalized||x.source_receipt_description,
         x.card||x.payment_method);
     }
     return found.sort((a,b)=>Number(b.nameSimilar)-Number(a.nameSimilar)||
-      a.days-b.days||Math.abs(a.difference)-Math.abs(b.difference)||a.index-b.index).slice(0,12);
+      Number(b.provisional)-Number(a.provisional)||a.days-b.days||
+      Math.abs(a.difference)-Math.abs(b.difference)||a.index-b.index).slice(0,12);
   }
   function setImportApprovals(p,identity,approvals){
     if(!p){pendingApprovals=null;return}
@@ -222,6 +233,10 @@
         }
         const possibilities=crossCandidates(st,occurrenceRow).filter(x=>!crossUsed.has(x.ref));
         const near=nearLegacyCandidates(st,occurrenceRow).filter(x=>!crossUsed.has(x.legacyRef));
+        // Offer date-shifted/provisional candidates even alongside an exact-price
+        // but unrelated candidate. All choices still require explicit approval.
+        const reviewCandidates=[...possibilities,...near.filter(x=>
+          !possibilities.some(c=>c.kind===x.kind&&c.index===x.index))];
         if(possibilities.length)overlaps.push({token,date:r.date,merchant:r.merchant,
           amount:r.amount,candidates:possibilities});
         if(choice.startsWith('replace:')){
@@ -238,7 +253,7 @@
           const selected=possibilities.find(x=>x.ref===choice);
           if(!selected){
             pending.push({token,date:r.date,merchant:r.merchant,amount:r.amount,
-              candidates:possibilities});
+              candidates:reviewCandidates});
             issues.push('MDC-X30: CSV等との照合が必要 '+r.date+' '+r.merchant+' '+r.amount+
               '円。旧明細との対応か別取引か選択してください。');
             continue;
@@ -259,14 +274,20 @@
         }else if(choice && choice!=='separate'){
           issues.push('MDC-X31: CSV照合先が見つかりません。選択内容を見直してください。');
           continue;
-        }else if(!possibilities.length && near.length && !choice){
-          pending.push({token,date:r.date,merchant:r.merchant,amount:r.amount,
-            candidates:near,amountMismatch:true});
-          issues.push('MDC-X35: 金額不一致を含む旧明細の照合が必要 '+r.date+' '+r.merchant+' '+r.amount+'円。');
-          continue;
         }
         const receipts=(choice==='separate'||cashLinked.some(x=>x.token===token)||
           manualLinked.some(x=>x.token===token))?[]:receiptMatch(st,r,used);
+        // Preserve established automatic absorption of a single verified
+        // JAL/QUICPay receipt. Only NEW, genuinely competing date/amount
+        // alternatives should demand the user's manual decision.
+        const onlyVerifiedReceipt=receipts.length===1&&near.every(c=>
+          c.kind==='purchase'&&c.index===receipts[0].i);
+        if(!possibilities.length&&near.length&&!choice&&!onlyVerifiedReceipt){
+          pending.push({token,date:r.date,merchant:r.merchant,amount:r.amount,
+            candidates:near,amountMismatch:true});
+          issues.push('MDC-X35: 金額不一致・日付差を含む旧明細の照合が必要 '+r.date+' '+r.merchant+' '+r.amount+'円。');
+          continue;
+        }
         if(receipts.length>1){
           issues.push('MDC-R18: '+r.date+' '+r.merchant+' '+r.amount+
             '円の領収書が複数一致します。自動吸収を中止し、元明細を確認してください。');

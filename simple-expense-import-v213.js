@@ -237,6 +237,31 @@ function mount(){
   finally{button.disabled=false}
  });
 }
-window.householdSimpleExpenseImportV213={parse,index,hint,plan,apply,mount,validate};
+// The existing main Import picker also accepts these generic rows and opens
+// the editable review instead of throwing the Rakuten/unknown-header error.
+function install(){
+ if(typeof importOne!=='function')return false;
+ if(importOne.__simpleExpenseV213)return true;
+ const prior=importOne;
+ importOne=async function(file){
+  const name=String(file?.name||'');
+  if(!/\.csv$/i.test(name))return prior(file);
+  let raw=await file.text(),parsed;
+  if(raw.includes('\uFFFD')&&typeof TextDecoder==='function'){
+   try{raw=new TextDecoder('shift-jis').decode(await file.arrayBuffer())}catch{}
+  }
+  parsed=parse(raw);
+  if(!parsed)return prior(file);
+  mount();
+  current=parsed;sourceFile=name;renderPreview();
+  host?.scrollIntoView?.({block:'start',behavior:'smooth'});
+  return {source:'簡易支出CSV（上部で編集・未登録）',read:parsed.length,
+   added:0,duplicates:0,review:parsed.length,skipped:true};
+ };
+ importOne.__simpleExpenseV213=true;
+ return true;
+}
+window.householdSimpleExpenseImportV213={parse,index,hint,plan,apply,mount,install,validate};
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',mount,{once:true});else setTimeout(mount,0);
+if(!install())window.setTimeout?.(install,0);
 })();

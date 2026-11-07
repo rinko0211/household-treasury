@@ -355,6 +355,15 @@ function detailPanel(bucket,st){
  }
  return markup+'</div>';
 }
+function yearValuesHtml(st){
+ const annual=engine().annual(st,Number(month.slice(0,4)),cycle,localDate(),{
+   cardEstimates:cardEstimates(),revolvingEstimates:revolvingEstimates()
+ });
+ return '<p class="hub-muted">年間欄は銀行の資金流出基準です。月次の購入日基準と混ぜて加算しないでください。</p>'+
+   [['年間実入金',annual.incomeActual],['年間口座等流出',annual.outActual],
+    ['年間の利用日基準消費（旧台帳）',annual.spentActual]]
+   .map(x=>'<div class="hub-totals"><span>'+x[0]+'</span><b>'+yen(x[1])+'</b></div>').join('');
+}
 function render(){
  if(!mount())return false;
  const priorReview=$('hubReviewV157');if(priorReview)reviewOpen=!!priorReview.open;
@@ -518,16 +527,12 @@ function render(){
    '<details class="hub-fixed-ref"><summary style="cursor:pointer">固定支払マスター（ローン含む）の内訳（参考）</summary>'+
      fixedReference(st,month).items.concat(loanReference(st,month).items).map(x=>'<div class="hub-detailrow"><span>'+esc(x.name)+(x.route==='CARD'?'（カード払い）':'')+'</span><b>'+yen(x.amount)+'</b></div>').join('')+
    '</details></details>';
- const annual=engine().annual(st,Number(month.slice(0,4)),cycle,localDate(),{
-   cardEstimates:cardEstimates(),revolvingEstimates:revolvingEstimates()
- });
+ // Do not scan the entire annual ledger while the yearly details are closed.
+ // Opening the disclosure computes only this subpanel, without repainting
+ // the monthly expense chart or rebuilding its drilldown.
  html+='<details class="hub-card" id="hubAnnualV148"'+(annualOpen?' open':'')+'>'+
-   '<summary style="cursor:pointer;font-weight:750">年間の収支を見る（'+esc(annual.year)+'年）</summary>'+
-   '<p class="hub-muted">年間欄は銀行の資金流出基準です。月次の購入日基準と混ぜて加算しないでください。</p>'+
-   [['年間実入金',annual.incomeActual],['年間口座等流出',annual.outActual],
-    ['年間の利用日基準消費（旧台帳）',annual.spentActual]]
-    .map(x=>'<div class="hub-totals"><span>'+x[0]+'</span><b>'+yen(x[1])+'</b></div>').join('')+
- '</details>';
+   '<summary style="cursor:pointer;font-weight:750">年間の収支を見る（'+esc(month.slice(0,4))+'年）</summary>'+
+   '<div id="hubAnnualValuesV213">'+(annualOpen?yearValuesHtml(st):'<p class="hub-muted">開くと年間の支出・収入を計算します。</p>')+'</div></details>';
  root.innerHTML=html;
  bind(root);
  return true;
@@ -571,7 +576,13 @@ function bindDrilldown(container){
  }));
 }
 function bind(root){
- const annually=$('hubAnnualV148');if(annually)annually.addEventListener('toggle',()=>{annualOpen=annually.open});
+ const annually=$('hubAnnualV148');if(annually)annually.addEventListener('toggle',()=>{
+   const opened=annually.open;const wasOpen=annualOpen;annualOpen=opened;
+   if(opened&&!wasOpen){
+     const values=annually.querySelector('#hubAnnualValuesV213');
+     if(values)values.innerHTML=yearValuesHtml(currentDetailState||stateNow());
+   }
+ });
  const review=$('hubReviewV157');if(review)review.addEventListener('toggle',()=>{reviewOpen=review.open});
  root.querySelectorAll('[data-hub-cycle]').forEach(btn=>btn.addEventListener('click',()=>{
    if(cycle===btn.dataset.hubCycle)return;

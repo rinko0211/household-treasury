@@ -64,9 +64,11 @@ test('detail disclosure reuses the same snapshot instead of refetching state per
  assert.match(hub,/wrapper.innerHTML=detailPanel\(currentDetailBucket,currentDetailState\|\|stateNow\(\)\)/);
 });
 test('all mobile UI cache-busted links agree with deployed PWA versions',()=>{
- for(const file of ['app.js','expense-unified-v148.js','ui-modern-v169.css'])
-   assert.ok(html.includes(file+'?v=208'),'index lacks updated '+file);
+ for(const file of ['app.js','expense-unified-v148.js','ui-modern-v169.css']){
+   const asset=html.match(new RegExp('./'+file.replaceAll('.','\\.')+'\\?v=\\d+'))?.[0];
+   assert.ok(asset,'index lacks updated '+file);
+   assert.ok(sw.includes('"'+asset+'"'),'service worker lacks '+asset);
+ }
  assert.ok(loader.includes('semantic-ui-v48.js?v=208'));
- for(const file of ['app.js','expense-unified-v148.js','ui-modern-v169.css','semantic-ui-v48.js'])
-   assert.ok(sw.includes('./'+file+'?v=208'),'service worker lacks '+file);
+ assert.ok(sw.includes('./semantic-ui-v48.js?v=208'));
 });

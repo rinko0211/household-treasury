@@ -98,7 +98,23 @@ function injectUi(){
 }
 
 function render(){
-  const horizon=Number($('forecastHorizon')?.value)||90,f=forecast(horizon),f90=forecast(90),monthEnd=forecastUntil(`${ym(new Date())}-${String(lastDay(new Date().getFullYear(),new Date().getMonth()+1)).padStart(2,'0')}`),salaryF=forecastUntil(nextSalaryDate()),tot=monthEconomicTotals();
+  // Rendering heavy forecasts and rule tables is not a dependency of Imports,
+  // the transaction editor, or the separately-rendered expense hub.
+  const active=document.querySelector?.('.page.active')?.id||'dashboard';
+  if(active==='imports'||active==='expenses'||active==='transactions')return;
+  if(active==='settings'){
+    renderRules();
+    if($('cash'))$('cash').value=state.settings.cash;
+    if($('reserve'))$('reserve').value=state.settings.reserve;
+    if($('salary'))$('salary').value=state.settings.salary;
+    if($('salaryDay'))$('salaryDay').value=state.settings.salaryDay;
+    return;
+  }
+  if(active==='wealth'){
+    $('wealthBody').innerHTML=[...state.history].reverse().map(h=>`<tr><td>${h.month}</td><td>${yen(h.bank)}</td><td>${yen((h.investment||0)+(h.ideco||0)+(h.other||0))}</td><td>${yen(h.liabilities||0)}</td><td>${yen((h.bank||0)+(h.investment||0)+(h.ideco||0)+(h.other||0)-(h.liabilities||0))}</td></tr>`).join('');
+    return;
+  }
+  const horizon=Number($('forecastHorizon')?.value)||90,f90=forecast(90),f=horizon===90?f90:forecast(horizon),monthEnd=forecastUntil(`${ym(new Date())}-${String(lastDay(new Date().getFullYear(),new Date().getMonth()+1)).padStart(2,'0')}`),salaryF=forecastUntil(nextSalaryDate()),tot=monthEconomicTotals();
   $('kpiNet').textContent=yen(net());$('kpiCash').textContent=yen(state.settings.cash);$('kpiLow').textContent=yen(f90.low);$('kpiLowDate').textContent=f90.lowDate;$('kpiInvest').textContent=yen(f90.safeToSpend);$('kpiInvest').className=f90.safeToSpend>100000?'good':f90.safeToSpend>0?'warn':'bad';
   $('safety').innerHTML=f90.low>=state.settings.reserve?`90日最低残高は安全資金を <b>${yen(f90.low-state.settings.reserve)}</b> 上回ります。`:`安全資金を <b>${yen(state.settings.reserve-f90.low)}</b> 下回る見込みです。`;
   $('nextEvents').innerHTML=f90.rows.slice(0,8).map(e=>`<div class="row"><div>${esc(e.name)}<div class="tiny">${e.date} · ${esc(e.type||'')}</div></div><div class="amt ${e.amount<0?'bad':'good'}">${e.amount>0?'+':''}${yen(e.amount)}</div></div>`).join('')||'<div class="muted">予定なし</div>';

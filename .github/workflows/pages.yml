@@ -143,9 +143,9 @@ jobs:
           assert.ok(html.indexOf('purchase-usage-ledger-v157.js?v=196') < html.indexOf(expenseAsset));
           const cssAsset=(html.match(/expense-unified-v148\.css\?v=\d+/)||[])[0];
           assert.ok(cssAsset,'The unified expense stylesheet needs a versioned link');
-          assert.ok(html.includes('ui-modern-v169.css?v=208'));
+          assert.ok(html.includes('ui-modern-v169.css?v=214'));
           assert.ok(!html.includes('card-budget-allocation-v170.js'),'Removed recommendation panel must not be mounted');
-          assert.ok(sw.includes('./ui-modern-v169.css?v=208'));
+          assert.ok(sw.includes('./ui-modern-v169.css?v=214'));
           assert.ok(html.includes(loaderAsset));
           assert.ok(sw.includes('./fixed-master-unified-v43.js?v=171'));
           assert.ok(sw.includes('./card-settings-unified-v77.js?v=171'));
@@ -194,7 +194,7 @@ jobs:
           assert.ok(html.includes(familyAsset));
           assert.ok(sw.includes(familyAsset));
           assert.ok(sw.includes('./settings-ux-v45.js?v=180'));
-          assert.ok(sw.includes('./ui-modern-v169.css?v=208'));
+          assert.ok(sw.includes('./ui-modern-v169.css?v=214'));
           assert.ok(fs.readFileSync('settings-ux-v45.js','utf8').includes('treasuryHeaderActionsV180'));
           assert.ok(fs.readFileSync('family-share-owner-v160.js','utf8').includes('movePublishToHeader'));
           assert.ok(sw.includes('./family/index.html'));

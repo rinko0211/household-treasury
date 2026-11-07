@@ -64,7 +64,7 @@
       const nameSimilar=clean.length>=5&&wanted.length>=5&&
         (clean.includes(wanted)||wanted.includes(clean));
       const diff=Math.abs(amount-r.amount);
-      if(!nameSimilar&&(gap>2||diff>Math.max(1500,r.amount*.30)))return;
+      if(!nameSimilar&&(gap!==0||diff>Math.max(1500,r.amount*.30)))return;
       found.push({ref:'replace:'+kind+':'+i,legacyRef:kind+':'+i,index:i,kind,
         label:String(label||'旧登録'),payment:String(payment||'未確認'),amount,date,
         days:gap,difference:r.amount-amount,nameSimilar});

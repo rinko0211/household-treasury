@@ -216,7 +216,9 @@
                 '<option value="'+esc(c.ref)+'"'+(approvals[item.token]===c.ref?' selected':'')+'>'+
                 esc((c.ref.startsWith('replace:')?'金額差あり：旧明細を置換':c.kind==='cash'?'旧CSV/現金':'旧CSV/カード')+
                   '：'+c.label+'（'+c.payment+'）'+
-                  (c.amount!=null?' '+yen(c.amount)+' → '+yen(item.amount)+' / 差額'+yen(item.amount-c.amount):''))
+                  (c.amount!=null?' '+yen(c.amount)+' → '+yen(item.amount)+' / 差額'+yen(item.amount-c.amount):'')+
+                  (c.date&&c.date!==item.date?' / 旧'+c.date+'→明細'+item.date+'（'+c.days+'日差）':'')+
+                  (c.provisional?' / 概算・仮登録':'') )
                   +'</option>').join('');
               return '<div class="field" style="margin:9px 0;padding:8px;border:1px solid #506274;border-radius:8px">'+
                 '<label style="display:flex;align-items:flex-start;gap:8px">'+
@@ -251,7 +253,7 @@
                   (r.oldAmount!=null?yen(r.oldAmount)+' → ':'')+yen(r.amount)+
                   (r.adjustment?'（差額'+yen(r.adjustment)+'）':'')+'</b></div>').join('')+'</details>':'')+
               (overlapUI?'<details open style="margin-top:12px"><summary><b>既存支出との照合・要確認 '+(delta.pending||[]).length+'件</b></summary>'+
-                '<div class="tiny">金額が違う旧登録も候補に表示します。同一取引なら旧明細を選んで確定額に置換し、違う取引なら「別の支出」を選びます。単なる重複除外では旧金額が残ります。</div>'+
+                '<div class="tiny">利用日が前後1〜2日ずれた購入や金額が違う概算登録も候補に表示します。同一取引なら旧明細を選んで確定額に置換し、違う取引なら「別の支出」を選びます。日付・金額だけで自動確定しません。単なる重複除外では旧金額が残ります。</div>'+
                 '<div class="controls" style="margin:8px 0"><button type="button" class="btn secondary" id="mdcPdfBulkAllV189">候補を全選択</button>'+
                 '<button type="button" class="btn secondary" id="mdcPdfBulkSkipV189">選択した候補を一括で重複除外</button></div>'+
                 overlapUI+'</details>':'')+

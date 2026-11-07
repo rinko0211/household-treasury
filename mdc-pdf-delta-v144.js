@@ -50,6 +50,43 @@
     }
     return arr;
   }
+  // v211: propose old assistant/CSV purchases even when the PDF amount differs.
+  // Only an explicit one-to-one selection is allowed to change historical spending.
+  const dayDistance=(a,b)=>{
+    const x=Date.parse(String(a)+'T00:00:00Z'),y=Date.parse(String(b)+'T00:00:00Z');
+    return Number.isFinite(x)&&Number.isFinite(y)?Math.abs(x-y)/86400000:Infinity;
+  };
+  function nearLegacyCandidates(st,r){
+    const found=[],wanted=norm(r.merchant);
+    const offer=(kind,i,date,amount,label,payment)=>{
+      const gap=dayDistance(date,r.date),clean=norm(label);
+      if(gap>4||!Number.isFinite(amount)||amount<=0)return;
+      const nameSimilar=clean.length>=5&&wanted.length>=5&&
+        (clean.includes(wanted)||wanted.includes(clean));
+      const diff=Math.abs(amount-r.amount);
+      if(!nameSimilar&&(gap!==0||diff>Math.max(1500,r.amount*.30)))return;
+      found.push({ref:'replace:'+kind+':'+i,legacyRef:kind+':'+i,index:i,kind,
+        label:String(label||'旧登録'),payment:String(payment||'未確認'),amount,date,
+        days:gap,difference:r.amount-amount,nameSimilar});
+    };
+    for(const [i,x] of (st.cashExpenses||[]).entries()){
+      if(!included(x))continue;
+      offer('cash',i,x.date,Math.abs(Number(x.purchase_total??x.original_amount??x.amount)||0),
+        x.description||x.name||x.description_raw,x.payment_method);
+    }
+    for(const [i,x] of (st.purchaseEvents||[]).entries()){
+      if(!included(x)||pdfSource(x)||otherCard(x))continue;
+      const card=norm(x.card||'');
+      if(card&&!/JAL|MUFG|DC|CARD|カード|未特定|QUICPAY/.test(card)&&
+        !x.receipt_reconciliation_pending&&!x.manual_reconciliation_pending)continue;
+      offer('purchase',i,x.purchase_date,
+        Math.abs(Number(x.purchase_total??x.original_amount??x.amount)||0),
+        x.merchant_raw||x.merchant_normalized||x.source_receipt_description,
+        x.card||x.payment_method);
+    }
+    return found.sort((a,b)=>Number(b.nameSimilar)-Number(a.nameSimilar)||
+      a.days-b.days||Math.abs(a.difference)-Math.abs(b.difference)||a.index-b.index).slice(0,12);
+  }
   function setImportApprovals(p,identity,approvals){
     if(!p){pendingApprovals=null;return}
     const month=String(p.paymentDate||'').slice(0,7),seen=new Map(),keys=[];
@@ -140,7 +177,7 @@
     return [...matching].map(([identity,set])=>({identity,count:set.size})).sort((a,b)=>b.count-a.count);
   }
   function plan(st,entries,fileName='',approvals={}){
-    const existing=st.purchaseEvents||[],updates=[],additions=[],issues=[],pending=[],overlaps=[],cashLinked=[],skipped=[],newRows=[],existingRows=[];
+    const existing=st.purchaseEvents||[],updates=[],additions=[],issues=[],pending=[],overlaps=[],cashLinked=[],manualLinked=[],skipped=[],newRows=[],existingRows=[];
     const crossUsed=new Set();
     const conflicts=identityConflicts(st,entries),identity=String(entries[0].identity||'').normalize('NFKC').trim();
     const direct=entries.filter(r=>existing.some(x=>cardId(x)===identity&&rowSig(x)===r.key)).length;
@@ -184,9 +221,20 @@
           continue;
         }
         const possibilities=crossCandidates(st,occurrenceRow).filter(x=>!crossUsed.has(x.ref));
+        const near=nearLegacyCandidates(st,occurrenceRow).filter(x=>!crossUsed.has(x.legacyRef));
         if(possibilities.length)overlaps.push({token,date:r.date,merchant:r.merchant,
           amount:r.amount,candidates:possibilities});
-        if(possibilities.length && choice!=='separate'){
+        if(choice.startsWith('replace:')){
+          const selected=near.find(x=>x.ref===choice);
+          if(!selected){
+            issues.push('MDC-X35: 指定した旧明細が変更または使用済みです：'+r.date+' '+r.merchant);
+            continue;
+          }
+          crossUsed.add(selected.legacyRef);
+          manualLinked.push({kind:selected.kind,index:selected.index,token,identity,
+            oldAmount:selected.amount,newAmount:r.amount,difference:selected.difference,
+            previousDate:selected.date,previousLabel:selected.label});
+        }else if(possibilities.length && choice!=='separate'){
           const selected=possibilities.find(x=>x.ref===choice);
           if(!selected){
             pending.push({token,date:r.date,merchant:r.merchant,amount:r.amount,
@@ -211,8 +259,14 @@
         }else if(choice && choice!=='separate'){
           issues.push('MDC-X31: CSV照合先が見つかりません。選択内容を見直してください。');
           continue;
+        }else if(!possibilities.length && near.length && !choice){
+          pending.push({token,date:r.date,merchant:r.merchant,amount:r.amount,
+            candidates:near,amountMismatch:true});
+          issues.push('MDC-X35: 金額不一致を含む旧明細の照合が必要 '+r.date+' '+r.merchant+' '+r.amount+'円。');
+          continue;
         }
-        const receipts=(choice==='separate'||cashLinked.some(x=>x.token===token))?[]:receiptMatch(st,r,used);
+        const receipts=(choice==='separate'||cashLinked.some(x=>x.token===token)||
+          manualLinked.some(x=>x.token===token))?[]:receiptMatch(st,r,used);
         if(receipts.length>1){
           issues.push('MDC-R18: '+r.date+' '+r.merchant+' '+r.amount+
             '円の領収書が複数一致します。自動吸収を中止し、元明細を確認してください。');
@@ -242,12 +296,17 @@
           continue;
         }
         const id=hash32(['MDC-PDF-ROW-V144',identity,key,occurrenceRow.occurrence].join('|'));
-        const c=classifyMerchant(r.merchant),linked=cashLinked.find(x=>x.token===token);
-        const prior=linked?(st.cashExpenses||[])[linked.index]:null;
+        const c=classifyMerchant(r.merchant),linked=cashLinked.find(x=>x.token===token),
+          manual=manualLinked.find(x=>x.token===token);
+        const prior=manual?(manual.kind==='cash'?st.cashExpenses?.[manual.index]:
+          st.purchaseEvents?.[manual.index]):linked?st.cashExpenses?.[linked.index]:null;
         const special=prior?String(prior.spending_class||prior.expense_scope||prior.ordinary_or_special||'').toUpperCase()==='SPECIAL':
           String(c.ordinary_or_special||'').toUpperCase()==='SPECIAL';
         newRows.push({token,date:r.date,merchant:r.merchant,amount:r.amount,
-          migrated:!!linked,reason:linked?'旧CSVからカード明細へ置換':'新規登録'});
+          migrated:!!linked||!!manual,
+          oldAmount:manual?.oldAmount??(linked?Math.abs(Number(prior?.amount)||0):null),
+          adjustment:manual?.difference??0,
+          reason:manual?'手動照合で旧明細を置換':linked?'旧CSVからカード明細へ置換':'新規登録'});
         additions.push({
           purchase_id:'mdc:'+id,occurrence_index:occurrenceRow.occurrence,
           card:'MUFG/DC/JAL',pdf_card_identity:identity,source_file:fileName,
@@ -257,13 +316,18 @@
           record_kind:'CARD_PURCHASE',economic_type:'EXPENSE',ordinary_or_special:special?'SPECIAL':'ORDINARY',
           expense_scope:special?'SPECIAL':'NORMAL',spending_class:special?'SPECIAL':'NORMAL',
           category:prior?.category||c.category||'UNKNOWN',subcategory:prior?.subcategory||null,
-          cost_nature:prior?.cost_nature||undefined,confidence:Number(c.confidence)||.4,
+          cost_nature:prior?.cost_nature||undefined,
+          ...(prior?.expense_bucket_v193?{expense_bucket_v193:prior.expense_bucket_v193}:{}),
+          ...(prior?.personal_owner_v193?{personal_owner_v193:prior.personal_owner_v193}:{}),
+          confidence:Number(c.confidence)||.4,
           mdc_import_v144:true
         });
       }
     }
-    return {read:entries.length,added:additions.length-cashLinked.length,duplicates:duplicate,upgraded,
-      issues:[...new Set(issues)],additions,updates,pending,overlaps,skipped,newRows,existingRows,cashLinked,migratedCash:cashLinked.length,
+    return {read:entries.length,added:additions.length-cashLinked.length-manualLinked.length,duplicates:duplicate,upgraded,
+      issues:[...new Set(issues)],additions,updates,pending,overlaps,skipped,newRows,existingRows,cashLinked,manualLinked,
+      manualReplaced:manualLinked.length,netAdjustment:manualLinked.reduce((sum,x)=>sum+x.difference,0),
+      migratedCash:cashLinked.length,
       billing_month:entries[0].billing,identity,conflicts,
       importedMonths:[...new Set(entries.map(x=>x.date.slice(0,7)))].sort(),receiptAbsorbed};
   }
@@ -283,6 +347,10 @@
       const old=st.cashExpenses?.[u.index];
       if(!old||!included(old))throw Error('MDC-X33: 対応するCSV支出が変更されています。');
     }
+    for(const u of result.manualLinked){
+      const old=u.kind==='cash'?st.cashExpenses?.[u.index]:st.purchaseEvents?.[u.index];
+      if(!old||!included(old))throw Error('MDC-X36: 指定した旧明細は既に変更されています。');
+    }
     // A cash-coded legacy row is preserved for audit, but only the
     // canonical PDF transaction counts after migration.
     for(const u of result.cashLinked){
@@ -292,6 +360,18 @@
       old.mdc_pdf_reclassification_v188=true;
       old.mdc_pdf_link_key=u.token;
       old.mdc_pdf_card_identity=u.identity;
+    }
+    for(const u of result.manualLinked){
+      const old=u.kind==='cash'?st.cashExpenses[u.index]:st.purchaseEvents[u.index];
+      old.count_in_spending=false;
+      old.reconciliation_status='ABSORBED_DUPLICATE';
+      old.mdc_pdf_manual_replacement_v211=true;
+      old.mdc_pdf_link_key=u.token;
+      old.mdc_pdf_card_identity=u.identity;
+      old.mdc_pdf_replacement_amount=u.newAmount;
+      old.mdc_pdf_original_amount=u.oldAmount;
+      old.mdc_pdf_replacement_difference=u.difference;
+      old.mdc_pdf_previous_date=u.previousDate;
     }
     for(const u of result.updates){
       const x=st.purchaseEvents[u.index];
@@ -325,7 +405,8 @@
     }
     return {source:'MDC/JAL PDF',detectedType:'mdc_pdf',read:result.read,added:result.added,
       duplicates:result.duplicates,upgraded:result.upgraded,receiptAbsorbed:result.receiptAbsorbed,
-      migratedCash:result.migratedCash,skipped:result.skipped.length,review:result.additions.filter(x=>x.confidence<.7).length,
+      migratedCash:result.migratedCash,manualReplaced:result.manualReplaced,netAdjustment:result.netAdjustment,
+      skipped:result.skipped.length,review:result.additions.filter(x=>x.confidence<.7).length,
       latest:entries.map(x=>x.date).sort().at(-1)||'',billing_month:result.billing_month,
       importedMonths:result.importedMonths,issues:result.issues,incrementalDedup:true};
   }

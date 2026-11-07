@@ -82,6 +82,8 @@ jobs:
           node tests/kabu-card-v198.test.cjs
           node tests/mdc-pdf-import.test.cjs
           node tests/structured-payment-and-pdf-v168.test.cjs
+          node tests/simple-expense-import-v213.test.cjs
+          node tests/ci-current-assets-v180.cjs app.js sync-state-sanitizer-v22.js simple-expense-import-v213.js
       - name: Check release links against actual app version
         shell: bash
         run: |
@@ -100,6 +102,8 @@ jobs:
             return url;
           }
           const appAsset=sourceAsset('app.js',html);
+          const simpleExpenseAsset=sourceAsset('simple-expense-import-v213.js',loader);
+          assert.ok(fs.readFileSync('simple-expense-import-v213.js','utf8').includes('householdSimpleExpenseImportV213'));
           const expenseAsset=sourceAsset('expense-unified-v148.js',html);
           const personalAsset=sourceAsset('personal-ledger-v186.js',html);
           const loaderAsset=sourceAsset('sync-state-sanitizer-v22.js',html);

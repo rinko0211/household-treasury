@@ -231,3 +231,12 @@ details>summary,
 @media(max-width:460px){
   #transactionEditorV108 .v208-editor-form{grid-template-columns:minmax(0,1fr)}
 }
+ 
+/* v214: flat mobile paint path. Disable GPU-heavy backdrop blur and card shadows.
+   Keep the dark palette and all accessible touch targets unchanged. */
+@media(max-width:760px){
+  body{background:#090f17}
+  .tabs{background:#090f17;backdrop-filter:none;-webkit-backdrop-filter:none}
+  .card,#expenseHubV148 .hub-card{background:#15222c;box-shadow:none}
+  .tab,.btn{transition:none}
+}

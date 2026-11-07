@@ -177,6 +177,8 @@
   injectClassic('./cross-source-audit-v201.js?v=201', 'data-household-cross-source-audit-v201');
   // v202: read the three receipt / detail / provisional shopping CSVs after existing providers.
   injectClassic('./receipt-bundle-import-v202.js?v=209', 'data-household-receipt-bundle-v202');
+  // v213: a standalone, editable generic expense CSV import (never a forged card statement).
+  injectClassic('./simple-expense-import-v213.js?v=213', 'data-household-simple-expense-v213');
   // v203: independent budget metrics for the expense summary.
   injectClassic('./expense-budget-metrics-v203.js?v=204','data-household-expense-budget-v203');
   // v205: wife-only reference view, direct toggles, and reversible payment evidence.

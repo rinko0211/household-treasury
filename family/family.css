@@ -64,3 +64,9 @@ button#refresh{font:inherit;border:1px solid #bddbd5;background:#eaf6f2;color:#1
 .published-chip-v183.is-stale{background:#fff3e7;border-color:#f0d9af;color:#9a5727}
 @media(max-width:380px){.hero-top-v183{gap:6px}.published-chip-v183{padding:7px 8px;min-width:97px}
  .published-chip-v183 strong{font-size:13px}}
+
+/* v215: owner-written note, published only on manual family update */
+.family-message-v215{background:#effaf5;border-color:#c9e6da;padding-bottom:17px}
+.family-message-v215[hidden]{display:none}
+.family-message-v215 h2{font-size:13px;color:#357565;margin:0 0 9px;font-weight:700}
+.family-message-v215 p{margin:0;white-space:pre-wrap;overflow-wrap:anywhere;font-size:15px;line-height:1.8;color:#254e44}

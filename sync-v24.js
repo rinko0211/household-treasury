@@ -122,6 +122,20 @@ async function fetchJson(url,options={},label='通信'){
   throw e;
  }finally{clearTimeout(timer)}
 }
+async function fetchRemoteRevision(){
+ // A tiny authenticated revision query replaces a full ciphertext download
+ // when this device already has the exact last-synced revision.
+ const url=`${SUPABASE_URL}/rest/v1/household_sync_state?select=revision,version,updated_at&user_id=eq.${encodeURIComponent(user.id)}&limit=1&_=${Date.now()}`;
+ for(let attempt=0;attempt<3;attempt++){
+  try{
+   const rows=await fetchJson(url,{headers:restHeaders()},'クラウド更新確認');
+   return Array.isArray(rows)?(rows[0]||null):rows;
+  }catch(e){
+   if(!isTransientSyncFailure(e)||attempt===2||navigator.onLine===false)throw e;
+   await new Promise(resolve=>setTimeout(resolve,(attempt+1)*700));
+  }
+ }
+}
 async function fetchRemote(){
   const url=`${SUPABASE_URL}/rest/v1/household_sync_state?select=*&user_id=eq.${encodeURIComponent(user.id)}&limit=1&_=${Date.now()}`;
   // Retry only the idempotent read. Never replay writes after an ambiguous timeout.
@@ -176,7 +190,25 @@ function schedulePush(){clearTimeout(pushTimer);pushTimer=setTimeout(()=>pushCur
 
 async function subscribeRealtime(){if(channel){try{await supabase.removeChannel(channel)}catch{}channel=null}if(!user||syncBlocked)return;try{supabase.realtime.setAuth(accessToken)}catch{}channel=supabase.channel(`household-sync-${user.id}-${deviceId}`).on('postgres_changes',{event:'*',schema:'public',table:'household_sync_state',filter:`user_id=eq.${user.id}`},payload=>{const row=payload.new;if(!row)return;const rev=Number(row.revision)||0;if(String(row.writer_device||'')===String(deviceId))return;if(rev<=remoteRevision)return;setTimeout(async()=>{try{const meta=getMeta(),local=stateNow(),dirty=!!meta.syncedFingerprint&&fingerprint(local)!==meta.syncedFingerprint;if(dirty){const remote=await decryptState(row,getPass());blockConflict(remote,row,'他端末の更新と、この端末の未同期変更が競合');return}await applyRemote(row,'他端末の更新を即時反映しました。')}catch(e){status('同期エラー',e.message)}},0)}).subscribe(s=>{if(s==='SUBSCRIBED'&&syncReady)status('Realtime接続中',`自動同期ON · revision ${remoteRevision}`);if(s==='CHANNEL_ERROR'||s==='TIMED_OUT')status('同期再接続中','Realtime接続を再確立しています。')})}
 
-async function initializeSync(reason='自動確認'){if(initInFlight){initQueuedReason=reason||initQueuedReason||'再確認';return}const seq=++initSeq;lastInitStage='precheck';lastInitError='';renderSafetyUi();if(!user||!accessToken){lastInitStage='no-session';renderSafetyUi();return}if(syncBlocked){lastInitStage='blocked';renderSafetyUi();return}initInFlight=true;lastInitStartedAt=Date.now();let secret;try{lastInitStage='passphrase';secret=getPass()}catch(e){syncReady=false;lastInitError=e.message||String(e);lastInitStage='passphrase-missing';status('Realtime待機','暗号化パスフレーズを入力すると同期を開始します。');renderSafetyUi();initInFlight=false;return}try{lastInitStage='fetch-remote';renderSafetyUi();status('同期確認中',`${reason}：RESTでクラウド最新revisionを取得しています。`);const row=await fetchRemote();if(seq!==initSeq)return;const local=stateNow(),localFp=fingerprint(local),localScore=stateScore(local),meta=getMeta();if(!row){remoteRevision=0;syncReady=true;if(localScore>0)await pushCurrent(true);await subscribeRealtime();return}status('同期確認中',`revision ${row.revision} を取得。復号して比較しています。`);const remote=await decryptState(row,secret);if(seq!==initSeq)return;const remoteFp=fingerprint(remote),remoteScore=stateScore(remote),rev=Number(row.revision)||1,hadMeta=!!meta.syncedFingerprint;if(localFp===remoteFp){remoteRevision=rev;setMeta(rev,local);syncReady=true;syncBlocked=false;clearConflictBackups();await subscribeRealtime();status('Realtime接続中',`同一データ · revision ${rev}`);return}if(!hadMeta){backupLocal('初回同期前の端末バックアップ',rev);if(localScore<=2&&remoteScore>2){await applyRemote(row,'クラウドの最新データを反映しました。');await subscribeRealtime();return}if(remoteScore<=2&&localScore>2){remoteRevision=rev;syncReady=true;await pushCurrent(true);await subscribeRealtime();return}blockConflict(remote,row,`初回同期で両方にデータがあります（端末 score ${localScore} / cloud score ${remoteScore}）`);return}const metaRev=Number(meta.revision)||0,localDirty=localFp!==meta.syncedFingerprint;if(rev===metaRev){remoteRevision=rev;syncReady=true;if(localDirty)await pushCurrent(true);else clearConflictBackups();await subscribeRealtime();if(!localDirty)status('Realtime接続中',`同期済み · revision ${rev}`);return}if(rev>metaRev){if(localDirty){blockConflict(remote,row,'端末の未同期変更とクラウドの新しいrevisionが競合');return}await applyRemote(row,'クラウドの新しいrevisionを反映しました。');await subscribeRealtime();return}blockConflict(remote,row,'クラウドrevisionが端末履歴より古いため安全停止')}catch(e){syncReady=false;lastInitError=e.message||String(e);lastInitStage='error';status('同期エラー',lastInitError);scheduleRecovery('取得失敗後の再照合',e);renderSafetyUi()}finally{initInFlight=false;if(syncReady){clearRecovery();lastSuccessfulCheckAt=Date.now();lastInitStage='ready';window.dispatchEvent(new Event('householdShareCloudSyncedV160'))}renderSafetyUi();if(initQueuedReason){const pending=initQueuedReason;initQueuedReason='';queueInitialize(pending)}}}
+async function initializeSync(reason='自動確認'){if(initInFlight){initQueuedReason=reason||initQueuedReason||'再確認';return}const seq=++initSeq;lastInitStage='precheck';lastInitError='';renderSafetyUi();if(!user||!accessToken){lastInitStage='no-session';renderSafetyUi();return}if(syncBlocked){lastInitStage='blocked';renderSafetyUi();return}initInFlight=true;lastInitStartedAt=Date.now();let secret;try{lastInitStage='passphrase';secret=getPass()}catch(e){syncReady=false;lastInitError=e.message||String(e);lastInitStage='passphrase-missing';status('Realtime待機','暗号化パスフレーズを入力すると同期を開始します。');renderSafetyUi();initInFlight=false;return}try{lastInitStage='fetch-remote';renderSafetyUi();status('同期確認中',`${reason}：クラウド更新番号を照合しています。`);
+const header=await fetchRemoteRevision();if(seq!==initSeq)return;
+const local=stateNow(),localFp=fingerprint(local),localScore=stateScore(local),meta=getMeta();
+const metaRev=Number(meta.revision)||0;
+// Do not fetch the 700KB+ encrypted ledger when we already have this exact
+// cloud revision and its last-synced fingerprint. Revision-gated CAS still
+// prevents local changes from overwriting a newer server revision.
+if(header&&meta.syncedFingerprint&&metaRev>0&&Number(header.revision)===metaRev){
+ remoteRevision=metaRev;syncReady=true;syncBlocked=false;
+ if(localFp===meta.syncedFingerprint){
+  setMeta(metaRev,local);clearConflictBackups();
+  await subscribeRealtime();status('Realtime接続中',`更新番号一致・全件取得不要 · revision ${metaRev}`);
+ }else{
+  await pushCurrent(true);
+  await subscribeRealtime();
+ }
+ return;
+}
+const row=header?await fetchRemote():null;if(seq!==initSeq)return;if(!row){remoteRevision=0;syncReady=true;if(localScore>0)await pushCurrent(true);await subscribeRealtime();return}status('同期確認中',`revision ${row.revision} を取得。復号して比較しています。`);const remote=await decryptState(row,secret);if(seq!==initSeq)return;const remoteFp=fingerprint(remote),remoteScore=stateScore(remote),rev=Number(row.revision)||1,hadMeta=!!meta.syncedFingerprint;if(localFp===remoteFp){remoteRevision=rev;setMeta(rev,local);syncReady=true;syncBlocked=false;clearConflictBackups();await subscribeRealtime();status('Realtime接続中',`同一データ · revision ${rev}`);return}if(!hadMeta){backupLocal('初回同期前の端末バックアップ',rev);if(localScore<=2&&remoteScore>2){await applyRemote(row,'クラウドの最新データを反映しました。');await subscribeRealtime();return}if(remoteScore<=2&&localScore>2){remoteRevision=rev;syncReady=true;await pushCurrent(true);await subscribeRealtime();return}blockConflict(remote,row,`初回同期で両方にデータがあります（端末 score ${localScore} / cloud score ${remoteScore}）`);return}const localDirty=localFp!==meta.syncedFingerprint;if(rev===metaRev){remoteRevision=rev;syncReady=true;if(localDirty)await pushCurrent(true);else clearConflictBackups();await subscribeRealtime();if(!localDirty)status('Realtime接続中',`同期済み · revision ${rev}`);return}if(rev>metaRev){if(localDirty){blockConflict(remote,row,'端末の未同期変更とクラウドの新しいrevisionが競合');return}await applyRemote(row,'クラウドの新しいrevisionを反映しました。');await subscribeRealtime();return}blockConflict(remote,row,'クラウドrevisionが端末履歴より古いため安全停止')}catch(e){syncReady=false;lastInitError=e.message||String(e);lastInitStage='error';status('同期エラー',lastInitError);scheduleRecovery('取得失敗後の再照合',e);renderSafetyUi()}finally{initInFlight=false;if(syncReady){clearRecovery();lastSuccessfulCheckAt=Date.now();lastInitStage='ready';window.dispatchEvent(new Event('householdShareCloudSyncedV160'))}renderSafetyUi();if(initQueuedReason){const pending=initQueuedReason;initQueuedReason='';queueInitialize(pending)}}}
 function isTransientSyncFailure(e){
  const msg=String(e?.message||e);
  return /タイムアウト|Failed to fetch|NetworkError|Load failed|network request failed|通信が切断/i.test(msg)||

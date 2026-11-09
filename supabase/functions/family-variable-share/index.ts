@@ -24,6 +24,8 @@ const MINOR_NAMES:Record<string,string>={"HOUSING.RENT_MORTGAGE":"家賃・住�
 function cleanSnapshot(v:any) {
   if(!v||typeof v!=='object'||Array.isArray(v))throw new Error('集計結果がありません');
   const {period_start,period_end,variable,undetermined,review_count,categories,source_revision}=v;
+  const note=v.note===undefined?'':v.note;
+  if(typeof note!=='string'||note.length>160||/[\u0000-\u0008\u000b\u000c\u000e-\u001f]/.test(note))throw new Error('ひとことは160文字以内のテキストにしてください');
   const date=/^\d{4}-\d{2}-\d{2}$/;
   if(typeof period_start!=='string'||typeof period_end!=='string'||!date.test(period_start)||!date.test(period_end)||period_start>period_end)
     throw new Error('集計期間が不正です');
@@ -69,7 +71,7 @@ function cleanSnapshot(v:any) {
     clean.push({key,label:MAJOR_NAMES[key],amount:item.amount,subcategories});
   }
   if(clean.reduce((n,x)=>n+x.amount,0)!==variable)throw new Error('変動費の内訳合計が一致しません');
-  return {schema_version:2,period_start,period_end,variable,undetermined,review_count,categories:clean,source_revision};
+  return {schema_version:2,period_start,period_end,variable,undetermined,review_count,categories:clean,source_revision,note:note.trim()};
 }
 Deno.serve(async(req)=>{
   if(req.method==='OPTIONS')return new Response(null,{status:204,headers:cors});
@@ -99,7 +101,7 @@ Deno.serve(async(req)=>{
   if(action==='owner'){
     const {data,error}=await client.from(table).select('enabled,monthly_budget,published_at,snapshot').eq('owner_user_id',uid).maybeSingle();
     if(error)return respond({error:'共有状態を取得できません'},503);
-    return respond({exists:!!data,enabled:!!data?.enabled,budget:data?.monthly_budget??0,published_at:data?.published_at??null,period_start:data?.snapshot?.period_start??null,period_end:data?.snapshot?.period_end??null,snapshot_version:Number(data?.snapshot?.schema_version??1),source_revision:Number(data?.snapshot?.source_revision??-1)});
+    return respond({exists:!!data,enabled:!!data?.enabled,budget:data?.monthly_budget??0,published_at:data?.published_at??null,period_start:data?.snapshot?.period_start??null,period_end:data?.snapshot?.period_end??null,snapshot_version:Number(data?.snapshot?.schema_version??1),source_revision:Number(data?.snapshot?.source_revision??-1),note:String(data?.snapshot?.note??'')});
   }
   if(action==='create'||action==='rotate'){
     if(action==='rotate'){
@@ -140,6 +142,8 @@ Deno.serve(async(req)=>{
     try{snapshot=cleanSnapshot(input?.snapshot)}catch(e){return respond({error:(e as Error).message},400)}
     const {data:prev,error:readError}=await client.from(table).select('snapshot').eq('owner_user_id',uid).maybeSingle();
     if(readError||!prev)return respond({error:'共有リンクが未設定です'},409);
+    // Keep the last published note when an older, still-open owner tab publishes without the note field.
+    if(!Object.hasOwn(input.snapshot,'note')&&typeof prev.snapshot?.note==='string')snapshot.note=prev.snapshot.note;
     const oldRev=Number(prev.snapshot?.source_revision??-1);
     if(snapshot.source_revision<oldRev)return respond({error:'古いデータからの上書きを防止しました。家計アプリを同期してください'},409);
     const now=new Date().toISOString();

@@ -71,6 +71,7 @@ jobs:
           node tests/family-budget-clarity-v173.test.cjs
           node tests/family-budget-pace-v174.test.cjs
           node tests/family-sync-v164.test.js
+          node tests/family-note-sync-v215.test.cjs
           node tests/family-share-manual-publish-v206.test.cjs
           node tests/wife-personal-reference-v205.test.cjs
           node tests/unified-repair-v161.test.js

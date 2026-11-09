@@ -1,0 +1,36 @@
+name: PR Household Treasury Regression
+on:
+  pull_request:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v6
+      - name: Syntax, family share, and sync regression
+        shell: bash
+        run: |
+          set -euo pipefail
+          for f in ./*.js family/*.js; do
+            if [[ "$f" == *sync-v24.js || "$f" == *sync-v26.js ]]; then
+              cp "$f" "/tmp/$(basename "$f").mjs"
+              node --check "/tmp/$(basename "$f").mjs"
+            else
+              node --check "$f"
+            fi
+          done
+          node tests/family-note-sync-v215.test.cjs
+          node tests/family-share-v160.test.js
+          node tests/family-share-v163.test.js
+          node tests/family-viewer-v163.test.js
+          node tests/family-budget-clarity-v173.test.cjs
+          node tests/family-budget-pace-v174.test.cjs
+          node tests/family-sync-v164.test.js
+          node tests/family-share-manual-publish-v206.test.cjs
+          node tests/family-published-stamp-v183.test.cjs
+          node tests/header-actions-v180.test.cjs
+          node tests/release-assets-contract-v194.test.cjs
+          node tests/fast-header-import-v214.test.cjs

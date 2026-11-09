@@ -72,6 +72,7 @@ jobs:
           node tests/family-budget-pace-v174.test.cjs
           node tests/family-sync-v164.test.js
           node tests/family-note-sync-v215.test.cjs
+          node tests/low-bandwidth-sync-v216.test.cjs
           node tests/family-share-manual-publish-v206.test.cjs
           node tests/wife-personal-reference-v205.test.cjs
           node tests/unified-repair-v161.test.js
@@ -211,8 +212,8 @@ jobs:
           assert.ok(fs.readFileSync('supabase/functions/family-variable-share/index.ts','utf8').includes("input?.snapshot?.schema_version!==2"));
           assert.ok(fs.readFileSync('family/family.js','utf8').includes('data.snapshot')||fs.readFileSync('family/family.js','utf8').includes('d.snapshot'));
 
-          assert.ok(html.includes('sync-v26.js?v=215'));
-          assert.ok(sw.includes('./sync-v26.js?v=215'));
+          assert.ok(html.includes('sync-v26.js?v=216'));
+          assert.ok(sw.includes('./sync-v26.js?v=216'));
           assert.ok(fs.existsSync('family/index.html'));
           assert.ok(fs.existsSync('family/family.js'));
           assert.ok(fs.existsSync('family/family.css'));

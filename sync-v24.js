@@ -105,8 +105,8 @@ function creds(){const email=$('cloudEmail')?.value.trim(),password=$('cloudPass
 function setAuthUi(){const ok=!!user;$('cloudSignOutBtn')?.classList.toggle('hidden',!ok);$('cloudSignInBtn')?.classList.toggle('hidden',ok);$('cloudSignUpBtn')?.classList.toggle('hidden',ok);if($('cloudUser'))$('cloudUser').value=user?.email||user?.id||''}
 function restHeaders(extra={}){if(!accessToken)throw new Error('認証トークンがありません。サインインし直してください。');return{'apikey':SUPABASE_KEY,'Authorization':`Bearer ${accessToken}`,'Content-Type':'application/json',...extra}}
 // Slow/mobile links need long enough to transfer the full encrypted ledger.
-const REST_GET_TIMEOUT_MS=90000;
-const REST_WRITE_TIMEOUT_MS=180000;
+const REST_GET_TIMEOUT_MS=180000;
+const REST_WRITE_TIMEOUT_MS=240000;
 async function fetchJson(url,options={},label='通信'){
  const method=String(options.method||'GET').toUpperCase();
  const timeoutMs=method==='GET'?REST_GET_TIMEOUT_MS:REST_WRITE_TIMEOUT_MS;

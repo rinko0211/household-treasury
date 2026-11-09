@@ -83,7 +83,7 @@ async function run(){
  listeners.install({waitUntil:p=>{install=p}});
  await install;
  assert.ok(precache.length<=10,'Slow connection PWA install should load a small shell, not all modules');
- assert.ok(precache.some(s=>s.includes('sync-v24.js?v=216')));
+ assert.ok(precache.some(s=>s.includes('sync-v24.js?v=217')));
  assert.ok(!precache.some(s=>s.includes('pdfjs')));
  console.log('LOW_BANDWIDTH_SYNC_V216_PASS',JSON.stringify({raw:plaintext,encrypted:zipped.ciphertext.length,precache:precache.length}));
 }

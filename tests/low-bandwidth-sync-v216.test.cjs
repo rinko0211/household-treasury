@@ -53,7 +53,7 @@ async function run(){
  // Bounded request timeouts allow slow uploads to finish.
  const fetchSource=segment('async function fetchJson(', 'async function fetchRemote(');
  const seen=[];
- const fetchCtx={AbortController,Math,Number,String,JSON,Promise,Error,
+ const fetchCtx={AbortController,Math,Number,String,JSON,Promise,Error,REST_GET_TIMEOUT_MS:180000,REST_WRITE_TIMEOUT_MS:240000,
   setTimeout:(_fn,ms)=>{seen.push(ms);return 1},clearTimeout:()=>{},
   fetch:async()=>({ok:true,status:200,text:async()=>'{"revision":1}'})};
  vm.runInNewContext(fetchSource+';this.fetchJson=fetchJson;',fetchCtx);

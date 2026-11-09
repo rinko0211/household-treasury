@@ -20,7 +20,7 @@ assert.equal((app.match(/eventsBody'\)\.innerHTML/g)||[]).length,1);
 assert.ok(!app.includes('f90=forecast(90),f=horizon===90?f90:forecast(horizon)'));
 // Published HTML and PWA match; PDF binary assets are kept but loaded lazily.
 assert.match(sw,/const PRECACHE=CORE\.filter\(path=>/);
-assert.match(sw,/const CACHE="household-treasury-v216-/);
+assert.match(sw,/const CACHE="household-treasury-v217-/);
 assert.ok(html.includes('./app.js?v=214')&&sw.includes('"./app.js?v=214"'));
 const handlers={};
 let requests=0;

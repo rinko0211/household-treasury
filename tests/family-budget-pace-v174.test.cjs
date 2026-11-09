@@ -11,8 +11,8 @@ for(const id of ['budgetMeter','progressFill','budgetRatio','calendarMeter','cal
 }
 assert.ok(html.indexOf('id="budgetMeter"')<html.indexOf('id="calendarMeter"'),'Spending bar must be above day bar');
 assert.ok(html.indexOf('id="spent"')<html.indexOf('id="budget"'),'Spending amount must be primary');
-assert.ok(html.includes('family.js?v=206')&&html.includes('family.css?v=210'));
-assert.ok(sw.includes('./family/family.js?v=206')&&sw.includes('./family/family.css?v=210'));
+assert.ok(html.includes('family.js?v=215')&&html.includes('family.css?v=215'));
+assert.ok(sw.includes('./family/family.js?v=215')&&sw.includes('./family/family.css?v=215'));
 assert.ok(css.includes('.pace-evaluation.is-behind')&&css.includes('.pace-evaluation.is-balanced')&&css.includes('.pace-evaluation.is-ahead'));
 // The daily allowance amount and its '1日あたり約' prefix must use the
 // exact same color token as the 'ちょっと早いかも' warning label.

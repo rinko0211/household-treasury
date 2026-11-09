@@ -86,7 +86,7 @@ async function fetchRemote(){
       const rows=await fetchJson(url,{headers:restHeaders()},'クラウド取得');
       return Array.isArray(rows)?(rows[0]||null):rows;
     }catch(e){
-      const transient=/タイムアウト|Failed to fetch|NetworkError|Load failed|クラウド取得失敗 \\((?:408|429|500|502|503|504)\\)/i.test(String(e?.message||e));
+      const transient=/タイムアウト|Failed to fetch|NetworkError|Load failed|クラウド取得失敗 \((?:408|429|500|502|503|504)\)/i.test(String(e?.message||e));
       if(!transient||attempt===2||navigator.onLine===false)throw e;
       await new Promise(resolve=>setTimeout(resolve,(attempt+1)*700));
     }

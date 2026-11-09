@@ -11,9 +11,9 @@ assert.match(source,/new DecompressionStream\('gzip'\)/);
 assert.match(source,/clearRecovery\(\);status\('Realtime同期済み'/);
 assert.match(source,/scheduleRecovery\('送信結果の安全な再照合',e\)/);
 assert.match(source,/scheduleRecovery\('取得失敗後の再照合',e\)/);
-assert.match(html,/sync-v26\.js\?v=216/);
-assert.match(shell,/sync-v24\.js\?v=216/);
-assert.match(shell,/sync-v26\.js\?v=216/);
+assert.match(html,/sync-v26\.js\?v=217/);
+assert.match(shell,/sync-v24\.js\?v=217/);
+assert.match(shell,/sync-v26\.js\?v=217/);
 function segment(start,end){
  const a=source.indexOf(start),b=source.indexOf(end,a+start.length);
  assert.ok(a>=0&&b>a,'source function missing: '+start);

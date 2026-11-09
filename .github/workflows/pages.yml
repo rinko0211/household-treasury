@@ -211,8 +211,8 @@ jobs:
           assert.ok(fs.readFileSync('supabase/functions/family-variable-share/index.ts','utf8').includes("input?.snapshot?.schema_version!==2"));
           assert.ok(fs.readFileSync('family/family.js','utf8').includes('data.snapshot')||fs.readFileSync('family/family.js','utf8').includes('d.snapshot'));
 
-          assert.ok(html.includes('sync-v26.js?v=160'));
-          assert.ok(sw.includes('./sync-v26.js?v=160'));
+          assert.ok(html.includes('sync-v26.js?v=215'));
+          assert.ok(sw.includes('./sync-v26.js?v=215'));
           assert.ok(fs.existsSync('family/index.html'));
           assert.ok(fs.existsSync('family/family.js'));
           assert.ok(fs.existsSync('family/family.css'));

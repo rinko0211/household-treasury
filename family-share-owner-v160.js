@@ -5,10 +5,12 @@ const URL='https://vqgofvnqmformckkkyur.supabase.co/functions/v1/family-variable
 const APIKEY='sb_publishable_X0PF6BYxBWXtZPQtU6wzgQ_ud7nY-eO';
 const LINK_BASE='https://rinko0211.github.io/household-treasury/family/#';
 const STORAGE='householdFamilyShareTokenV160';
+const NOTE_DRAFT_KEY='householdFamilyShareNoteDraftV215';
+const NOTE_MAX=160;
 const yen=v=>new Intl.NumberFormat('ja-JP',{style:'currency',currency:'JPY',maximumFractionDigits:0}).format(Number(v)||0);
 const $=s=>document.getElementById(s);
 const TODAY=()=>new Intl.DateTimeFormat('sv-SE',{timeZone:'Asia/Tokyo',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
-let shareExists=false,enabled=false,budget=0,budgetReady=false,busy=false;
+let shareExists=false,enabled=false,budget=0,budgetReady=false,busy=false,noteHydrated=false;
 const context=()=>window.householdShareSyncContext?.()||{};
 function setNote(msg,warning=false){
  const el=$('familyShareNoteV160');
@@ -138,6 +140,14 @@ async function refreshStatus(silent=false){
   if($('familyShareCreateV160'))$('familyShareCreateV160').textContent=shareExists?'リンクを再発行':'共有リンクを作成';
   if($('familyShareStopV160'))$('familyShareStopV160').disabled=!enabled;
   showLink();
+  const editor=$('familyShareMessageV215');
+  if(editor&&!noteHydrated){
+    const draft=localStorage.getItem(NOTE_DRAFT_KEY);
+    editor.value=draft===null?String(r.note||''):draft;
+    noteHydrated=true;
+    const counter=$('familyShareMessageCountV215');
+    if(counter)counter.textContent=editor.value.length+'/'+NOTE_MAX+'文字・「妻へ反映」で公開';
+  }
   if(legacyShared)setNote('共有された細目は旧形式です。「妻へ反映」を押すと最新版に更新します。',true);
   else if(!silent)setNote(enabled?'共有中・最終更新 '+(r.published_at?new Date(r.published_at).toLocaleString('ja-JP'):'未更新'):'共有は停止中です。');
  }catch(e){if(!silent)setNote(e.message,true)}
@@ -145,11 +155,14 @@ async function refreshStatus(silent=false){
 async function publish(){
  const ctx=context();
  if(!ctx.ready||ctx.blocked)throw Error('家計アプリのクラウド同期が完了してから実行してください。');
- const snapshot=makeSnapshot();
+ const note=String($('familyShareMessageV215')?.value||'').trim();
+ if(note.length>NOTE_MAX)throw Error('ひとことは160文字以内で入力してください。');
+ const snapshot={...makeSnapshot(),note};
  // v206: a successful manual click is the ONLY event allowed to change
  // the shared snapshot's published_at timestamp.
  const r=await api('publish',{snapshot,manual_trigger:'wife-publish-button-v206'});
  enabled=!!r.enabled;budgetReady=enabled&&budget>0;
+ localStorage.removeItem?.(NOTE_DRAFT_KEY);
  showLink();
  setNote('更新済み：変動費 '+yen(snapshot.variable)+' / '+snapshot.period_start+'〜'+snapshot.period_end+
   (snapshot.undetermined?'（未分類 '+yen(snapshot.undetermined)+' あり）':''));
@@ -172,6 +185,7 @@ function mount(){
   '<div class="note">妻の画面はログインなし・閲覧専用。中カテゴリ・小カテゴリ・利用日別金額だけを共有。給与・残高・投資・ローン・購入先名は共有しません。リンクを知っている人は閲覧できます。</div>'+
   '<div class="form" style="margin-top:12px"><div class="field"><label for="familyShareBudgetV160">給与サイクルの変動費予算（円）</label><input type="number" id="familyShareBudgetV160" min="0" max="5000000" step="1000" value="0"></div>'+
   '<div class="field"><label for="familyShareLinkV160">奥さんに送る閲覧用URL</label><input id="familyShareLinkV160" readonly placeholder="共有開始後にURLを表示"></div></div>'+
+  '<div class="field" style="margin-top:12px"><label for="familyShareMessageV215">奥さんに表示するひとこと（最大160文字）</label><textarea id="familyShareMessageV215" maxlength="160" rows="3" placeholder="例：今週もお疲れさま！" style="display:block;width:100%;margin-top:7px;padding:10px;color:#eef4ff;background:#0d1729;border:1px solid #55709d;border-radius:9px;font:inherit;resize:vertical"></textarea><div id="familyShareMessageCountV215" class="tiny" style="margin-top:5px">0/160文字・「妻へ反映」で公開</div></div>'+ 
   '<div class="controls" style="margin-top:12px;flex-wrap:wrap">'+
   '<button class="btn" id="familyShareCreateV160">共有リンクを作成</button>'+
   '<button class="btn secondary" id="familyShareSaveBudgetV160">予算を保存</button>'+
@@ -181,6 +195,12 @@ function mount(){
   '<div id="familyShareNoteV160" class="tiny" style="margin-top:12px">ログイン状態を確認しています。</div>'+
   '<div class="tiny" style="margin-top:8px">妻の共有画面の支出と最終更新日時は「妻へ反映」を押したときだけ更新します。再読み込みや自動同期では更新しません。</div>';
  cloud.parentElement.appendChild(panel);
+ $('familyShareMessageV215').addEventListener('input',()=>{
+  const editor=$('familyShareMessageV215');
+  noteHydrated=true;
+  localStorage.setItem(NOTE_DRAFT_KEY,editor.value);
+  $('familyShareMessageCountV215').textContent=editor.value.length+'/'+NOTE_MAX+'文字・「妻へ反映」で公開';
+ });
  $('familyShareCreateV160').onclick=()=>guarded(async()=>{
   if(!context().ready||context().blocked)throw Error('まず家計アプリのクラウド同期を完了してください。');
   if(shareExists&&!confirm('リンクを再発行すると、現在の奥さん用URLは使えなくなります。続けますか？'))return;

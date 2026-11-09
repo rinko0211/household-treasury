@@ -24,6 +24,7 @@ jobs:
           done
           node tests/family-note-sync-v215.test.cjs
           node tests/low-bandwidth-sync-v216.test.cjs
+          node tests/revision-first-sync-v217.test.cjs
           node tests/family-share-v160.test.js
           node tests/family-share-v163.test.js
           node tests/family-viewer-v163.test.js

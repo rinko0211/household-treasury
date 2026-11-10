@@ -277,6 +277,18 @@
       },'BACKFILL_SETTLEMENT'));
   }
 
+  function cardEstimateReplacedByStatement(st,r) {
+    if(String(r?.type||'').toUpperCase()!=='CARD_ESTIMATE'||!r?.card)return false;
+    const ym=String(r.billing_month||r.date||'').slice(0,7);
+    const api=window.householdCardCycleV81;
+    const match=(a,b)=>{
+      try{
+        const x=api?.resolveCardName?.(a)||a,y=api?.resolveCardName?.(b)||b;
+        return window.householdCardIdentityV51?.sameCard?.(x,y) ?? norm(x)===norm(y);
+      }catch{return norm(a)===norm(b);}
+    };
+    return (st.cardSettlements||[]).some(s=>String(s.due_date||'').slice(0,7)===ym&&match(s.card,r.card)&&Math.abs(Number(s.amount)||0)>0);
+  }
   function elapsedCardEstimateOccurrences(st,fromExclusive,toExclusive) {
     // When today passes a card payment date, a forecast estimate must not
     // vanish just because the forward-looking generated() no longer includes it.
@@ -289,16 +301,11 @@
     const days=Math.ceil((to-from)/86400000);
     let rows=[];
     try{rows=api.buildPlan(days,fromExclusive)?.rows||[];}catch{return[];}
-    const settled=st.cardSettlements||[];
-    const sameCard=(a,b)=>{
-      try{return window.householdCardIdentityV51?.sameCard?.(a,b) ?? norm(a)===norm(b);}
-      catch{return norm(a)===norm(b);}
-    };
-    return rows.filter(r=>{
-      if(String(r.type||'')!=='CARD_ESTIMATE'||!inElapsedRange(String(r.date||''),fromExclusive,toExclusive))return false;
-      const month=String(r.billing_month||r.date||'').slice(0,7);
-      return !settled.some(s=>String(s.due_date||'').slice(0,7)===month&&sameCard(s.card,r.card)&&Math.abs(Number(s.amount)||0)>0);
-    }).map(r=>compact(r,'BACKFILL_CARD_ESTIMATE'));
+    return rows.filter(r=>
+      String(r.type||'')==='CARD_ESTIMATE' &&
+      inElapsedRange(String(r.date||''),fromExclusive,toExclusive) &&
+      !cardEstimateReplacedByStatement(st,r)
+    ).map(r=>compact(r,'BACKFILL_CARD_ESTIMATE'));
   }
 
   function backfillCandidates(st,fromExclusive,toExclusive) {
@@ -542,8 +549,22 @@
     const anchorDate=manualValid && (!imported || manualDate>=imported.date)?manualDate:(imported?.date||now);
     if(anchorDate>=now)return base;
     const model=ensureModel(st);
-    const historical=[...(model.history||[])];
-    for(const x of backfillCandidates(st,anchorDate,now))if(!historical.some(y=>y.key===x.key))historical.push(x);
+    // A new calendar day can arrive before reconcile() has moved yesterday's
+    // pending rows into history (or a remote restore can reload old pending).
+    // Include both: otherwise due card estimates simply disappear at midnight.
+    const historical=[...(model.history||[]),...(model.pending||[])]
+      .filter(x=>!cardEstimateReplacedByStatement(st,x))
+      .filter((x,i,all)=>all.findIndex(y=>String(y.key||semanticKey(y))===String(x.key||semanticKey(x)))===i);
+    for(const x of backfillCandidates(st,anchorDate,now)){
+      // The current card cycle is authoritative if a previously stored amount
+      // was edited: never count old and new estimates for the same card/date.
+      if(String(x.type||'')==='CARD_ESTIMATE'){
+        const old=historical.findIndex(y=>String(y.type||'')==='CARD_ESTIMATE'&&
+          String(y.date||'')===x.date&&norm(y.card)===norm(x.card));
+        if(old>=0){historical[old]=x;continue;}
+      }
+      if(!historical.some(y=>String(y.key||semanticKey(y))===x.key))historical.push(x);
+    }
     const elapsed=historical.filter(x=>
       String(x.date||'')>anchorDate && String(x.date||'')<now &&
       Number.isFinite(Number(x.amount)) &&

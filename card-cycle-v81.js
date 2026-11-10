@@ -73,7 +73,7 @@
     return false;
   }
   function linkedToMaster(p,m){if(String(p?.fixed_expense_master_id||'')===String(m?.id||''))return true;const a=norm(p?.merchant_raw||p?.merchant_normalized||''),b=norm(m?.name||'');return !!a&&!!b&&(a===b||a.includes(b)||b.includes(a))}
-  function rangeFor(days){const from=isoDate(new Date()),d=new Date(`${from}T12:00:00`);d.setDate(d.getDate()+Math.max(0,Number(days)||0));return{from,to:isoDate(d)}}
+  function rangeFor(days,fromDate){const from=/^\d{4}-\d{2}-\d{2}$/.test(String(fromDate||''))?String(fromDate):isoDate(new Date()),d=new Date(`${from}T12:00:00`);d.setDate(d.getDate()+Math.max(0,Number(days)||0));return{from,to:isoDate(d)}}
 
   function scheduledForCard(st,card,range){
     const byYm=new Map(),firstYm=addMonths(range.from.slice(0,7),-1),lastYm=range.to.slice(0,7);
@@ -103,8 +103,10 @@
   }
   function knownForCard(st,card,ym){return (st.purchaseEvents||[]).filter(p=>countedPurchase(p)&&purchaseMatchesCard(st,p,card)&&String(p.billing_month||'')===ym)}
 
-  function buildPlan(days=180){
-    const st=stateNow(),range=rangeFor(days),rows=[],warnings=[];
+  function buildPlan(days=180,fromDate){
+    // Historical as-of range is used by the balance reconciliation for elapsed payments.
+    // Regular future forecasts still start today when fromDate is omitted.
+    const st=stateNow(),range=rangeFor(days,fromDate),rows=[],warnings=[];
     for(const card of activeCards(st)){
       if(paymentMode(card)!=='FULL')continue;const settleDay=settlementDayValue(card);if(!settleDay){warnings.push({card:card.name,reason:'引落日未設定'});continue}
       const scheduled=scheduledForCard(st,card,range),months=new Set([...scheduled.keys()]);

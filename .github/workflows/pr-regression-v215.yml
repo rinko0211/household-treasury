@@ -22,6 +22,7 @@ jobs:
               node --check "$f"
             fi
           done
+          node tests/elapsed-card-forecast-v218.test.cjs
           node tests/family-note-sync-v215.test.cjs
           node tests/low-bandwidth-sync-v216.test.cjs
           node tests/revision-first-sync-v217.test.cjs

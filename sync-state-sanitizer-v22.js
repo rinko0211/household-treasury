@@ -136,7 +136,7 @@
   injectClassic('./planning-model-v80.js?v=91', 'data-household-planning-model-v80');
   injectClassic('./planning-ui-v80.js?v=80', 'data-household-planning-ui-v80');
   // v81 is the card-cycle authority and restores bank balances to the planning dashboard.
-  injectClassic('./card-cycle-v81.js?v=205', 'data-household-card-cycle-v81');
+  injectClassic('./card-cycle-v81.js?v=218', 'data-household-card-cycle-v81');
   // v97 preserves unsaved draft card selections in annual/fixed editors.
   injectClassic('./card-cycle-ui-v81.js?v=97', 'data-household-card-cycle-ui-v81');
   injectClassic('./dashboard-bank-v81.js?v=81', 'data-household-dashboard-bank-v81');
@@ -156,7 +156,7 @@
   // v97: JAL/DC with a known revolving payoff automatically use full-payment forecasting for spends on/after the projected payoff date.
   injectClassic('./revolving-to-full-v97.js?v=97', 'data-household-revolving-to-full-v97');
   // v102: imported balance_after is the actual current balance. Elapsed plans after the last import stay unverified and affect forecast only.
-  injectClassic('./cashflow-reconciliation-v102.js?v=143', 'data-household-cashflow-reconciliation-v102');
+  injectClassic('./cashflow-reconciliation-v102.js?v=218', 'data-household-cashflow-reconciliation-v102');
   // v135: final salary authority after all forecast wrappers; prevents partial salary deposits suppressing payroll.
   injectClassic('./cashflow-salary-canonical-v135.js?v=143', 'data-household-salary-canonical-v135');
   // v139: scope MDC statement purchases by physical card, not generic JAL card name.

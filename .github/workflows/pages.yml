@@ -41,6 +41,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          node tests/elapsed-card-forecast-v218.test.cjs
           node tests/treasury-ledger-v145.test.js
           node tests/expense-unified-v148.test.js
           node tests/release-assets-contract-v194.test.cjs

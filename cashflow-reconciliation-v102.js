@@ -277,12 +277,37 @@
       },'BACKFILL_SETTLEMENT'));
   }
 
+  function elapsedCardEstimateOccurrences(st,fromExclusive,toExclusive) {
+    // When today passes a card payment date, a forecast estimate must not
+    // vanish just because the forward-looking generated() no longer includes it.
+    // Recompute the authoritative v81 card plan from the bank balance anchor.
+    // A confirmed card settlement (if present) takes precedence over estimates.
+    const from=new Date(`${fromExclusive}T12:00:00`),to=new Date(`${toExclusive}T12:00:00`);
+    if(Number.isNaN(from.getTime())||Number.isNaN(to.getTime())||to<=from)return[];
+    const api=window.householdCardCycleV81;
+    if(typeof api?.buildPlan!=='function')return[];
+    const days=Math.ceil((to-from)/86400000);
+    let rows=[];
+    try{rows=api.buildPlan(days,fromExclusive)?.rows||[];}catch{return[];}
+    const settled=st.cardSettlements||[];
+    const sameCard=(a,b)=>{
+      try{return window.householdCardIdentityV51?.sameCard?.(a,b) ?? norm(a)===norm(b);}
+      catch{return norm(a)===norm(b);}
+    };
+    return rows.filter(r=>{
+      if(String(r.type||'')!=='CARD_ESTIMATE'||!inElapsedRange(String(r.date||''),fromExclusive,toExclusive))return false;
+      const month=String(r.billing_month||r.date||'').slice(0,7);
+      return !settled.some(s=>String(s.due_date||'').slice(0,7)===month&&sameCard(s.card,r.card)&&Math.abs(Number(s.amount)||0)>0);
+    }).map(r=>compact(r,'BACKFILL_CARD_ESTIMATE'));
+  }
+
   function backfillCandidates(st,fromExclusive,toExclusive) {
     const all=[
       ...salaryOccurrences(st,fromExclusive,toExclusive),
       ...eventOccurrences(st,fromExclusive,toExclusive),
       ...masterOccurrences(st,fromExclusive,toExclusive),
       ...legacyRuleOccurrences(st,fromExclusive,toExclusive),
+      ...elapsedCardEstimateOccurrences(st,fromExclusive,toExclusive),
       ...settlementOccurrences(st,fromExclusive,toExclusive)
     ];
     const m=new Map();

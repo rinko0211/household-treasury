@@ -16,6 +16,8 @@ class Node{
  constructor(id=''){this.id=id;this.style={};this.classList={add:()=>{}};this.handlers={};
   this.children=[];this.value='';this.disabled=false;this.parentElement=null;this.textContent='';
  }
+ set id(value){this._id=value;if(value)els.set(value,this)}
+ get id(){return this._id}
  set innerHTML(s){
   this._html=String(s);
   for(const m of this._html.matchAll(/id="([^"]+)"/g))if(!els.has(m[1]))els.set(m[1],new Node(m[1]));
@@ -55,8 +57,8 @@ vm.runInNewContext(owner,{window:win,document:doc,localStorage:store,fetch,
  Intl,Date,Number,String,Array,Map,Set,Object,Math,JSON,RegExp,Error,URL,
  Event:class{},setTimeout:()=>1,clearTimeout:()=>{},console});
 async function test(){
- assert.ok(win.householdFamilyShareV160.mount());
- await Promise.resolve();await Promise.resolve();
+ win.householdFamilyShareV160.mount();
+ await new Promise(r=>setImmediate(r));
  const editorPanel=els.get('familyShareMessageEditorV222');
  const settingsPanel=els.get('familySharePanelV160');
  assert.equal(editorPanel.parentElement,expenses,'Editor must be a child of Expenses, not Settings');
@@ -69,7 +71,7 @@ async function test(){
  assert.equal(store.getItem('householdFamilyShareNoteDraftV215'),'今日はありがとう！');
  assert.ok(counter.textContent.includes('160文字'));
  const p=els.get('familyShareNotePublishV222');
- p.click();await Promise.resolve();await Promise.resolve();await Promise.resolve();
+ p.click();await new Promise(r=>setImmediate(r));
  const publishes=calls.filter(x=>x.action==='publish');
  assert.equal(publishes.length,1,'Exactly one publish from the new Expenses button');
  assert.equal(publishes[0].snapshot.note,'今日はありがとう！');

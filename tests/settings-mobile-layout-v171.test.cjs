@@ -23,7 +23,7 @@ assert.ok(fixed.includes('class="form v171-fixed-fields"'),'Fixed master fields 
 assert.ok(!fixed.includes('grid-template-columns:repeat(3,1fr)'),'Remove inline unresponsive three-column layouts');
 assert.ok(cards.includes('class="form v171-card-fields"'),'Card master form adopts responsive class');
 assert.ok(!cards.includes('grid-template-columns:repeat(2,1fr)'),'Remove inline unresponsive two-column layouts');
-assert.ok(html.includes('ui-modern-v169.css?v=214'),'Browser receives updated stylesheet');
+assert.ok(html.includes('ui-modern-v169.css?v=220'),'Browser receives updated stylesheet');
 assert.ok(loader.includes('fixed-master-unified-v43.js?v=171'));
 assert.ok(loader.includes('card-settings-unified-v77.js?v=171'));
 assert.ok(/const CACHE="household-treasury-v\d+-[^"]+"/.test(sw),'PWA version bumped while keeping v171 responsive settings');

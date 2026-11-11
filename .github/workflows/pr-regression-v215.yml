@@ -26,6 +26,7 @@ jobs:
           node tests/family-note-sync-v215.test.cjs
           node tests/simple-expense-import-v213.test.cjs
           node tests/simple-expense-one-step-v220.test.cjs
+          node tests/card-billing-month-auto-v177.test.cjs
           node tests/mobile-import-editor-v208.test.cjs
           node tests/low-bandwidth-sync-v216.test.cjs
           node tests/revision-first-sync-v217.test.cjs

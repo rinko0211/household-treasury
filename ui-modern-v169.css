@@ -240,3 +240,24 @@ details>summary,
   .card,#expenseHubV148 .hub-card{background:#15222c;box-shadow:none}
   .tab,.btn{transition:none}
 }
+
+/* v220: compact one-step CSV import and iPhone viewport stability.
+   Previous per-row preview exposed an unbroken percent-encoded file name,
+   stretching Safari's layout viewport and shrinking the whole app. */
+#imports #simpleExpenseImportV213,
+#imports #simpleExpenseResultV220,
+#imports #simpleExpenseImportV213 .tiny,
+#imports #importResults .tiny,
+#imports #importResults .card {
+  box-sizing:border-box;min-width:0;max-width:100%;
+  overflow-wrap:anywhere;word-break:break-word;
+}
+#imports #simpleExpenseImportV213 .controls{
+  min-width:0;max-width:100%;display:flex;flex-wrap:wrap;gap:8px;
+}
+#imports #simpleExpenseImportV213 .btn{max-width:100%;white-space:normal}
+@media(max-width:760px){
+  html,body{max-width:100%;overflow-x:clip}
+  main.app{width:100%;min-width:0;max-width:100%;box-sizing:border-box}
+  #imports,#imports .grid,#imports .grid>.card{width:100%;min-width:0;max-width:100%;box-sizing:border-box}
+}

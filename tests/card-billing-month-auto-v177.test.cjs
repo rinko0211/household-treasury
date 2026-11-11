@@ -60,7 +60,13 @@ const window={
  renderDashboardV39:()=>{},reconcileRakutenBillingV56:()=>{},alert:msg=>alerts.push(msg),
  householdPlanningV79:{baselineOf:()=>0,forecastMode:()=> 'COMPONENTS'}
 };
-const context={window,document,Date,Intl,Number,String,Array,Set,Map,Math,JSON,Error,Promise,
+// The fixture uses November 2026 card payments; freeze clock before the due date.
+// Otherwise the test starts failing after November 10 even if billing logic is correct.
+class FixedDate extends Date {
+ constructor(...args){super(...(args.length?args:['2026-10-30T12:00:00Z']))}
+ static now(){return Date.parse('2026-10-30T12:00:00Z')}
+}
+const context={window,document,Date:FixedDate,Intl,Number,String,Array,Set,Map,Math,JSON,Error,Promise,
  alert:window.alert,crypto:{randomUUID:()=> 'test-id'},setTimeout:fn=>tasks.push(fn),
  structuredClone:v=>JSON.parse(JSON.stringify(v))};
 vm.runInNewContext(cycle,context);

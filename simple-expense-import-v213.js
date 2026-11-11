@@ -151,117 +151,121 @@ function apply(rows,sourceName){
  window.dispatchEvent?.(new CustomEvent('treasury:expenses-imported',{detail:{source:'SIMPLE_EXPENSE_V213'}}));
  return fresh;
 }
-const CAT_OPTIONS=CATEGORIES.map(c=>'<option value="'+c+'">'+LABELS[c]+'</option>').join('');
-const BUCKET_OPTIONS=Object.entries(NATURES).map(([k,v])=>'<option value="'+k+'">'+v+'</option>').join('');
-const PAY_OPTIONS='<option value="UNCONFIRMED">未確認</option><option value="CASH">現金</option><option value="CARD">カード（後で変更可）</option>';
-let current=[],sourceFile='',host=null;
-function controls(r,i){
- const options=(html,val)=>html.replace('value="'+esc(val)+'"','value="'+esc(val)+'" selected');
- const field=(name,type,value)=>'<label style="display:block;min-width:0"><span style="font-size:12px">'+name+'</span><input style="width:100%" type="'+type+'" data-simple-i="'+i+'" data-simple-field="'+({日付:'date',店舗:'merchant',金額:'amount',カード名:'card'}[name])+'" value="'+esc(value)+'"></label>';
- return '<div style="padding:12px;margin:9px 0;border:1px solid #536674;border-radius:10px">'+
-  '<label><input type="checkbox" data-simple-i="'+i+'" data-simple-field="include" checked> '+(i+1)+'件目を登録する</label>'+
-  '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px">'+field('日付','date',r.date)+field('金額','number',r.amount)+'</div>'+
-  field('店舗','text',r.merchant)+
-  '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">'+
-  '<label>費目<select style="width:100%" data-simple-i="'+i+'" data-simple-field="bucket">'+options(BUCKET_OPTIONS,r.bucket)+'</select></label>'+
-  '<label>カテゴリ<select style="width:100%" data-simple-i="'+i+'" data-simple-field="category">'+options(CAT_OPTIONS,r.category)+'</select></label>'+
-  '<label>支払方法<select style="width:100%" data-simple-i="'+i+'" data-simple-field="payment">'+options(PAY_OPTIONS,r.payment)+'</select></label>'+
-  field('カード名','text',r.card)+'</div>'+
-  '<label>備考<input style="width:100%" data-simple-i="'+i+'" data-simple-field="note" value="'+esc(r.note)+'"></label>'+
-  '<label style="font-size:12px"><input type="checkbox" data-simple-i="'+i+'" data-simple-field="force"> 既存候補と別の支出であると確認した</label></div>';
+// v220: CSV is one-step import. Editing is exclusively on the 支出 page.
+let host=null;
+function displayName(value){
+ const name=String(value||'').split(/[\\/]/).at(-1);
+ try{return /%[0-9a-f]{2}/i.test(name)?decodeURIComponent(name):name}catch{return name}
 }
-function renderPreview(){
- if(!host)return;
- const view=host.querySelector('#simpleExpensePreviewV213');if(!view)return;
- const idx=index(stateNow());
- const notices=current.map((r,i)=>{const x=hint(r,idx);return x&&!x.exact?'【'+(i+1)+'件目】'+x.label:x?.exact?'【'+(i+1)+'件目】取込済みの可能性':''}).filter(Boolean);
- view.innerHTML='<p class="tiny">'+esc(sourceFile)+' / '+current.length+'件。編集内容は「登録する」まで家計に反映されません。</p>'+
-  (notices.length?'<div class="note">'+notices.map(x=>esc(x)).join('<div></div>')+'</div>':'')+
-  current.map(controls).join('')+
-  '<button class="btn" type="button" id="simpleExpenseSaveV213">確認して登録</button> '+
-  '<button class="btn secondary" type="button" id="simpleExpenseDiscardV213">キャンセル</button>'+
-  '<div class="tiny" id="simpleExpenseStatusV213"></div>';
+function showResult(result,name){
+ const target=host?.querySelector('#simpleExpenseResultV220');
+ if(!target)return;
+ const imported=Number(result.added)||0;
+ const exact=Number(result.duplicates)||0;
+ const pending=Array.isArray(result.withheld)?result.withheld:[];
+ const title=result.cancelled?'登録をキャンセルしました。':
+  imported?imported+'件の支出を登録しました。':'新たな登録はありません。';
+ const stats=['取込対象 '+Number(result.read||0)+'件'];
+ if(exact)stats.push('登録済み '+exact+'件');
+ if(pending.length)stats.push('重複確認待ち '+pending.length+'件');
+ if(result.adjusted)stats.push('カード不明 '+result.adjusted+'件は支払方法未確認で登録');
+ const list=pending.length?
+  '<p class="tiny" style="margin:6px 0 0">重複の疑いがある行は登録を保留しました：'+
+  pending.slice(0,3).map(x=>esc(x.merchant)+' '+x.amount.toLocaleString('ja-JP')+'円').join('、')+
+  (pending.length>3?' ほか'+(pending.length-3)+'件':'')+
+  '。必要なら元CSVを確認してください。</p>':'';
+ target.innerHTML='<p class="tiny" style="margin:8px 0 3px;overflow-wrap:anywhere">'+
+  '<strong>'+esc(title)+'</strong> '+esc(stats.join(' ／ '))+'</p>'+
+  '<p class="tiny" style="margin:0;overflow-wrap:anywhere">'+esc(displayName(name))+
+  '。明細の修正・削除・分類は「支出」ページで行えます。</p>'+list;
 }
-async function fileSelected(file){
- if(!file)return;
- let text=await file.text(),rows;
- if(text.includes('\uFFFD')&&typeof TextDecoder==='function'){
-  try{text=new TextDecoder('shift-jis').decode(await file.arrayBuffer())}catch{}
+async function importDirect(file){
+ if(!file)return {cancelled:true,read:0,added:0,duplicates:0,withheld:[]};
+ let csv=await file.text();
+ if(csv.includes('\uFFFD')&&typeof TextDecoder==='function'){
+  try{csv=new TextDecoder('shift-jis').decode(await file.arrayBuffer())}catch{}
  }
- rows=parse(text);
- if(!rows)throw Error('簡易支出CSVのヘッダーではありません。「利用日,店舗,金額」の列が必要です。');
+ const rows=parse(csv);
+ if(!rows)throw Error('簡易支出CSVのヘッダーではありません。「利用日,店舗,金額」が必要です。');
  if(!rows.length)throw Error('CSVに支出がありません。');
- current=rows;sourceFile=file.name;renderPreview();
+ const idx=index(stateNow()),ready=[],withheld=[];
+ let duplicates=0,adjusted=0;
+ for(const original of rows){
+  const row={...original};
+  // Preserve user spending without inventing a specific card.
+  if(row.payment==='CARD'&&!row.card){row.payment='UNCONFIRMED';adjusted++;}
+  validate(row);
+  const overlap=hint(row,idx);
+  if(overlap?.exact){duplicates++;continue;}
+  if(overlap){withheld.push(row);continue;}
+  ready.push(row);
+  // Detect repeated rows in the same file before they reach the ledger.
+  idx.byKey.add(row.key);
+  idx.possible.push({date:row.date,label:norm(row.merchant),amount:row.amount});
+ }
+ const done=ready.length?apply(ready,file.name):{added:0,skipped:true};
+ return {source:'簡易支出CSV（直接登録・支出で編集）',
+  read:rows.length,added:done.cancelled?0:done.added||0,
+  duplicates:duplicates+(done.duplicates||0),
+  review:withheld.length,withheld,adjusted,
+  cancelled:!!done.cancelled,skipped:!!done.skipped};
 }
 function exportTemplate(){
  const csv='\uFEFF利用日,店舗,金額,内容,カテゴリ,費目,支払方法,カード,備考\n'+
   '2026-11-01,八戸液化ガス,4769,11月分ガス代,公共料金,固定費,未確認,,請求月は未確定\n';
  const blob=new Blob([csv],{type:'text/csv;charset=utf-8'});
  const url=URL.createObjectURL(blob),a=document.createElement('a');
- a.href=url;a.download='簡易支出_編集用テンプレート.csv';a.click();
+ a.href=url;a.download='簡易支出_取込用テンプレート.csv';a.click();
  setTimeout(()=>URL.revokeObjectURL(url),2000);
 }
 function mount(){
- const parent=document.querySelector('#imports .grid');if(!parent||parent.querySelector('#simpleExpenseImportV213'))return;
+ const parent=document.querySelector('#imports .grid');
+ if(!parent)return;
+ const existing=parent.querySelector('#simpleExpenseImportV213');
+ if(existing){host=existing;return;}
  host=document.createElement('div');host.id='simpleExpenseImportV213';host.className='card full';
- host.innerHTML='<div class="title">簡易支出CSV（取込前に修正）</div>'+
-  '<p class="tiny">銀行・カード会社の正式CSVでなくても登録できます。日付・金額・固定費/変動費・カードを画面で編集できます。カード請求は作成しません。</p>'+
+ host.innerHTML='<div class="title">簡易支出CSV</div>'+
+  '<p class="tiny" style="overflow-wrap:anywhere">CSVを選び、件数と金額を一度確認するだけで登録します。'+
+  '登録後の修正は「支出」ページで行えます。重複候補は安全のため保留します。</p>'+
   '<div class="controls"><label class="btn secondary" for="simpleExpenseFileV213">CSVを選ぶ</label>'+
   '<input type="file" id="simpleExpenseFileV213" class="hidden" accept=".csv,text/csv">'+
   '<button type="button" class="btn secondary" id="simpleExpenseTemplateV213">ひな型CSV</button></div>'+
-  '<div id="simpleExpensePreviewV213"></div>';
+  '<div id="simpleExpenseResultV220" role="status" aria-live="polite"></div>';
  parent.insertBefore(host,parent.firstChild);
  host.querySelector('#simpleExpenseTemplateV213').addEventListener('click',exportTemplate);
  host.querySelector('#simpleExpenseFileV213').addEventListener('change',async e=>{
-  try{await fileSelected(e.target.files?.[0])}
-  catch(err){host.querySelector('#simpleExpensePreviewV213').textContent=String(err?.message||err)}
-  finally{e.target.value=''}
- });
- host.addEventListener('input',e=>{
-  const el=e.target;if(!el?.dataset?.simpleField)return;
-  const i=Number(el.dataset.simpleI),row=current[i];if(!row)return;
-  const f=el.dataset.simpleField;row[f]=el.type==='checkbox'?el.checked:el.value;
- });
- host.addEventListener('change',e=>{
-  const el=e.target;if(!el?.dataset?.simpleField)return;
-  const i=Number(el.dataset.simpleI),row=current[i];if(!row)return;
-  row[el.dataset.simpleField]=el.type==='checkbox'?el.checked:el.value;
- });
- host.addEventListener('click',e=>{
-  if(e.target?.id==='simpleExpenseDiscardV213'){current=[];host.querySelector('#simpleExpensePreviewV213').textContent='';return}
-  if(e.target?.id!=='simpleExpenseSaveV213')return;
-  const button=e.target,status=host.querySelector('#simpleExpenseStatusV213');button.disabled=true;
-  try{const result=apply(current,sourceFile);status.textContent=result.skipped?'登録対象がありません。':result.cancelled?'キャンセルしました。':result.added+'件を登録しました。支出画面からいつでも編集できます。';
-    if(result.added&&!result.cancelled){current=[];setTimeout(()=>{const v=host.querySelector('#simpleExpensePreviewV213');if(v)v.textContent='登録しました。'},1500);}
-  }catch(err){status.textContent='登録停止：'+String(err?.message||err)}
-  finally{button.disabled=false}
+  const input=e.target;
+  try{
+   const file=input.files?.[0];if(!file)return;
+   const out=await importDirect(file);
+   showResult(out,file.name);
+  }catch(err){
+   host.querySelector('#simpleExpenseResultV220').textContent='登録停止：'+String(err?.message||err);
+  }finally{input.value='';}
  });
 }
-// The existing main Import picker also accepts these generic rows and opens
-// the editable review instead of throwing the Rakuten/unknown-header error.
+// The main Import picker uses the same one-step path; do not show a second editor.
 function install(){
  if(typeof importOne!=='function')return false;
  if(importOne.__simpleExpenseV213)return true;
  const prior=importOne;
  importOne=async function(file){
-  const name=String(file?.name||'');
-  if(!/\.csv$/i.test(name))return prior(file);
-  let raw=await file.text(),parsed;
-  if(raw.includes('\uFFFD')&&typeof TextDecoder==='function'){
-   try{raw=new TextDecoder('shift-jis').decode(await file.arrayBuffer())}catch{}
+  if(!/\.csv$/i.test(String(file?.name||'')))return prior(file);
+  let csv=await file.text();
+  if(csv.includes('\uFFFD')&&typeof TextDecoder==='function'){
+   try{csv=new TextDecoder('shift-jis').decode(await file.arrayBuffer())}catch{}
   }
-  parsed=parse(raw);
-  if(!parsed)return prior(file);
+  if(!parse(csv))return prior(file);
   mount();
-  current=parsed;sourceFile=name;renderPreview();
-  host?.scrollIntoView?.({block:'start',behavior:'smooth'});
-  return {source:'簡易支出CSV（上部で編集・未登録）',read:parsed.length,
-   added:0,duplicates:0,review:parsed.length,skipped:true};
+  const result=await importDirect(file);
+  showResult(result,file.name);
+  return {source:result.source,read:result.read,added:result.added,
+   duplicates:result.duplicates,review:result.review,skipped:!!result.cancelled||!!result.skipped};
  };
  importOne.__simpleExpenseV213=true;
  return true;
 }
-window.householdSimpleExpenseImportV213={parse,index,hint,plan,apply,mount,install,validate};
+window.householdSimpleExpenseImportV213={parse,index,hint,plan,apply,importDirect,mount,install,validate};
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',mount,{once:true});else setTimeout(mount,0);
 if(!install())window.setTimeout?.(install,0);
 })();

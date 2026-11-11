@@ -175,7 +175,43 @@ async function guarded(callback){
   setBusy(false);if($('familyShareStopV160'))$('familyShareStopV160').disabled=!enabled;
  }
 }
+function mountMessageEditor(){
+ const expenses=$('expenses');
+ if(!expenses)return false;
+ let panel=$('familyShareMessageEditorV222');
+ if(panel)return true;
+ panel=document.createElement('section');
+ panel.id='familyShareMessageEditorV222';
+ panel.className='card full family-message-editor-v222';
+ panel.setAttribute('aria-labelledby','familyShareMessageHeadingV222');
+ panel.innerHTML='<div class="title" id="familyShareMessageHeadingV222">妻へのひとこと</div>'+
+  '<p class="tiny">妻の共有ページに表示するメッセージです。入力するだけでは公開されません。</p>'+
+  '<label for="familyShareMessageV215">ひとこと（160文字以内）</label>'+
+  '<textarea id="familyShareMessageV215" maxlength="160" rows="3" placeholder="例：今週もお疲れさま！"></textarea>'+
+  '<div class="family-message-actions-v222">'+
+  '<span id="familyShareMessageCountV215" class="tiny" aria-live="polite">0/160文字・「妻へ反映」で公開</span>'+
+  '<button type="button" class="btn" id="familyShareNotePublishV222">妻へ反映</button></div>';
+ expenses.prepend(panel);
+ const editor=$('familyShareMessageV215');
+ const draft=localStorage.getItem(NOTE_DRAFT_KEY);
+ if(draft!==null){
+  editor.value=draft;noteHydrated=true;
+  $('familyShareMessageCountV215').textContent=editor.value.length+'/'+NOTE_MAX+'文字・「妻へ反映」で公開';
+ }
+ editor.addEventListener('input',()=>{
+  noteHydrated=true;
+  localStorage.setItem(NOTE_DRAFT_KEY,editor.value);
+  $('familyShareMessageCountV215').textContent=editor.value.length+'/'+NOTE_MAX+'文字・「妻へ反映」で公開';
+ });
+ $('familyShareNotePublishV222').addEventListener('click',()=>{
+  const publishButton=$('familySharePublishV160');
+  if(!publishButton){setNote('共有機能を初期化できません。画面を再読み込みしてください。',true);return;}
+  publishButton.click();
+ });
+ return true;
+}
 function mount(){
+ mountMessageEditor();
  const cloud=$('cloudDetail')?.closest('.card');
  if(!cloud||$('familySharePanelV160'))return;
  const panel=document.createElement('section');
@@ -185,7 +221,6 @@ function mount(){
   '<div class="note">妻の画面はログインなし・閲覧専用。中カテゴリ・小カテゴリ・利用日別金額だけを共有。給与・残高・投資・ローン・購入先名は共有しません。リンクを知っている人は閲覧できます。</div>'+
   '<div class="form" style="margin-top:12px"><div class="field"><label for="familyShareBudgetV160">給与サイクルの変動費予算（円）</label><input type="number" id="familyShareBudgetV160" min="0" max="5000000" step="1000" value="0"></div>'+
   '<div class="field"><label for="familyShareLinkV160">奥さんに送る閲覧用URL</label><input id="familyShareLinkV160" readonly placeholder="共有開始後にURLを表示"></div></div>'+
-  '<div class="field" style="margin-top:12px"><label for="familyShareMessageV215">奥さんに表示するひとこと（最大160文字）</label><textarea id="familyShareMessageV215" maxlength="160" rows="3" placeholder="例：今週もお疲れさま！" style="display:block;width:100%;margin-top:7px;padding:10px;color:#eef4ff;background:#0d1729;border:1px solid #55709d;border-radius:9px;font:inherit;resize:vertical"></textarea><div id="familyShareMessageCountV215" class="tiny" style="margin-top:5px">0/160文字・「妻へ反映」で公開</div></div>'+ 
   '<div class="controls" style="margin-top:12px;flex-wrap:wrap">'+
   '<button class="btn" id="familyShareCreateV160">共有リンクを作成</button>'+
   '<button class="btn secondary" id="familyShareSaveBudgetV160">予算を保存</button>'+
@@ -195,12 +230,6 @@ function mount(){
   '<div id="familyShareNoteV160" class="tiny" style="margin-top:12px">ログイン状態を確認しています。</div>'+
   '<div class="tiny" style="margin-top:8px">妻の共有画面の支出と最終更新日時は「妻へ反映」を押したときだけ更新します。再読み込みや自動同期では更新しません。</div>';
  cloud.parentElement.appendChild(panel);
- $('familyShareMessageV215').addEventListener('input',()=>{
-  const editor=$('familyShareMessageV215');
-  noteHydrated=true;
-  localStorage.setItem(NOTE_DRAFT_KEY,editor.value);
-  $('familyShareMessageCountV215').textContent=editor.value.length+'/'+NOTE_MAX+'文字・「妻へ反映」で公開';
- });
  $('familyShareCreateV160').onclick=()=>guarded(async()=>{
   if(!context().ready||context().blocked)throw Error('まず家計アプリのクラウド同期を完了してください。');
   if(shareExists&&!confirm('リンクを再発行すると、現在の奥さん用URLは使えなくなります。続けますか？'))return;
@@ -237,6 +266,6 @@ window.addEventListener('householdShareCloudSyncedV160',()=>{
  if(!busy&&context().ready&&!context().blocked)refreshStatus(true);
 });
 window.addEventListener('focus',()=>{if($('familySharePanelV160'))refreshStatus(true)});
-window.householdFamilyShareV160={mount,makeSnapshot,publish,refreshStatus,budgetInfo:()=>({ready:budgetReady&&enabled,amount:budgetReady?budget:null})};
+window.householdFamilyShareV160={mount,mountMessageEditor,makeSnapshot,publish,refreshStatus,budgetInfo:()=>({ready:budgetReady&&enabled,amount:budgetReady?budget:null})};
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',mount,{once:true});else mount();
 })();

@@ -24,6 +24,7 @@ jobs:
           done
           node tests/elapsed-card-forecast-v218.test.cjs
           node tests/family-note-sync-v215.test.cjs
+          node tests/family-message-expenses-v222.test.cjs
           node tests/simple-expense-import-v213.test.cjs
           node tests/simple-expense-one-step-v220.test.cjs
           node tests/card-billing-month-auto-v177.test.cjs

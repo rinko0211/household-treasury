@@ -23,9 +23,10 @@ const snapshot={
   {key:'FOOD',label:'食費',amount:5000,subcategories:[{key:'GROCERIES',label:'食料品',amount:5000,days:[{date:'2026-10-19',amount:5000,count:3}]}]}
  ]
 };
-const fetch=async()=>({ok:true,json:async()=>({snapshot,budget:100000,published_at:new Date().toISOString()})});
+const fetch=async()=>({ok:true,json:async()=>({snapshot,budget:100000,published_at:'2026-10-29T12:00:00Z'})});
+class FixtureDate extends Date{constructor(...a){super(...(a.length?a:['2026-10-29T12:00:00Z']))} static now(){return Date.parse('2026-10-29T12:00:00Z')}}
 vm.runInNewContext(fs.readFileSync('family/family.js','utf8'),{
- document,location:{hash:'#'+'a'.repeat(64)},fetch,setInterval:()=>{},Intl,Date,Number,String,Array,JSON,Error,Promise
+ document,location:{hash:'#'+'a'.repeat(64)},fetch,setInterval:()=>{},Intl,Date:FixtureDate,Number,String,Array,JSON,Error,Promise
 });
 const lookup=(root,cls)=>{if(root.className.split(' ').includes(cls))return root;for(const c of root.children){const found=lookup(c,cls);if(found)return found}return null};
 async function check(){

@@ -85,8 +85,47 @@ function budgetPace(start,end,today,spend,budget){
  if(difference>=3)return {state:'ahead',label:'ちょい多めかも',detail:difference+'日分早いペースです',elapsed,total,difference};
  return {state:'balanced',label:'ちょうどいい感じ！',detail:'日数とほぼ同じペースです（±2日以内）',elapsed,total,difference};
 }
+// The public view cannot decrypt the owner's ledger. On the regular 18th
+// payday rollover show the next period as an explicitly UNPUBLISHED view,
+// never republish a snapshot, draft note or private data. The owner's ledger
+// uses the preceding Friday for weekend paydays, not invented holiday shifts.
+function regularCycle(month){
+ const [year,m]=month.split('-').map(Number);
+ const payday=(y,mm)=>{
+   const date=new Date(Date.UTC(y,mm-1,18,12));
+   const wd=date.getUTCDay();
+   date.setUTCDate(date.getUTCDate()-(wd===0?2:wd===6?1:0));
+   return date;
+ };
+ const start=payday(year,m),end=payday(year,m+1);
+ end.setUTCDate(end.getUTCDate()-1);
+ return {period_start:start.toISOString().slice(0,10),period_end:end.toISOString().slice(0,10)};
+}
+function currentShareCycle(d,today){
+ const v=d.snapshot;
+ if(!v||!/^\d{4}-\d{2}-\d{2}$/.test(String(v.period_start))||
+    !/^\d{4}-\d{2}-\d{2}$/.test(String(v.period_end))||today<=v.period_end)return {snapshot:v,awaiting:false};
+ // Conservative: only infer the regular 18th schedule when BOTH dates
+ // of the published cycle match. Custom/overridden periods stay unchanged.
+ const prior=regularCycle(v.period_start.slice(0,7));
+ if(prior.period_start!==v.period_start||prior.period_end!==v.period_end)return {snapshot:v,awaiting:false};
+ const [y,m]=today.slice(0,7).split('-').map(Number);
+ const month=shift=>new Date(Date.UTC(y,m-1+shift,1,12)).toISOString().slice(0,7);
+ let next=regularCycle(month(0));
+ if(today<next.period_start)next=regularCycle(month(-1));
+ if(next.period_start<=v.period_end||today>next.period_end)return {snapshot:v,awaiting:false};
+ return {snapshot:{...v,...next,variable:0,undetermined:0,review_count:0,categories:[]},awaiting:true};
+}
 function render(d){
- const v=d.snapshot,spend=Number(v.variable)||0,budget=Number(d.budget)||0;
+ const today=new Intl.DateTimeFormat('sv-SE',{timeZone:'Asia/Tokyo',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
+ const {snapshot:v,awaiting}=currentShareCycle(d,today);
+ const spend=Number(v.variable)||0,budget=Number(d.budget)||0;
+ const title=$('spentTitle'),notice=$('rolloverNoticeV223');
+ if(title)title.textContent=awaiting?'今月の反映済み支出':'今月使った金額';
+ if(notice){
+   notice.hidden=!awaiting;
+   notice.textContent=awaiting?'新しい給与サイクルに切り替わりました。実際の支出はまだ反映されていません。予算は引き継いでいます。':'';
+ }
  const note=typeof v.note==='string'?v.note.trim():'';
  const notePanel=$('familyShareMessagePanelV215');
  if(notePanel){
@@ -102,26 +141,26 @@ function render(d){
    const left=budget-spend,ratio=Math.round(spend/budget*100);
    $('budget').textContent=money(budget);
    $('remaining').textContent=money(Math.abs(left));
-   $('remainLabel').textContent=left<0?'予算オーバー額':'あと使える金額';
+   $('remainLabel').textContent=awaiting?'残予算（未反映・参考）':left<0?'予算オーバー額':'あと使える金額';
    $('remaining').classList.toggle('negative',left<0);
    $('progressFill').style.width=Math.max(0,Math.min(100,ratio))+'%';
    $('budgetMeter').setAttribute('aria-valuenow',String(Math.max(0,Math.min(100,ratio))));
-   $('budgetRatio').textContent='予算の'+ratio+'%';
-   const today=new Intl.DateTimeFormat('sv-SE',{timeZone:'Asia/Tokyo',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
+   $('budgetRatio').textContent=awaiting?'支出未反映':'予算の'+ratio+'%';
    const pace=budgetPace(v.period_start,v.period_end,today,spend,budget);
    const elapsedPercent=pace.total?Math.round(pace.elapsed/pace.total*100):0;
    $('elapsedRatio').textContent=pace.total?pace.elapsed+'日 / '+pace.total+'日（'+elapsedPercent+'%）':'日付未確定';
    $('calendarFill').style.width=elapsedPercent+'%';
    $('calendarMeter').setAttribute('aria-valuenow',String(elapsedPercent));
-   $('paceEvaluation').className='pace-evaluation is-'+pace.state;
-   $('paceTitle').textContent=pace.label;
-   $('paceDetail').textContent=pace.detail;
+   $('paceEvaluation').className='pace-evaluation is-'+(awaiting?'neutral':pace.state);
+   $('paceTitle').textContent=awaiting?'新サイクル・支出未反映':pace.label;
+   $('paceDetail').textContent=awaiting?'次回の「妻へ反映」で実際の支出が表示されます。':pace.detail;
    const days=Math.round((Date.parse(v.period_end+'T00:00:00Z')-Date.parse(today+'T00:00:00Z'))/86400000)+1;
-   const canShowDaily=today>=v.period_start&&days>0;
+   const canShowDaily=!awaiting&&today>=v.period_start&&days>0;
    $('dailyGuide').hidden=!canShowDaily;
    $('dailyPace').textContent=canShowDaily?'1日あたり約'+money(Math.floor(Math.max(0,left)/days)):'';
  }
  showBreakdown(v);
+ if(awaiting)$('categories').textContent='新サイクルの支出内訳はまだ反映されていません。';
  const undetermined=Number(v.undetermined)||0,review=Number(v.review_count)||0;
  $('caution').hidden=!(undetermined||review);
  if(undetermined||review)$('cautionText').textContent=
@@ -140,8 +179,8 @@ function render(d){
  $('publishedTimeV183').textContent=last;
  $('publishedBadgeV183').classList.toggle('is-stale',stale);
  $('publishedStaleV183').hidden=!stale;
- $('updated').textContent='妻へ反映した日時：'+last;
- message(stale?'※ 24時間以上前の共有データです。更新を依頼してください。':'');
+ $('updated').textContent=(awaiting?'前サイクルの妻へ反映日時：':'妻へ反映した日時：')+last;
+ message(awaiting?'※ 新サイクルの実際の支出は管理者の手動反映をお待ちください。':stale?'※ 24時間以上前の共有データです。更新を依頼してください。':'');
 }
 async function load(){
  if(busy)return;

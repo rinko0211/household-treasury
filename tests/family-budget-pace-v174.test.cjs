@@ -11,14 +11,16 @@ for(const id of ['budgetMeter','progressFill','budgetRatio','calendarMeter','cal
 }
 assert.ok(html.indexOf('id="budgetMeter"')<html.indexOf('id="calendarMeter"'),'Spending bar must be above day bar');
 assert.ok(html.indexOf('id="spent"')<html.indexOf('id="budget"'),'Spending amount must be primary');
-assert.ok(html.includes('family.js?v=223')&&html.includes('family.css?v=215'));
-assert.ok(sw.includes('./family/family.js?v=223')&&sw.includes('./family/family.css?v=215'));
+assert.ok(html.includes('family.js?v=224')&&html.includes('family.css?v=224'));
+assert.ok(sw.includes('./family/family.js?v=224')&&sw.includes('./family/family.css?v=224'));
 assert.ok(css.includes('.pace-evaluation.is-behind')&&css.includes('.pace-evaluation.is-balanced')&&css.includes('.pace-evaluation.is-ahead'));
-// The daily allowance amount and its '1日あたり約' prefix must use the
-// exact same color token as the 'ちょっと早いかも' warning label.
+// Daily allowance color follows the pace state; not permanently orange.
 assert.match(css,/:root\{--pace-warning-color:#dc8328;/);
 assert.match(css,/\.pace-evaluation\.is-ahead\{color:var\(--pace-warning-color\)\}/);
-assert.match(css,/\.daily-guide strong\{[^}]*color:var\(--pace-warning-color\)/);
+assert.match(css,/\.daily-guide\.is-ahead strong\{color:var\(--pace-warning-color\)/);
+assert.match(css,/\.daily-guide strong\{[^}]*color:#203f42/);
+assert.match(css,/\.daily-guide\.is-balanced strong\{color:#228a61/);
+assert.match(css,/\.daily-guide\.is-behind strong\{color:#247dce/);
 assert.ok(html.includes('<strong id="dailyPace"></strong>'));
 
 assert.ok(css.includes('.calendar-progress>div{background:#8999a9}'),'Calendar bar must have a consistent neutral color');
@@ -62,24 +64,24 @@ async function show(value,day='2026-10-10',limit=100000){
  ids.refresh.events.click();
  for(let i=0;i<10;i++)await Promise.resolve();
  return {status:ids.paceTitle.textContent,detail:ids.paceDetail.textContent,
-  className:ids.paceEvaluation.className,calendar:ids.calendarFill.style.width,
+  className:ids.paceEvaluation.className,guideClass:ids.dailyGuide.className,calendar:ids.calendarFill.style.width,
   spending:ids.progressFill.style.width,elapsed:ids.elapsedRatio.textContent,
   spent:ids.spent.textContent,dailyPace:ids.dailyPace.textContent,
   remaining:ids.remaining.textContent};
 }
 async function test(){
  let x=await show(21000);
- assert.equal(x.status,'余裕あり！');
+ assert.equal(x.status,'余裕あり！');assert.match(x.guideClass,/is-behind/);
  assert.equal(x.calendar,'33%');assert.equal(x.spending,'21%');
  assert.ok(x.className.includes('is-behind'));assert.ok(x.detail.includes('4日分'));
  x=await show(27000); // 8 budget days vs 10 elapsed, exactly -2.
- assert.equal(x.status,'ちょうどいい感じ！');
+ assert.equal(x.status,'ちょうどいい感じ！');assert.match(x.guideClass,/is-balanced/);
  x=await show(33000); // ~10 budget days vs 10 elapsed.
  assert.equal(x.status,'ちょうどいい感じ！');
  x=await show(40000); // 12 budget days vs 10 elapsed, exactly +2.
  assert.equal(x.status,'ちょうどいい感じ！');
  x=await show(43000); // 13 budget days vs 10 elapsed, exactly +3.
- assert.equal(x.status,'ちょい多めかも');
+ assert.equal(x.status,'ちょい多めかも');assert.match(x.guideClass,/is-ahead/);
  assert.ok(x.className.includes('is-ahead'));assert.ok(x.detail.includes('3日分'));
  x=await show(101000); // Actual budget exceed takes priority.
  assert.equal(x.status,'ちょい多めかも');

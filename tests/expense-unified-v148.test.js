@@ -93,7 +93,8 @@ const document={
  createElement:tag=>new El(tag),head,
  addEventListener:(key,fn)=>(listeners['document:'+key]??=[]).push(fn)
 };
-const context={window,document,setTimeout:()=>{},Intl,Date,Number,Math,String,Set,Map,JSON,Error,structuredClone,console};
+class FixtureDate extends Date{constructor(...args){super(...(args.length?args:['2026-10-29T12:00:00Z']))}static now(){return Date.parse('2026-10-29T12:00:00Z')}}
+const context={window,document,setTimeout:()=>{},Intl,Date:FixtureDate,Number,Math,String,Set,Map,JSON,Error,structuredClone,console};
 vm.createContext(context);
 vm.runInContext(fs.readFileSync('treasury-ledger-v145.js','utf8'),context);
 vm.runInContext(fs.readFileSync('expense-nature-rules-v152.js','utf8'),context);

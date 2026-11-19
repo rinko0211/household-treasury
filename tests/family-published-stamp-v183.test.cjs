@@ -7,7 +7,7 @@ assert.ok(html.includes('id="publishedBadgeV183"'));
 assert.ok(html.includes('id="publishedTimeV183"'));
 assert.ok(html.includes('id="publishedStaleV183"'));
 assert.ok(html.indexOf('id="publishedTimeV183"')<html.indexOf('id="spent"'));
-assert.ok(html.includes('family.css?v=215')&&html.includes('family.js?v=223'));
+assert.ok(html.includes('family.css?v=224')&&html.includes('family.js?v=224'));
 assert.ok(css.includes('.published-chip-v183')&&css.includes('.hero-top-v183'));
 const statuses=[];
 class Node{

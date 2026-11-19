@@ -156,6 +156,7 @@ function render(d){
    $('paceDetail').textContent=awaiting?'次回の「妻へ反映」で実際の支出が表示されます。':pace.detail;
    const days=Math.round((Date.parse(v.period_end+'T00:00:00Z')-Date.parse(today+'T00:00:00Z'))/86400000)+1;
    const canShowDaily=!awaiting&&today>=v.period_start&&days>0;
+   $('dailyGuide').className='daily-guide is-'+(awaiting?'neutral':pace.state);
    $('dailyGuide').hidden=!canShowDaily;
    $('dailyPace').textContent=canShowDaily?'1日あたり約'+money(Math.floor(Math.max(0,left)/days)):'';
  }

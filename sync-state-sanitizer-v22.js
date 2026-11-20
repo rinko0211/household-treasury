@@ -131,17 +131,17 @@
   injectClassic('./tab-router-v71.js?v=71', 'data-household-tab-router-v71');
   // v161: old v130 expense renderer retired; v148 unified hub is the sole expense screen.
   // v79/v80 provide card baseline and component models; v94 is the final baseline-floor authority.
-  injectClassic('./planning-model-v79.js?v=135', 'data-household-planning-model-v79');
+  injectClassic('./planning-model-v79.js?v=225', 'data-household-planning-model-v79');
   injectClassic('./planning-ui-v79.js?v=107', 'data-household-planning-ui-v79');
-  injectClassic('./planning-model-v80.js?v=91', 'data-household-planning-model-v80');
+  injectClassic('./planning-model-v80.js?v=225', 'data-household-planning-model-v80');
   injectClassic('./planning-ui-v80.js?v=80', 'data-household-planning-ui-v80');
   // v81 is the card-cycle authority and restores bank balances to the planning dashboard.
-  injectClassic('./card-cycle-v81.js?v=218', 'data-household-card-cycle-v81');
+  injectClassic('./card-cycle-v81.js?v=225', 'data-household-card-cycle-v81');
   // v97 preserves unsaved draft card selections in annual/fixed editors.
   injectClassic('./card-cycle-ui-v81.js?v=97', 'data-household-card-cycle-ui-v81');
   injectClassic('./dashboard-bank-v81.js?v=81', 'data-household-dashboard-bank-v81');
   // v86 augments the existing v75 editor; v94 normalizes the final amount policy.
-  injectClassic('./card-event-consistency-v86.js?v=91', 'data-household-card-event-consistency-v86');
+  injectClassic('./card-event-consistency-v86.js?v=225', 'data-household-card-event-consistency-v86');
   // v82 keeps only the import-review cleanup. Its one-off repayment flow UI is retired by the generic v83 account-transfer model.
   // v99: imported transaction-after/snapshot balances are authoritative; manual balances are fallback seeds only.
   injectClassic('./account-transfer-v83.js?v=105', 'data-household-account-transfer-v83');
@@ -151,10 +151,10 @@
   injectClassic('./revolving-payoff-cap-v87.js?v=87', 'data-household-revolving-payoff-cap-v87');
   // v88 autosaves closing/baseline fields before v81/v79 can redraw them and repairs d-card baseline defaults.
   injectClassic('./card-settings-stability-v88.js?v=88', 'data-household-card-settings-stability-v88');
-  // v94: standard card amount is a floor, never an exact cap. Manual month override and actual bill retain priority.
-  injectClassic('./card-baseline-floor-v94.js?v=94', 'data-household-card-baseline-floor-v94');
+  // v225: card floor versus posted purchases only; manual monthly floor never caps actual usage; confirmed settlement wins.
+  injectClassic('./card-baseline-floor-v94.js?v=225', 'data-household-card-baseline-floor-v94');
   // v97: JAL/DC with a known revolving payoff automatically use full-payment forecasting for spends on/after the projected payoff date.
-  injectClassic('./revolving-to-full-v97.js?v=97', 'data-household-revolving-to-full-v97');
+  injectClassic('./revolving-to-full-v97.js?v=225', 'data-household-revolving-to-full-v97');
   // v102: imported balance_after is the actual current balance. Elapsed plans after the last import stay unverified and affect forecast only.
   injectClassic('./cashflow-reconciliation-v102.js?v=224', 'data-household-cashflow-reconciliation-v102');
   // v135: final salary authority after all forecast wrappers; prevents partial salary deposits suppressing payroll.

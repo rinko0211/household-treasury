@@ -5,15 +5,15 @@ const reconcSrc=fs.readFileSync('cashflow-reconciliation-v102.js','utf8');
 const loader=fs.readFileSync('sync-state-sanitizer-v22.js','utf8');
 const sw=fs.readFileSync('sw.js','utf8');
 const html=fs.readFileSync('index.html','utf8');
-assert.ok(html.includes('sync-state-sanitizer-v22.js?v=224'));
-assert.ok(sw.includes('./sync-state-sanitizer-v22.js?v=224'));
+assert.ok(html.includes('sync-state-sanitizer-v22.js?v=225'));
+assert.ok(sw.includes('./sync-state-sanitizer-v22.js?v=225'));
 assert.ok(cardSrc.includes('function buildPlan(days=180,fromDate)'), 'historical card plan required');
 assert.ok(reconcSrc.includes('elapsedCardEstimateOccurrences'), 'elapsed card estimate carry-forward required');
 assert.ok(reconcSrc.includes('...(model.pending||[])'), 'unsent historical pending must never vanish');
 assert.ok(reconcSrc.includes('cardEstimateReplacedByStatement'), 'confirmed settlements must replace estimates');
-assert.ok(loader.includes('./card-cycle-v81.js?v=218'));
+assert.ok(loader.includes('./card-cycle-v81.js?v=225'));
 assert.ok(loader.includes('./cashflow-reconciliation-v102.js?v=224'));
-assert.ok(sw.includes('./card-cycle-v81.js?v=218'));
+assert.ok(sw.includes('./card-cycle-v81.js?v=225'));
 assert.ok(sw.includes('./cashflow-reconciliation-v102.js?v=224'));
 function run({date='2026-11-11',cash=415668,cashAsOf='2026-11-05',
  includePending=true,statementJAL=0,jalEstimate=134620}={}){

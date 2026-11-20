@@ -40,7 +40,7 @@
       const key=`${norm(r.card)}|${String(r.billing_month||String(r.date||'').slice(0,7))}`;if(!byKey.has(key))byKey.set(key,r);
       const c=cardMaster(st,r.card);if(!c||paymentMode(c)!=='FULL'||forecastMode(c)!=='BASELINE')continue;
       const base=baselineOf(c);if(!base||r.card_cashflow_override)continue;
-      const components=Math.max(0,Number(r.known_purchase_total)||0)+Math.max(0,Number(r.scheduled_fixed_total)||0),total=forecastAmountForCard(c,components),exact=canonicalCard(c.name)==='D_CARD';
+      const components=Math.max(0,Number(r.known_purchase_total)||0),total=forecastAmountForCard(c,components),exact=false;
       r.amount=-total;r.baseline_amount=base;r.forecast_method=exact?'D_CARD_STANDARD_EXACT_V91':'BASELINE_FLOOR_V80';r.baseline_floor_applied=!exact&&total===base;r.baseline_exact_applied_v91=exact;
     }
     for(const c of monthlyBaselineCards(st)){
@@ -48,9 +48,9 @@
       for(const ym of range.months){
         const date=dateFor(ym,day);if(date<range.from||date>range.to)continue;
         if(meaningfulActual(st,c.name,ym))continue;
-        const key=`${norm(c.name)}|${ym}`,existing=byKey.get(key),o=manualOverride(st,c.name,ym),base=baselineOf(c),exact=canonicalCard(c.name)==='D_CARD';
+        const key=`${norm(c.name)}|${ym}`,existing=byKey.get(key),o=manualOverride(st,c.name,ym),base=baselineOf(c),exact=false;
         if(existing){
-          if(o&&!existing.card_cashflow_override){existing.amount=-Math.max(0,Number(o.amount)||0);existing.date=o.date||existing.date;existing.card_cashflow_override=true;existing.card_cashflow_override_id=o.id||null;existing.forecast_method='MANUAL_OVERRIDE'}
+          if(o&&!existing.card_cashflow_override){existing.amount=-Math.max(Number(existing.known_purchase_total)||0,Number(o.amount)||0);existing.date=o.date||existing.date;existing.card_cashflow_override=true;existing.card_cashflow_override_id=o.id||null;existing.forecast_method='MANUAL_OVERRIDE'}
           continue;
         }
         const amount=o?Math.max(0,Number(o.amount)||0):base;

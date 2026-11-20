@@ -197,10 +197,10 @@
       for (const ym of [...months].sort()) {
         if (hasActual(st,c.name,ym)) continue;
         const purchases = purchaseByYm.get(ym) || [];
-        const scheduled = (scheduledByYm.get(ym) || []).filter(s => !purchases.some(p => linkedToMaster(p,s.master)));
+        const scheduled = [];
         const known = purchases.reduce((a,p)=>a+purchaseAmount(p),0), scheduledTotal = scheduled.reduce((a,s)=>a+s.amount,0), components = known + scheduledTotal;
         const o = overrideFor(st,'ESTIMATE',c.name,ym), defaultDate = dateFor(ym,settle);
-        const amount = o ? Math.max(0,Number(o.amount)||0) : baseline ? Math.max(base,components) : components;
+        const amount = Math.max(known,o ? Math.max(0,Number(o.amount)||0) : baseline ? base : 0);
         if (amount <= 0) continue;
         rows.push({
           id:`card-estimate:v97:${norm(c.name)}:${ym}`,

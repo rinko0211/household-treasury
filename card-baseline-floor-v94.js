@@ -35,15 +35,12 @@
     return (st.cardSettlements||[]).find(s=>sameCard(s.card,card)&&String(s.due_date||'').slice(0,7)===ym&&Number.isFinite(Number(s.amount))&&Math.abs(Number(s.amount))>0)||null;
   }
   function knownComponents(r){
-    const direct=Math.max(0,Number(r?.known_purchase_total)||0)+Math.max(0,Number(r?.scheduled_fixed_total)||0);
-    if(direct>0)return direct;
-    const purchases=(r?.components?.purchases||[]).reduce((a,x)=>a+Math.abs(Number(x?.amount)||0),0);
-    const scheduled=(r?.components?.scheduled||[]).reduce((a,x)=>a+Math.abs(Number(x?.amount)||0),0);
-    return purchases+scheduled;
+    const direct=Number(r?.known_purchase_total);
+    if(r?.known_purchase_total!=null&&Number.isFinite(direct))return Math.max(0,direct);
+    return (r?.components?.purchases||[]).reduce((a,x)=>a+Math.abs(Number(x?.amount)||0),0);
   }
   function floorAmount(c,r){
-    const base=baselineOf(c),existing=Math.abs(Number(r?.amount)||0),components=knownComponents(r);
-    return Math.max(base,existing,components);
+    return Math.max(baselineOf(c),knownComponents(r));
   }
 
   function normalizeRows(input){
@@ -57,7 +54,10 @@
       if(!/^\d{4}-\d{2}$/.test(ym)){out.push(r);continue;}
       if(meaningfulActual(st,c.name,ym))continue;
       const override=manualOverride(st,c.name,ym);
-      const amount=override?Math.max(0,Number(override.amount)||0):floorAmount(c,r);
+      const amount=override?Math.max(knownComponents(r),Number(override.amount)||0):floorAmount(c,r);
+      r.scheduled_fixed_total=0;
+      if(r.components)r.components={...r.components,scheduled:[]};
+      r.component_count=r.components?.purchases?.length||0;
       r.card=c.name;
       r.billing_month=ym;
       r.amount=-amount;

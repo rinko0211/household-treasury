@@ -109,14 +109,15 @@
     const st=stateNow(),range=rangeFor(days,fromDate),rows=[],warnings=[];
     for(const card of activeCards(st)){
       if(paymentMode(card)!=='FULL')continue;const settleDay=settlementDayValue(card);if(!settleDay){warnings.push({card:card.name,reason:'引落日未設定'});continue}
-      const scheduled=scheduledForCard(st,card,range),months=new Set([...scheduled.keys()]);
+      const months=new Set();
       for(const p of st.purchaseEvents||[]){if(countedPurchase(p)&&purchaseMatchesCard(st,p,card)&&/^\d{4}-\d{2}$/.test(String(p.billing_month||'')))months.add(String(p.billing_month))}
-      const base=baselineOf(card),useBaseline=forecastMode(card)==='BASELINE'&&base>0;
-      if(useBaseline)for(let ym=range.from.slice(0,7);ym<=range.to.slice(0,7);ym=addMonths(ym,1))months.add(ym);
+      const base=baselineOf(card),useBaseline=base>0;
+      for(let ym=range.from.slice(0,7);ym<=range.to.slice(0,7);ym=addMonths(ym,1))if(useBaseline||manualOverride(st,card.name,ym))months.add(ym);
       for(const ym of [...months].sort()){
         const defaultDate=dateFor(ym,settleDay);if(defaultDate<range.from||defaultDate>range.to)continue;if(meaningfulActual(st,card.name,ym))continue;if(inactiveOverride(overrideRecord(st,card.name,ym)))continue;
-        const purchases=knownForCard(st,card,ym),known=purchases.reduce((a,p)=>a+purchaseAmount(p),0),sched=(scheduled.get(ym)||[]).filter(s=>!purchases.some(p=>linkedToMaster(p,s.master))),scheduledTotal=sched.reduce((a,s)=>a+s.amount,0),components=known+scheduledTotal,o=manualOverride(st,card.name,ym),exactD=useBaseline&&canonicalCard(card.name)==='D_CARD';
-        let amount=o?Math.max(0,Number(o.amount)||0):useBaseline?forecastAmountForCard(card,components):components;if(amount<=0)continue;
+        const purchases=knownForCard(st,card,ym),known=purchases.reduce((a,p)=>a+purchaseAmount(p),0),sched=[],scheduledTotal=0,o=manualOverride(st,card.name,ym),exactD=false;
+        // Monthly manual correction replaces the configured floor for that month, never caps real purchases.
+        let amount=Math.max(known,o?Math.max(0,Number(o.amount)||0):base);if(amount<=0)continue;
         rows.push({id:`card-estimate:v81:${norm(card.name)}:${ym}`,date:o?.date||defaultDate,name:`${card.name} 見込請求`,amount:-amount,type:'CARD_ESTIMATE',source:'card_estimate_v81',generated:true,record_kind:'FORECAST_EVENT',economic_type:'TRANSFER',estimated:true,card:card.name,billing_month:ym,known_purchase_total:known,scheduled_fixed_total:scheduledTotal,component_count:purchases.length+sched.length,components:{purchases:purchases.map(p=>({name:p.merchant_raw||'カード利用',amount:purchaseAmount(p)})),scheduled:sched.map(s=>({name:s.master.name||'予定',amount:s.amount,spend_date:s.spendDate,payment_date:s.payDate,master_id:s.master.id}))},baseline_amount:useBaseline?base:0,forecast_method:o?'MANUAL_OVERRIDE':exactD?'D_CARD_STANDARD_EXACT_V91':useBaseline?'BASELINE_CYCLE_V81':'COMPONENTS_CYCLE_V81',baseline_floor_applied:useBaseline&&!o&&!exactD&&amount===base,baseline_exact_applied_v91:exactD&&!o,card_cashflow_override:!!o,card_cashflow_override_id:o?.id||null,closing_day:closingDayValue(card),settlement_day:settleDay});
       }
     }
@@ -126,7 +127,7 @@
   function baselinePreview(count=6){
     const st=stateNow(),start=isoDate(new Date()).slice(0,7),months=Array.from({length:Math.max(1,count)},(_,i)=>addMonths(start,i)),out=[];
     for(const c of activeCards(st).filter(c=>paymentMode(c)==='FULL'&&forecastMode(c)==='BASELINE'&&baselineOf(c)>0)){
-      const series=months.map(ym=>{const actual=meaningfulActual(st,c.name,ym),raw=overrideRecord(st,c.name,ym),o=manualOverride(st,c.name,ym),base=baselineOf(c);return{ym,date:dateFor(ym,settlementDayValue(c)||1),amount:actual?Math.abs(Number(actual.amount)||0):inactiveOverride(raw)?0:o?Math.max(0,Number(o.amount)||0):base,source:actual?'ACTUAL':inactiveOverride(raw)?'SUPPRESSED':o?'OVERRIDE':'BASELINE'}});
+      const series=months.map(ym=>{const actual=meaningfulActual(st,c.name,ym),raw=overrideRecord(st,c.name,ym),o=manualOverride(st,c.name,ym),base=baselineOf(c);return{ym,date:dateFor(ym,settlementDayValue(c)||1),amount:actual?Math.abs(Number(actual.amount)||0):inactiveOverride(raw)?0:Math.max(knownForCard(st,c,ym).reduce((sum,p)=>sum+purchaseAmount(p),0),o?Math.max(0,Number(o.amount)||0):base),source:actual?'ACTUAL':inactiveOverride(raw)?'SUPPRESSED':o?'OVERRIDE':'BASELINE'}});
       out.push({card:c.name,baseline:baselineOf(c),settlementDay:settlementDayValue(c),closingDay:closingDayValue(c),months:series});
     }return out;
   }

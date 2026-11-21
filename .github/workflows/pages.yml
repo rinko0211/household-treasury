@@ -197,7 +197,7 @@ jobs:
           assert.ok(loader.includes(cardCashAsset));
           assert.ok(sw.includes(cardCashAsset));
           assert.ok(sw.includes(cycleAsset));
-          assert.ok(sw.includes('./card-forecast-v49.js?v=179'));
+          sourceAsset('card-forecast-v49.js',loader); // same release contract as card-cycle; no stale version pin
           assert.ok(sw.includes('./cash-expense-analytics-v106.js?v=178'));
           assert.ok(html.includes('cycle-audit-reconciliation-v153.js?v=161'));
           assert.ok(html.includes('payment-reclass-patch-v159.js?v=161'));

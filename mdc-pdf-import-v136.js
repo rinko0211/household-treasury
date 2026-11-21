@@ -109,6 +109,25 @@
     const shortHash=Array.from(new Uint8Array(digest).slice(0,8),x=>x.toString(16).padStart(2,'0')).join('');
     return 'MDC_PDF_'+p.paymentDate.slice(0,7)+'_'+shortHash+'.csv';
   }
+  // Local, explicit paste only. Do not place statement bytes in a URL,
+  // localStorage, console, or a network request. The regular PDF importer
+  // still verifies statement totals, identity and duplicate candidates.
+  function decodeShortcutPdf(value){
+    const prefix='HT-MDC-PDF-V1:';
+    const max=20*1024*1024;
+    const text=String(value||'').trim();
+    if(!text.startsWith(prefix))throw Error('MDC-S01: MDC取込ショートカットのデータではありません。');
+    if(text.length>Math.ceil(max/3)*4+prefix.length+65536)throw Error('MDC-S02: PDFが大きすぎます。');
+    const encoded=text.slice(prefix.length).replace(/[\r\n\t ]/g,'');
+    if(!encoded||encoded.length>Math.ceil(max/3)*4||encoded.length%4!==0||
+       !/^[A-Za-z0-9+/]+={0,2}$/.test(encoded))throw Error('MDC-S03: データ形式が不正です。');
+    let binary;
+    try{binary=atob(encoded)}catch{throw Error('MDC-S03: データ形式が不正です。')}
+    if(binary.length>max)throw Error('MDC-S02: PDFが大きすぎます。');
+    if(!binary.startsWith('%PDF-'))throw Error('MDC-S04: PDFとして認識できません。');
+    const bytes=Uint8Array.from(binary,c=>c.charCodeAt(0));
+    return new File([bytes],'MDC_shortcut.pdf',{type:'application/pdf'});
+  }
   async function parseFile(file){
     if(!/\.pdf$/i.test(file.name)&&file.type!=='application/pdf')throw Error('MDC-F01: PDFを選択してください。');
     if(file.size>20*1024*1024)throw Error('MDC-F02: 20MBを超えるPDFは対応していません。');
@@ -162,12 +181,22 @@
       '<button class="btn secondary" type="button" id="mdcPdfChooseV136">PDFを選択</button>'+
 
       '<input class="hidden" id="mdcPdfFileV136" type="file" accept=".pdf,application/pdf">'+
+      '<a class="btn secondary" href="https://www.cr.mufg.jp/jalcard/select/index.html" target="_blank" rel="noopener noreferrer">MDC公式WEB</a>'+
+      '<details style="margin-top:10px"><summary>ショートカットからPDFを取り込む（試験機能）</summary>'+
+      '<p class="tiny">PDF共有シートのショートカットで、Base64エンコード → HT-MDC-PDF-V1: を先頭に追加 → ローカルのみコピー（有効期限を設定）。ここへ貼り付けると、ファイルを保存せず通常のPDF照合へ進みます。</p>'+
+      '<textarea id="mdcPdfShortcutPaste" rows="2" autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="MDCショートカットから貼り付け" placeholder="ショートカットの出力を貼り付け"></textarea>'+
+      '<div class="tiny" id="mdcPdfShortcutStatus" role="status"></div></details>'+
       '<div id="mdcPdfOutputV136" style="margin-top:12px"></div>';
     grid.appendChild(card);
     const input=card.querySelector('#mdcPdfFileV136'),output=card.querySelector('#mdcPdfOutputV136');
     card.querySelector('#mdcPdfChooseV136').onclick=()=>input.click();
-    input.onchange=async()=>{
-      const file=input.files?.[0];if(!file)return;
+    const paste=card.querySelector('#mdcPdfShortcutPaste'),pasteStatus=card.querySelector('#mdcPdfShortcutStatus');
+    let loading=false;
+    const loadFile=async(file)=>{
+      if(!file||loading)return;
+      loading=true;
+      if(paste)paste.disabled=true;
+      if(pasteStatus)pasteStatus.textContent='';
       output.textContent='PDFの文字情報を解析中…';
       try{
         const p=await parseFile(file);
@@ -370,10 +399,20 @@
           }catch(e){saveBtn.disabled=false;status.textContent='取込失敗: '+String(e?.message||e);}
         };
       }catch(e){output.textContent='解析停止: '+String(e?.message||e);}
-      finally{input.value='';}
+      finally{input.value='';loading=false;if(paste)paste.disabled=false;}
     };
+    input.onchange=()=>loadFile(input.files?.[0]);
+    if(paste)paste.addEventListener('paste',event=>{
+      event.preventDefault();
+      const value=event.clipboardData?.getData('text/plain')||'';
+      paste.value='';
+      if(loading)return;
+      try{void loadFile(decodeShortcutPdf(value))}
+      catch(e){if(pasteStatus)pasteStatus.textContent=String(e?.message||e)}
+    });
+    if(paste)paste.addEventListener('input',()=>{paste.value='';});
   }
-  window.householdMdcPdfImportV136={readStatement,toCsv,toLegacyCsv,syntheticFilename,mount};
+  window.householdMdcPdfImportV136={readStatement,toCsv,toLegacyCsv,syntheticFilename,decodeShortcutPdf,mount};
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',mount,{once:true});
   else setTimeout(mount,0);
 })();

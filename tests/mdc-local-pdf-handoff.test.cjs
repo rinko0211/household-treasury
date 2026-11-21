@@ -1,0 +1,26 @@
+'use strict';
+const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
+const {File}=require('node:buffer');
+const source=fs.readFileSync('mdc-pdf-import-v136.js','utf8');
+const window={};
+vm.runInNewContext(source,{window,document:{readyState:'loading',addEventListener(){}},File,Uint8Array,atob,Math,Error,String});
+const decode=window.householdMdcPdfImportV136.decodeShortcutPdf;
+const prefix='HT-MDC-PDF-V1:';
+const bytes=Buffer.from('%PDF-1.7\nTEST\n%%EOF','utf8');
+const packet=prefix+bytes.toString('base64');
+(async()=>{
+ const f=decode(packet);
+ assert.equal(f.type,'application/pdf');
+ assert.deepEqual(Buffer.from(await f.arrayBuffer()),bytes);
+ assert.deepEqual(Buffer.from(await decode(prefix+bytes.toString('base64').replace(/(.{12})/g,'$1\n')).arrayBuffer()),bytes);
+ assert.throws(()=>decode('not a packet'),/MDC-S01/);
+ assert.throws(()=>decode(prefix+'@@@@'),/MDC-S03/);
+ assert.throws(()=>decode(prefix+'YQ==='),/MDC-S03/);
+ assert.throws(()=>decode(prefix+Buffer.from('not a PDF').toString('base64')),/MDC-S04/);
+ assert.throws(()=>decode(prefix+'A'.repeat(28*1024*1024)),/MDC-S02/);
+ assert.match(source,/input\.onchange=\(\)=>loadFile\(input\.files\?\.\[0\]\)/);
+ assert.match(source,/loadFile\(decodeShortcutPdf\(value\)\)/);
+ assert.match(source,/const p=await parseFile\(file\)/);
+ assert.match(source,/event\.preventDefault\(\)/);
+ console.log('LOCAL_MDC_PDF_HANDOFF_PASS');
+})().catch(e=>{console.error(e);process.exitCode=1});

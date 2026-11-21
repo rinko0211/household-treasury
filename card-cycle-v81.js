@@ -65,6 +65,22 @@
   function meaningfulActual(st,card,ym){return (st.cardSettlements||[]).find(s=>cardMatches(st,s.card,card)&&String(s.due_date||'').slice(0,7)===ym&&Number.isFinite(Number(s.amount))&&Math.abs(Number(s.amount))>0)||null}
   function purchaseAmount(p){const v=p?.payment_amount;return v!==null&&v!==''&&Number.isFinite(Number(v))?Math.abs(Number(v)):Math.abs(Number(p?.original_amount)||0)}
   function masterDay(m){for(const v of [m?.dueDay,m?.paymentDay,m?.day]){const n=Number(v);if(Number.isInteger(n)&&n>=1&&n<=31)return n}return 1}
+  // An ordinary unposted card-routed fixed cost is NOT an additional card
+  // liability. Preserve only explicitly budgeted annual SPECIAL purchases.
+  function scheduledSpecial(m,ym){
+    if(String(m.cadence||'MONTHLY').toUpperCase()!=='ANNUAL')return false;
+    const scope=String(m.expense_scope||m.spending_class||m.ordinary_or_special||'').toUpperCase();
+    if(scope!=='SPECIAL')return false;
+    const year=Number(String(ym).slice(0,4));
+    if(Number(m.lastPaidYear)>=year)return false;
+    const oneTime=m.oneTimePlanned===true||m.one_time_planned===true||
+      /^(洗濯機|電動自転車)$/.test(String(m.name||''));
+    if(oneTime){
+      const intended=Number(m.plannedYear)||Number(String(m.createdAt||'').slice(0,4));
+      if(intended&&intended!==year)return false;
+    }
+    return true;
+  }
   function masterOccurs(m,ym){
     const cad=String(m?.cadence||'MONTHLY').toUpperCase(),month=Number(String(ym).slice(5,7));
     if(cad==='MONTHLY')return true;
@@ -72,7 +88,20 @@
     if(cad==='ANNUAL'){if(Number(m.lastPaidYear)>=Number(String(ym).slice(0,4)))return false;return Number(m.dueMonth||m.paymentMonth||m.annualMonth||m.month)===month}
     return false;
   }
-  function linkedToMaster(p,m){if(String(p?.fixed_expense_master_id||'')===String(m?.id||''))return true;const a=norm(p?.merchant_raw||p?.merchant_normalized||''),b=norm(m?.name||'');return !!a&&!!b&&(a===b||a.includes(b)||b.includes(a))}
+  function linkedToMaster(p,m){
+    if(String(p?.fixed_expense_master_id||'')&&String(p.fixed_expense_master_id)===String(m?.id||''))return true;
+    const a=norm(p?.merchant_raw||p?.merchant_normalized||''),b=norm(m?.name||'');
+    if(a&&b&&(a===b||a.includes(b)||b.includes(a)))return true;
+    // Retailer names differ from appliance descriptions. Only match an
+    // unlinked posted purchase by close amount, spending category and timing.
+    const amt=purchaseAmount(p),target=Math.abs(Number(m?.amount)||0);
+    const date=String(p?.purchase_date||''),scheduledYm=String(m?.dueMonth||'').padStart(2,'0');
+    const createdYear=Number(String(m?.createdAt||'').slice(0,4));
+    const planned=createdYear&&scheduledYm?dateFor(createdYear+'-'+scheduledYm,masterDay(m)):'';
+    const days=planned&&date?Math.abs((new Date(date+'T12:00:00')-new Date(planned+'T12:00:00'))/86400000):Infinity;
+    return target>=20000&&amt>0&&Math.abs(amt-target)<=Math.max(2000,target*0.1)&&days<=45&&
+      String(p.category||'')===String(m.category||'')&&!!p.category;
+  }
   function rangeFor(days,fromDate){const from=/^\d{4}-\d{2}-\d{2}$/.test(String(fromDate||''))?String(fromDate):isoDate(new Date()),d=new Date(`${from}T12:00:00`);d.setDate(d.getDate()+Math.max(0,Number(days)||0));return{from,to:isoDate(d)}}
 
   function scheduledForCard(st,card,range){
@@ -80,7 +109,7 @@
     for(const m of st.masters?.fixedExpenses||[]){
       if(m.active===false||m.forecastEnabled===false||routeOf(m)!=='CARD'||!m.paymentCard||!cardMatches(st,m.paymentCard,card.name))continue;
       for(let ym=firstYm;ym<=lastYm;ym=addMonths(ym,1)){
-        if(!masterOccurs(m,ym))continue;const spendDate=dateFor(ym,masterDay(m)),payDate=paymentDateForSpend(card,spendDate);if(!payDate||payDate<range.from||payDate>range.to)continue;
+        if(!masterOccurs(m,ym)||!scheduledSpecial(m,ym))continue;const spendDate=dateFor(ym,masterDay(m)),payDate=paymentDateForSpend(card,spendDate);if(!payDate||payDate<range.from||payDate>range.to)continue;
         const payYm=payDate.slice(0,7),arr=byYm.get(payYm)||[];arr.push({master:m,spendDate,payDate,amount:Math.abs(Number(m.amount)||0)});byYm.set(payYm,arr);
       }
     }
@@ -109,21 +138,46 @@
     const st=stateNow(),range=rangeFor(days,fromDate),rows=[],warnings=[];
     for(const card of activeCards(st)){
       if(paymentMode(card)!=='FULL')continue;const settleDay=settlementDayValue(card);if(!settleDay){warnings.push({card:card.name,reason:'引落日未設定'});continue}
-      const months=new Set();
+      const scheduled=scheduledForCard(st,card,range),months=new Set([...scheduled.keys()]);
       for(const p of st.purchaseEvents||[]){if(countedPurchase(p)&&purchaseMatchesCard(st,p,card)&&/^\d{4}-\d{2}$/.test(String(p.billing_month||'')))months.add(String(p.billing_month))}
       const base=baselineOf(card),useBaseline=base>0;
       for(let ym=range.from.slice(0,7);ym<=range.to.slice(0,7);ym=addMonths(ym,1))if(useBaseline||manualOverride(st,card.name,ym))months.add(ym);
       for(const ym of [...months].sort()){
         const defaultDate=dateFor(ym,settleDay);if(defaultDate<range.from||defaultDate>range.to)continue;if(meaningfulActual(st,card.name,ym))continue;if(inactiveOverride(overrideRecord(st,card.name,ym)))continue;
-        const purchases=knownForCard(st,card,ym),known=purchases.reduce((a,p)=>a+purchaseAmount(p),0),sched=[],scheduledTotal=0,o=manualOverride(st,card.name,ym),exactD=false;
-        // Monthly manual correction replaces the configured floor for that month, never caps real purchases.
-        let amount=Math.max(known,o?Math.max(0,Number(o.amount)||0):base);if(amount<=0)continue;
-        rows.push({id:`card-estimate:v81:${norm(card.name)}:${ym}`,date:o?.date||defaultDate,name:`${card.name} 見込請求`,amount:-amount,type:'CARD_ESTIMATE',source:'card_estimate_v81',generated:true,record_kind:'FORECAST_EVENT',economic_type:'TRANSFER',estimated:true,card:card.name,billing_month:ym,known_purchase_total:known,scheduled_fixed_total:scheduledTotal,component_count:purchases.length+sched.length,components:{purchases:purchases.map(p=>({name:p.merchant_raw||'カード利用',amount:purchaseAmount(p)})),scheduled:sched.map(s=>({name:s.master.name||'予定',amount:s.amount,spend_date:s.spendDate,payment_date:s.payDate,master_id:s.master.id}))},baseline_amount:useBaseline?base:0,forecast_method:o?'MANUAL_OVERRIDE':exactD?'D_CARD_STANDARD_EXACT_V91':useBaseline?'BASELINE_CYCLE_V81':'COMPONENTS_CYCLE_V81',baseline_floor_applied:useBaseline&&!o&&!exactD&&amount===base,baseline_exact_applied_v91:exactD&&!o,card_cashflow_override:!!o,card_cashflow_override_id:o?.id||null,closing_day:closingDayValue(card),settlement_day:settleDay});
+        const purchases=knownForCard(st,card,ym),known=purchases.reduce((a,p)=>a+purchaseAmount(p),0),
+          sched=(scheduled.get(ym)||[]).filter(s=>!purchases.some(p=>linkedToMaster(p,s.master))),
+          scheduledTotal=sched.reduce((a,s)=>a+s.amount,0),o=manualOverride(st,card.name,ym),exactD=false;
+        // The configured baseline is a floor for *posted* purchases. Explicit
+        // scheduled annual SPECIAL buys are incremental planned exposure.
+        // A monthly correction may raise the floor but cannot cap usage.
+        let amount=Math.max(known+scheduledTotal,o?Math.max(0,Number(o.amount)||0):base);if(amount<=0)continue;
+        rows.push({id:`card-estimate:v81:${norm(card.name)}:${ym}`,date:o?.date||defaultDate,name:`${card.name} 見込請求`,amount:-amount,type:'CARD_ESTIMATE',source:'card_estimate_v81',generated:true,record_kind:'FORECAST_EVENT',economic_type:'TRANSFER',estimated:true,card:card.name,billing_month:ym,known_purchase_total:known,scheduled_fixed_total:scheduledTotal,planned_special_total:scheduledTotal,component_count:purchases.length+sched.length,components:{purchases:purchases.map(p=>({name:p.merchant_raw||'カード利用',amount:purchaseAmount(p)})),scheduled:sched.map(s=>({name:s.master.name||'特別費予定',amount:s.amount,spend_date:s.spendDate,payment_date:s.payDate,master_id:s.master.id,planned_type:'SPECIAL'}))},baseline_amount:useBaseline?base:0,forecast_method:o?'MANUAL_OVERRIDE':exactD?'D_CARD_STANDARD_EXACT_V91':useBaseline?'BASELINE_CYCLE_V81':'COMPONENTS_CYCLE_V81',baseline_floor_applied:useBaseline&&!o&&!exactD&&amount===base,baseline_exact_applied_v91:exactD&&!o,card_cashflow_override:!!o,card_cashflow_override_id:o?.id||null,closing_day:closingDayValue(card),settlement_day:settleDay});
       }
     }
     rows.sort((a,b)=>String(a.date).localeCompare(String(b.date))||String(a.name).localeCompare(String(b.name),'ja'));return{rows,warnings};
   }
 
+  // Informational purchase dates remain visible even though the actual cash
+  // debit occurs only on the card settlement day.
+  function plannedSpecialForHorizon(days=100){
+    const st=stateNow(),range=rangeFor(days),out=[],seen=new Set();
+    for(const card of activeCards(st)){
+      for(const m of st.masters?.fixedExpenses||[]){
+        if(m.active===false||m.forecastEnabled===false||routeOf(m)!=='CARD'||!m.paymentCard||
+           !cardMatches(st,m.paymentCard,card.name))continue;
+        for(let ym=range.from.slice(0,7);ym<=range.to.slice(0,7);ym=addMonths(ym,1)){
+          if(!scheduledSpecial(m,ym)||!masterOccurs(m,ym))continue;
+          const date=dateFor(ym,masterDay(m)),payDate=paymentDateForSpend(card,date);
+          if(date<range.from||date>range.to||!payDate)continue;
+          const key=String(m.id)+'|'+ym;if(seen.has(key))continue;seen.add(key);
+          if(knownForCard(st,card,payDate.slice(0,7)).some(p=>linkedToMaster(p,m)))continue;
+          out.push({id:String(m.id),name:String(m.name||'特別費予定'),amount:Math.abs(Number(m.amount)||0),
+            spend_date:date,payment_date:payDate,card:card.name,billing_month:payDate.slice(0,7),planned_type:'SPECIAL'});
+        }
+      }
+    }
+    return out.sort((a,b)=>a.spend_date.localeCompare(b.spend_date)||a.name.localeCompare(b.name,'ja'));
+  }
   function baselinePreview(count=6){
     const st=stateNow(),start=isoDate(new Date()).slice(0,7),months=Array.from({length:Math.max(1,count)},(_,i)=>addMonths(start,i)),out=[];
     for(const c of activeCards(st).filter(c=>paymentMode(c)==='FULL'&&forecastMode(c)==='BASELINE'&&baselineOf(c)>0)){
@@ -147,6 +201,6 @@
   if(typeof generated==='function'&&!root.__generatedCardCycleV81){root.__generatedCardCycleV81=true;const old=generated;generated=function generatedCardCycleV81(days=90){const base=(old(days)||[]).filter(r=>String(r.type||'')!=='CARD_ESTIMATE'),p=buildPlan(days);return [...base,...p.rows].sort((a,b)=>String(a.date||'').localeCompare(String(b.date||''))||String(a.name||'').localeCompare(String(b.name||''),'ja'))}}
   root.householdCardForecastV49=(days=180)=>buildPlan(days);
   if(root.householdPlanningV80)root.householdPlanningV80.baselinePreview=baselinePreview;
-  root.householdCardCycleV81={...pure,resolveCardName:(s)=>resolveCardName(stateNow(),s),buildPlan,baselinePreview,migrate};
+  root.householdCardCycleV81={...pure,resolveCardName:(s)=>resolveCardName(stateNow(),s),buildPlan,plannedSpecialForHorizon,baselinePreview,migrate};
   setTimeout(migrate,0);
 })(typeof window!=='undefined'?window:null);

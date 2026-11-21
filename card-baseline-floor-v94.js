@@ -34,10 +34,16 @@
   function meaningfulActual(st,card,ym){
     return (st.cardSettlements||[]).find(s=>sameCard(s.card,card)&&String(s.due_date||'').slice(0,7)===ym&&Number.isFinite(Number(s.amount))&&Math.abs(Number(s.amount))>0)||null;
   }
+  function scheduledSpecialComponents(r){
+    // Only explicitly scheduled annual SPECIAL purchases are eligible.
+    // The old generic "unposted fixed" list is never a card liability.
+    return (r?.components?.scheduled||[]).filter(x=>x.planned_type==='SPECIAL');
+  }
   function knownComponents(r){
-    const direct=Number(r?.known_purchase_total);
-    if(r?.known_purchase_total!=null&&Number.isFinite(direct))return Math.max(0,direct);
-    return (r?.components?.purchases||[]).reduce((a,x)=>a+Math.abs(Number(x?.amount)||0),0);
+    const direct=Number(r?.known_purchase_total),posted=
+      r?.known_purchase_total!=null&&Number.isFinite(direct)?Math.max(0,direct):
+      (r?.components?.purchases||[]).reduce((a,x)=>a+Math.abs(Number(x?.amount)||0),0);
+    return posted+scheduledSpecialComponents(r).reduce((a,x)=>a+Math.abs(Number(x?.amount)||0),0);
   }
   function floorAmount(c,r){
     return Math.max(baselineOf(c),knownComponents(r));
@@ -55,9 +61,11 @@
       if(meaningfulActual(st,c.name,ym))continue;
       const override=manualOverride(st,c.name,ym);
       const amount=override?Math.max(knownComponents(r),Number(override.amount)||0):floorAmount(c,r);
-      r.scheduled_fixed_total=0;
-      if(r.components)r.components={...r.components,scheduled:[]};
-      r.component_count=r.components?.purchases?.length||0;
+      const special=scheduledSpecialComponents(r);
+      r.scheduled_fixed_total=special.reduce((a,x)=>a+Math.abs(Number(x?.amount)||0),0);
+      r.planned_special_total=r.scheduled_fixed_total;
+      if(r.components)r.components={...r.components,scheduled:special};
+      r.component_count=(r.components?.purchases?.length||0)+special.length;
       r.card=c.name;
       r.billing_month=ym;
       r.amount=-amount;

@@ -74,8 +74,8 @@
   function detailFromForecast(meta){
     const row=planRows().find(r=>sameCard(r.card,meta.card)&&String(r.billing_month||'')===String(meta.ym)&&(meta.kind!=='REVOLVING'||String(r.type||'')==='CARD_REVOLVING_PAYMENT'));
     if(!row)return null;
-    const items=[...(row.components?.purchases||[]).map(x=>({name:x.name||'カード利用',amount:Number(x.amount)||0,meta:'利用明細'})),...(row.components?.scheduled||[]).map(x=>({name:x.name||'固定費予定',amount:Number(x.amount)||0,meta:'未実績のカード固定費'}))];
-    return{kind:String(row.type||'')==='CARD_REVOLVING_PAYMENT'?'REVOLVING':'ESTIMATE',card:row.card,ym:row.billing_month,total:Math.abs(Number(row.amount)||0),known:Number(row.known_purchase_total)||0,scheduled:Number(row.scheduled_fixed_total)||0,balance:row.revolving_balance,items};
+    const items=[...(row.components?.purchases||[]).map(x=>({name:x.name||'カード利用',amount:Number(x.amount)||0,meta:'利用明細'})),...(row.components?.scheduled||[]).map(x=>({name:x.name||'固定費予定',amount:Number(x.amount)||0,meta:'未購入・特別費予定'}))];
+    return{kind:String(row.type||'')==='CARD_REVOLVING_PAYMENT'?'REVOLVING':'ESTIMATE',card:row.card,ym:row.billing_month,total:Math.abs(Number(row.amount)||0),known:Number(row.known_purchase_total)||0,scheduled:Number(row.scheduled_fixed_total)||0,baseline:Number(row.baseline_amount)||0,balance:row.revolving_balance,items};
   }
   function detailActual(meta){
     const st=stateNow(),s=(st.cardSettlements||[]).find(x=>sameCard(x.card,meta.card)&&String(x.due_date||'').slice(0,7)===String(meta.ym));if(!s)return null;
@@ -88,7 +88,7 @@
   function detailHtml(d){
     if(!d)return'<div class="muted">詳細を取得できませんでした。</div>';
     if(d.kind==='REVOLVING')return`<div class="row"><span>次回リボ返済</span><b>${yen(d.total)}</b></div><div class="row"><span>取込済み利用</span><b>${yen(d.known)}</b></div><div class="row"><span>未実績固定費</span><b>${yen(d.scheduled)}</b></div>${d.balance!==null&&d.balance!==undefined?`<div class="row"><span>現在リボ残高</span><b>${yen(d.balance)}</b></div>`:''}<div class="note" style="margin-top:7px">元本・手数料は取得できない限り推測しません。</div><div class="tiny" style="margin:8px 0 4px">利用・予定内訳 ${d.items.length}件</div>${itemsHtml(d.items)}`;
-    if(d.kind==='ESTIMATE')return`<div class="row"><span>見込請求額</span><b>${yen(d.total)}</b></div><div class="row"><span>取込済み利用</span><b>${yen(d.known)}</b></div><div class="row"><span>未実績固定費</span><b>${yen(d.scheduled)}</b></div><div class="tiny" style="margin:8px 0 4px">内訳 ${d.items.length}件</div>${itemsHtml(d.items)}`;
+    if(d.kind==='ESTIMATE')return`<div class="row"><span>見込請求額（現金引落）</span><b>${yen(d.total)}</b></div><div class="row"><span>月額標準額</span><b>${yen(d.baseline)}</b></div><div class="row"><span>取込済み利用</span><b>${yen(d.known)}</b></div><div class="row"><span>未購入の特別費予定</span><b>${yen(d.scheduled)}</b></div><div class="row"><span>標準額を超える予測分</span><b>${yen(Math.max(0,d.total-d.baseline))}</b></div><div class="tiny" style="margin:8px 0 4px">予測内訳（未購入分を含む） ${d.items.length}件</div>${itemsHtml(d.items)}`;
     return`<div class="row"><span>確定請求額</span><b>${yen(d.total)}</b></div><div class="tiny" style="margin:8px 0 4px">内訳 ${d.items.length}件</div>${itemsHtml(d.items)}`;
   }
 
@@ -138,7 +138,10 @@
   }
   function renderForecastCard(){
     const card=ensureForecastCard(),host=$('cardForecastStableRowsV70');if(!card||!host)return;const rows=planRows().slice(0,18);
-    host.innerHTML=rows.length?rows.map(r=>{const meta={kind:String(r.type||'')==='CARD_REVOLVING_PAYMENT'?'REVOLVING':'ESTIMATE',card:r.card||'',ym:r.billing_month||''},k=`forecast:${meta.kind}:${meta.card}:${meta.ym}`,d=detailFor(meta);return`<div class="card" style="padding:10px;margin-top:7px"><button type="button" class="btn secondary" style="width:100%;display:flex;justify-content:space-between;gap:8px;align-items:center;text-align:left" data-v70-forecast="${esc(k)}"><span><b>${esc(meta.card)} · ${esc(meta.ym)}</b> <span class="tiny">${meta.kind==='REVOLVING'?'リボ返済':'見込'}</span></span><span class="amt">${yen(Math.abs(Number(r.amount)||0))} <span data-v70-arrow>${openForecast.has(k)?'▲':'▼'}</span></span></button><div class="v70-detail" data-v70-forecast-panel="${esc(k)}" ${openForecast.has(k)?'':'hidden'}>${detailHtml(d)}</div></div>`}).join(''):'<div class="muted">見込請求・返済予定はありません。</div>';
+    const specials=window.householdCardCycleV81?.plannedSpecialForHorizon?.(120)||[];
+    const plansHtml=specials.length?'<div class="card" style="padding:12px;margin-top:7px"><div class="title">未購入の特別費予定（カード）</div><div class="tiny">購入予定は残し、現金残高はカード引落日に一度だけ減ります。以下はカード請求予測に含まれます。</div>'+
+      specials.map(x=>`<div class="row"><div><b>${esc(x.name)}</b><div class="tiny">購入予定 ${esc(x.spend_date)} · ${esc(x.card)}引落 ${esc(x.payment_date)}</div></div><b>${yen(x.amount)}</b></div>`).join('')+'</div>':'';
+    host.innerHTML=plansHtml+(rows.length?rows.map(r=>{const meta={kind:String(r.type||'')==='CARD_REVOLVING_PAYMENT'?'REVOLVING':'ESTIMATE',card:r.card||'',ym:r.billing_month||''},k=`forecast:${meta.kind}:${meta.card}:${meta.ym}`,d=detailFor(meta);return`<div class="card" style="padding:10px;margin-top:7px"><button type="button" class="btn secondary" style="width:100%;display:flex;justify-content:space-between;gap:8px;align-items:center;text-align:left" data-v70-forecast="${esc(k)}"><span><b>${esc(meta.card)} · ${esc(meta.ym)}</b> <span class="tiny">${meta.kind==='REVOLVING'?'リボ返済':'見込'}</span></span><span class="amt">${yen(Math.abs(Number(r.amount)||0))} <span data-v70-arrow>${openForecast.has(k)?'▲':'▼'}</span></span></button><div class="v70-detail" data-v70-forecast-panel="${esc(k)}" ${openForecast.has(k)?'':'hidden'}>${detailHtml(d)}</div></div>`}).join(''):'<div class="muted">見込請求・返済予定はありません。</div>');
   }
 
   function ensureEditors(){

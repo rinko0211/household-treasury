@@ -180,8 +180,9 @@
   }
   function baselinePreview(count=6){
     const st=stateNow(),start=isoDate(new Date()).slice(0,7),months=Array.from({length:Math.max(1,count)},(_,i)=>addMonths(start,i)),out=[];
+    const plan=buildPlan(Math.max(240,count*34+60)).rows;
     for(const c of activeCards(st).filter(c=>paymentMode(c)==='FULL'&&forecastMode(c)==='BASELINE'&&baselineOf(c)>0)){
-      const series=months.map(ym=>{const actual=meaningfulActual(st,c.name,ym),raw=overrideRecord(st,c.name,ym),o=manualOverride(st,c.name,ym),base=baselineOf(c);return{ym,date:dateFor(ym,settlementDayValue(c)||1),amount:actual?Math.abs(Number(actual.amount)||0):inactiveOverride(raw)?0:Math.max(knownForCard(st,c,ym).reduce((sum,p)=>sum+purchaseAmount(p),0),o?Math.max(0,Number(o.amount)||0):base),source:actual?'ACTUAL':inactiveOverride(raw)?'SUPPRESSED':o?'OVERRIDE':'BASELINE'}});
+      const series=months.map(ym=>{const actual=meaningfulActual(st,c.name,ym),raw=overrideRecord(st,c.name,ym),o=manualOverride(st,c.name,ym),base=baselineOf(c),r=plan.find(x=>x.billing_month===ym&&sameCard(x.card,c.name));return{ym,date:dateFor(ym,settlementDayValue(c)||1),amount:actual?Math.abs(Number(actual.amount)||0):inactiveOverride(raw)?0:r?Math.abs(Number(r.amount)||0):Math.max(knownForCard(st,c,ym).reduce((sum,p)=>sum+purchaseAmount(p),0),o?Math.max(0,Number(o.amount)||0):base),source:actual?'ACTUAL':inactiveOverride(raw)?'SUPPRESSED':o?'OVERRIDE':'BASELINE'}});
       out.push({card:c.name,baseline:baselineOf(c),settlementDay:settlementDayValue(c),closingDay:closingDayValue(c),months:series});
     }return out;
   }

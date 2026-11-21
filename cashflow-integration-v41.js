@@ -65,7 +65,16 @@
     const from=todayIso(),to=iso(new Date(Date.now()+Math.max(0,Number(days)||90)*86400000)),out=[],addedMasterIds=new Set();
     const fromD=new Date(`${from}T12:00:00`),toD=new Date(`${to}T12:00:00`);
     for(const item of activeFixed(st)){
-      if(!forecastEnabled(item))continue;const cadence=String(item.cadence||'MONTHLY').toUpperCase(),amount=Math.abs(Number(item.amount)||0);if(!amount)continue;const scope=scopeOf(item),day=dueDayOf(st,item);
+      if(!forecastEnabled(item))continue;
+      // Card-routed masters are PURCHASE PLANS, not direct bank withdrawals.
+      // Their card payment is forecast by v81 on the actual card due date.
+      // Keep the original master in state; show special purchase plans in
+      // the separate read-only card plan panel (v226).
+      if(String(item.paymentRoute||item.payment_route||'DIRECT').toUpperCase()==='CARD'&&item.paymentCard&&
+        (st.masters?.cards||[]).some(c=>c.active!==false&&
+          (window.householdCardCycleV81?.sameCard?.(c.name,item.paymentCard)||
+           norm(c.name)===norm(item.paymentCard))))continue;
+      const cadence=String(item.cadence||'MONTHLY').toUpperCase(),amount=Math.abs(Number(item.amount)||0);if(!amount)continue;const scope=scopeOf(item),day=dueDayOf(st,item);
       if(cadence==='MONTHLY'||cadence==='SEMI_FIXED'){
         const activeMonths=cadence==='SEMI_FIXED'?semiMonths(item):null;if(cadence==='SEMI_FIXED'&&!activeMonths.length)continue;
         for(let d=new Date(fromD.getFullYear(),fromD.getMonth(),1);d<=toD;d.setMonth(d.getMonth()+1)){

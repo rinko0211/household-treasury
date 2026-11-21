@@ -43,6 +43,7 @@ jobs:
           set -euo pipefail
           node tests/elapsed-card-forecast-v218.test.cjs
           node tests/card-actual-floor-v225.test.cjs
+          node tests/card-special-purchases-v226.test.cjs
           node tests/salary-rollforward-v224.test.cjs
           node tests/treasury-ledger-v145.test.js
           node tests/expense-unified-v148.test.js

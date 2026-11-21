@@ -66,7 +66,7 @@
     box.innerHTML=`
       <div class="title" style="font-size:15px">現在の合計・整合性</div>
       <div class="row"><span>利用明細合計</span><b id="v86PurchaseTotal">—</b></div>
-      <div class="row"><span>未実績固定費（予測に加算しない）</span><b id="v86ScheduledTotal">—</b></div>
+      <div class="row"><span>未購入の特別費予定</span><b id="v86ScheduledTotal">—</b></div>
       <div class="row" id="v86BaselineRow"><span>月額標準額</span><b id="v86BaselineTotal">—</b></div>
       <div class="row"><span><b>現在の合計</b></span><b id="v86CurrentTotal">—</b></div>
       <label id="v86AutoWrap" style="display:flex;align-items:center;gap:7px;margin-top:8px"><input type="checkbox" id="v86AutoTotal" checked> 予測ルールから支払額を自動反映</label>
@@ -101,7 +101,9 @@
 
   function refresh(syncAmount){
     if(!meta)return;
-    const st=stateNow(),c=cardMaster(st,meta.card),purchases=purchaseTotalFromDom(),scheduled=meta.kind==='ESTIMATE'?0:scheduledTotal(row),baseline=baselineFor(c,meta);
+    const st=stateNow(),c=cardMaster(st,meta.card),purchases=purchaseTotalFromDom(),scheduled=meta.kind==='ESTIMATE'?
+      (row?.components?.scheduled||[]).filter(x=>x.planned_type==='SPECIAL').reduce((n,x)=>n+Math.abs(Number(x.amount)||0),0):
+      scheduledTotal(row),baseline=baselineFor(c,meta);
     const usage=purchases+scheduled;
     const computed=meta.kind==='ESTIMATE'?forecastTotal(c,usage,baseline):usage;
     if($('v86PurchaseTotal'))$('v86PurchaseTotal').textContent=yen(purchases);

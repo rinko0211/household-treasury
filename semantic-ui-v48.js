@@ -334,8 +334,18 @@
     hint.textContent='カード払いへ変更：'+choice.month+'請求'+(due?'（引落予定 '+due+'）':'')+'。元の現金記録は二重計上しません。';
   }
 
+  // Import uses the actual 支出 editor; only the mount location changes.
+  const EDITOR_OVERLAY_STYLE='display:none;position:fixed;inset:0;z-index:13000;background:rgba(3,8,20,.72);padding:14px;overflow:auto';
+  function importEditSaved(ctx,kind,id){
+    if(ctx?.source==='imports'&&typeof window.dispatchEvent==='function'&&typeof CustomEvent==='function')
+      window.dispatchEvent(new CustomEvent('treasury:import-review-saved',{detail:{kind,id}}));
+  }
+  function nextAfterSave(ctx,next){
+    if(next&&findRecord(stateNow(),next.kind,next.id))
+      openTransactionEditor(next.kind,next.id,ctx?.source==='imports'?{inlineHost:ctx.host}:null);
+  }
   function ensureTransactionEditor(){
-    let m=$('transactionEditorV108');if(m)return m;m=document.createElement('div');m.id='transactionEditorV108';m.style.cssText='display:none;position:fixed;inset:0;z-index:13000;background:rgba(3,8,20,.72);padding:14px;overflow:auto';
+    let m=$('transactionEditorV108');if(m)return m;m=document.createElement('div');m.id='transactionEditorV108';m.style.cssText=EDITOR_OVERLAY_STYLE;
     m.innerHTML=`<div class="card v208-edit-dialog" style="max-width:720px;margin:5vh auto"><div style="display:flex;justify-content:space-between;gap:10px;align-items:flex-start"><div><div class="title" id="transactionEditorTitleV108" style="margin:0"></div><div class="tiny" id="transactionEditorMetaV108"></div></div><button type="button" class="btn secondary" data-v108-tx-close>閉じる</button></div><div id="transactionEditorRawV110"></div><div class="form v208-editor-form" style="gap:8px;margin-top:12px"><div class="field"><label>お金の性質</label><select id="transactionEditorEconV108">${ECON.map(x=>`<option value="${x}">${ECON_LABEL[x]}</option>`).join('')}</select></div><div class="field"><label>通常 / 特別</label><select id="transactionEditorSpendV108"><option value="NORMAL">通常費</option><option value="SPECIAL">特別費</option></select></div><div class="field"><label>支出区分（固定費・変動費・個人費）</label><select id="transactionEditorNatureV159"><option value="AUTO">自動判定</option><option value="FIXED">固定費</option><option value="VARIABLE">変動費</option><option value="PERSONAL">個人費</option><option value="REVIEW">未確定・要確認</option></select></div><div class="field" id="transactionEditorPersonalOwnerFieldV193" style="display:none"><label>個人費の対象</label><select id="transactionEditorPersonalOwnerV193"><option value="">妻・本人を選択</option><option value="wife">妻</option><option value="self">本人</option></select></div><div class="field"><label>カテゴリ</label><select id="transactionEditorCatV108"></select></div><div class="field"><label>サブカテゴリ</label><select id="transactionEditorSubV108"></select></div><div class="field" id="transactionEditorTopupFieldV165" style="display:none"><label>チャージ・資金移動の確認</label><select id="transactionEditorTopupV165"><option value="PENDING">保留（要確認のまま）</option><option value="EXPENSE">買い物・支出と確認</option><option value="TRANSFER">チャージ・資金移動と確認（支出から除外）</option></select></div></div><div class="note" style="margin-top:10px">自分の口座間移動やカード支払用の資金移動は「資金移動」にすると、支出集計から除外されます。</div><p id="transactionSaveFeedbackV184" role="alert" class="note" style="margin-top:10px" hidden></p><div class="controls" style="margin-top:12px"><button type="button" class="btn" data-v108-tx-save>保存</button><button type="button" class="btn secondary" data-v108-tx-next>保存して次へ</button><button type="button" class="btn secondary" data-v108-tx-remember>保存して記憶</button></div></div>`;
     document.body.appendChild(m);m.addEventListener('click',e=>{if(e.target===m||e.target.closest?.('[data-v108-tx-close]'))closeTransactionEditor();if(e.target.closest?.('[data-v108-tx-save]'))saveTransactionEditor(false,false);if(e.target.closest?.('[data-v108-tx-next]'))saveTransactionEditor(false,true);if(e.target.closest?.('[data-v108-tx-remember]'))saveTransactionEditor(true,false)});$('transactionEditorRawV110').addEventListener('change',e=>{if(['transactionCashCardMasterV178','transactionRawDateV110'].includes(e.target?.id))refreshCashCardHint()});$('transactionEditorEconV108').addEventListener('change',syncTransactionEditor);$('transactionEditorNatureV159').addEventListener('change',syncTransactionEditor);$('transactionEditorCatV108').addEventListener('change',()=>{
     $('transactionEditorSubV108').innerHTML=subOptions($('transactionEditorCatV108').value,$('transactionEditorSubV108').value);
@@ -373,10 +383,20 @@
       typeof window.scrollTo==='function'&&Number.isFinite(ctx.scrollY))
       window.scrollTo(0,ctx.scrollY);
   }
-  function openTransactionEditor(kind,id){
+  function openTransactionEditor(kind,id,options=null){
     const st=stateNow(),o=findRecord(st,kind,id);if(!o)return;ensureTransactionEditor();const econ=String(o.economic_type||'UNKNOWN'),sp=String(o.spending_class||'NORMAL'),cat=o.category||'',sub=o.subcategory||'OTHER';
-    const m=$('transactionEditorV108');m.dataset.kind=kind;m.dataset.id=id;
-    m._editContext=captureTransactionEditContext(kind,id);
+    const m=$('transactionEditorV108'),inlineHost=options?.inlineHost;
+    if(inlineHost?.isConnected){
+      inlineHost.appendChild(m);
+      m.style.cssText='display:block;position:static;inset:auto;z-index:auto;background:transparent;padding:0;overflow:visible';
+      const card=m.querySelector('.v208-edit-dialog');if(card)card.style.margin='0';
+      m._editContext={source:'imports',host:inlineHost,next:window.householdImportPostEditV229?.nextFor?.(kind,id)||null};
+    }else{
+      document.body.appendChild(m);m.style.cssText=EDITOR_OVERLAY_STYLE;
+      const card=m.querySelector('.v208-edit-dialog');if(card)card.style.margin='5vh auto';
+      m._editContext=captureTransactionEditContext(kind,id);
+    }
+    m.dataset.kind=kind;m.dataset.id=id;
     const next=$('transactionEditorV108')?.querySelector('[data-v108-tx-next]');
     if(next)next.style.display=m._editContext?.next?'':'none';
     m.scrollTop=0;if($('transactionSaveFeedbackV184')){$('transactionSaveFeedbackV184').hidden=true;$('transactionSaveFeedbackV184').textContent=''}$('transactionEditorTitleV108').textContent=recordName(kind,o);$('transactionEditorMetaV108').textContent=`${recordDate(kind,o)} · ${recordSource(kind,o)} · ${yen(Math.abs(recordAmount(kind,o)))}`;
@@ -387,7 +407,13 @@
     if($('transactionEditorTopupV165'))$('transactionEditorTopupV165').value='PENDING';
     $('transactionEditorEconV108').value=ECON.includes(econ)?econ:'EXPENSE';$('transactionEditorSpendV108').value=sp==='SPECIAL'?'SPECIAL':'NORMAL';$('transactionEditorNatureV159').value=['FIXED','VARIABLE','PERSONAL','REVIEW'].includes(String(o.expense_bucket_v193||'').toUpperCase())?String(o.expense_bucket_v193).toUpperCase():['FIXED','VARIABLE','REVIEW'].includes(String(o.cost_nature||o.cost_behavior||o.fixed_variable_class||'').toUpperCase())?String(o.cost_nature||o.cost_behavior||o.fixed_variable_class).toUpperCase():String(o.category||'').toUpperCase()==='PERSONAL'?'PERSONAL':'AUTO';$('transactionEditorPersonalOwnerV193').value=['wife','self'].includes(String(o.personal_owner_v193||''))?String(o.personal_owner_v193):'';$('transactionEditorCatV108').innerHTML=catOptions(cat);$('transactionEditorCatV108').value=cat;$('transactionEditorSubV108').innerHTML=subOptions(cat,sub);syncTransactionEditor();m.style.display='block';if(kind==='cash_expense')refreshCashCardHint()
   }
-  function closeTransactionEditor(){const m=$('transactionEditorV108');if(m)m.style.display='none'}
+  function closeTransactionEditor(){
+    const m=$('transactionEditorV108');if(!m)return;
+    m.style.display='none';
+    if(m._editContext?.source==='imports'){
+      document.body.appendChild(m);m.style.cssText=EDITOR_OVERLAY_STYLE;m._editContext=null;
+    }
+  }
 
   function assertCashExpenseSaved(id,expected){
     const live=findRecord(stateNow(),'cash_expense',id);
@@ -440,11 +466,11 @@
         costNature:bucket,expenseBucket:bucket,personalOwner:owner
       },()=>{
         closeTransactionEditor();window.householdExpenseUnifiedV148?.render?.();
+       importEditSaved(editContext,kind,id);
         restoreTransactionEditContext(editContext);
         if(typeof window.requestAnimationFrame==='function')
           window.requestAnimationFrame(()=>restoreTransactionEditContext(editContext));
-        if(nextRecord&&findRecord(stateNow(),nextRecord.kind,nextRecord.id))
-          openTransactionEditor(nextRecord.kind,nextRecord.id);
+        nextAfterSave(editContext,nextRecord);
       });
     }
     const cashCardId=kind==='cash_expense'?String($('transactionCashCardMasterV178')?.value||''):'';
@@ -470,11 +496,11 @@
       try{persist(planned.next,'現金支出からカード購入へ変更')}
       catch(e){return alert('変更を保存できませんでした：'+String(e.message||e))}
       closeTransactionEditor();window.householdExpenseUnifiedV148?.render?.();
+       importEditSaved(editContext,kind,id);
       restoreTransactionEditContext(editContext);
       if(typeof window.requestAnimationFrame==='function')
         window.requestAnimationFrame(()=>restoreTransactionEditContext(editContext));
-      if(nextRecord&&findRecord(stateNow(),nextRecord.kind,nextRecord.id))
-        openTransactionEditor(nextRecord.kind,nextRecord.id);
+      nextAfterSave(editContext,nextRecord);
       setTimeout(()=>{window.renderDashboardV39?.();window.householdPlanningUiV79?.renderDashboard79?.()},0);
       return;
     }
@@ -518,12 +544,12 @@
     }catch(e){if(kind==='cash_expense')cashSaveError(e);else window.alert?.('保存できませんでした：'+String(e?.message||e));return}
     closeTransactionEditor();
     window.householdExpenseUnifiedV148?.render?.();
+    importEditSaved(editContext,kind,id);
     restoreTransactionEditContext(editContext);
     // iPhone Safari can update the viewport one frame after a modal closes.
     const retainScroll=()=>restoreTransactionEditContext(editContext);
     if(typeof window.requestAnimationFrame==='function')window.requestAnimationFrame(retainScroll);
-    if(nextRecord&&findRecord(stateNow(),nextRecord.kind,nextRecord.id))
-      openTransactionEditor(nextRecord.kind,nextRecord.id);
+    nextAfterSave(editContext,nextRecord);
     setTimeout(()=>{window.renderDashboardV39?.();window.householdPlanningUiV79?.renderDashboard79?.()},0)
   }
   function transactionClick(e){const d=e.target.closest?.('[data-v110-tx-detail]');if(!d)return;e.preventDefault();openTransactionDetail(d.dataset.v110Kind,d.dataset.v110Id)}

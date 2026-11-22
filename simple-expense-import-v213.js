@@ -148,10 +148,10 @@ function apply(rows,sourceName){
  window.treasuryRecoverySnapshot('簡易支出CSVの登録前');
  if(window.replaceTreasuryState(next)===false)throw Error('登録を保存できませんでした。');
  window.cloudSyncOnLocalSave?.();
- window.dispatchEvent?.(new CustomEvent('treasury:expenses-imported',{detail:{source:'SIMPLE_EXPENSE_V213'}}));
+ window.dispatchEvent?.(new CustomEvent('treasury:expenses-imported',{detail:{source:'SIMPLE_EXPENSE_V213',records:fresh.out.map(x=>({kind:x.kind==='cash'?'cash_expense':'purchase',id:String(x.kind==='cash'?x.data.id:x.data.purchase_id)}))}}));
  return fresh;
 }
-// v220: CSV is one-step import. Editing is exclusively on the 支出 page.
+// v229: CSV remains one-step, followed by the exact 支出 page editor.
 let host=null;
 function displayName(value){
  const name=String(value||'').split(/[\\/]/).at(-1);
@@ -177,7 +177,7 @@ function showResult(result,name){
  target.innerHTML='<p class="tiny" style="margin:8px 0 3px;overflow-wrap:anywhere">'+
   '<strong>'+esc(title)+'</strong> '+esc(stats.join(' ／ '))+'</p>'+
   '<p class="tiny" style="margin:0;overflow-wrap:anywhere">'+esc(displayName(name))+
-  '。明細の修正・削除・分類は「支出」ページで行えます。</p>'+list;
+  '。直下の「取込直後の明細を確認・編集」で、支出ページと同じ項目を設定できます。</p>'+list;
 }
 async function importDirect(file){
  if(!file)return {cancelled:true,read:0,added:0,duplicates:0,withheld:[]};
@@ -226,7 +226,7 @@ function mount(){
  host=document.createElement('div');host.id='simpleExpenseImportV213';host.className='card full';
  host.innerHTML='<div class="title">簡易支出CSV</div>'+
   '<p class="tiny" style="overflow-wrap:anywhere">CSVを選び、件数と金額を一度確認するだけで登録します。'+
-  '登録後の修正は「支出」ページで行えます。重複候補は安全のため保留します。</p>'+
+  '登録直後に支出ページと同じ編集フォームが開きます。重複候補は安全のため保留します。</p>'+
   '<div class="controls"><label class="btn secondary" for="simpleExpenseFileV213">CSVを選ぶ</label>'+
   '<input type="file" id="simpleExpenseFileV213" class="hidden" accept=".csv,text/csv">'+
   '<button type="button" class="btn secondary" id="simpleExpenseTemplateV213">ひな型CSV</button></div>'+
@@ -244,7 +244,7 @@ function mount(){
   }finally{input.value='';}
  });
 }
-// The main Import picker uses the same one-step path; do not show a second editor.
+// The main Import picker uses the same post-save editor as the standalone CSV picker.
 function install(){
  if(typeof importOne!=='function')return false;
  if(importOne.__simpleExpenseV213)return true;

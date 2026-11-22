@@ -348,7 +348,8 @@ const semanticEditorSource=fs.readFileSync('semantic-ui-v48.js','utf8');
 ok(semanticEditorSource.includes('transactionEditorTopupV165'),
    'Semantic editor gives explicit prepaid purchase-versus-transfer decision');
 ok(semanticEditorSource.includes('data-v108-tx-next')&&
-   semanticEditorSource.includes('openTransactionEditor(nextRecord.kind,nextRecord.id)'),
+   semanticEditorSource.includes('nextAfterSave(editContext,nextRecord)')&&
+    semanticEditorSource.includes('openTransactionEditor(next.kind,next.id,'),
    'Save-and-next action opens next original transaction without revisiting list');
 ok(semanticEditorSource.includes('restoreTransactionEditContext(editContext)'),
    'Category save restores prior position rather than jumping back');

@@ -8,14 +8,14 @@ const sw=fs.readFileSync('sw.js','utf8');
 assert.doesNotMatch(code,/function renderPreview\(/,'Per-row editable preview must be removed');
 assert.doesNotMatch(code,/data-simple-field/,'No duplicate input controls on Import page');
 assert.doesNotMatch(code,/scrollIntoView\(/,'File import should not jump the viewport');
-assert.ok(code.includes('既存の支出ページで')||code.includes('「支出」ページで'));
+assert.ok(code.includes('直下の「取込直後の明細を確認・編集」'),'Imported rows must be editable without switching pages');
 assert.ok(css.includes('#simpleExpenseResultV220'));
 assert.ok(css.includes('overflow-wrap:anywhere'));
 assert.ok(css.includes('overflow-x:clip'));
 assert.ok(html.includes('ui-modern-v169.css?v=222'));
-assert.ok(html.includes('sync-state-sanitizer-v22.js?v=226'));
-assert.ok(loader.includes('simple-expense-import-v213.js?v=220'));
-assert.ok(sw.includes('./simple-expense-import-v213.js?v=220'));
+assert.ok(html.includes('sync-state-sanitizer-v22.js?v=229'));
+assert.ok(loader.includes('simple-expense-import-v213.js?v=229'));
+assert.ok(sw.includes('./simple-expense-import-v213.js?v=229'));
 let state={cashExpenses:[],purchaseEvents:[]},writes=0,backups=0,confirms=0,syncs=0;
 const w={
  getTreasuryStateRaw:()=>state,

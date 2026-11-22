@@ -69,6 +69,7 @@ test('all mobile UI cache-busted links agree with deployed PWA versions',()=>{
    assert.ok(asset,'index lacks updated '+file);
    assert.ok(sw.includes('"'+asset+'"'),'service worker lacks '+asset);
  }
- assert.ok(loader.includes('semantic-ui-v48.js?v=208'));
- assert.ok(sw.includes('./semantic-ui-v48.js?v=208'));
+ const editorAsset=loader.match(/\.\/semantic-ui-v48\.js\?v=\d+/)?.[0];
+ assert.ok(editorAsset,'canonical editor must be versioned in loader');
+ assert.ok(sw.includes(editorAsset),'PWA must cache the exact editor build');
 });

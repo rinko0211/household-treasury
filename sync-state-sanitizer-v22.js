@@ -103,7 +103,7 @@
   injectClassic('./semantic-observer-guard-v71.js?v=185', 'data-household-semantic-observer-guard-v71');
   injectClassic('./cash-card-reclass-v178.js?v=193', 'data-household-cash-card-reclass-v178');
   injectClassic('./card-cash-reclass-v179.js?v=193', 'data-household-card-cash-reclass-v179');
-  injectClassic('./semantic-ui-v48.js?v=208', 'data-household-semantic-ui-v48');
+  injectClassic('./semantic-ui-v48.js?v=229', 'data-household-semantic-ui-v48');
   injectClassic('./semantic-review-stability-v76.js?v=76', 'data-household-semantic-review-stability-v76');
   injectClassic('./card-identity-v51.js?v=51', 'data-household-card-identity-v51');
   injectClassic('./card-forecast-v49.js?v=226', 'data-household-card-forecast-v49');
@@ -178,10 +178,13 @@
   // v202: read the three receipt / detail / provisional shopping CSVs after existing providers.
   injectClassic('./receipt-bundle-import-v202.js?v=209', 'data-household-receipt-bundle-v202');
   // v213: a standalone, editable generic expense CSV import (never a forged card statement).
-  injectClassic('./simple-expense-import-v213.js?v=220', 'data-household-simple-expense-v213');
+  injectClassic('./simple-expense-import-v213.js?v=229', 'data-household-simple-expense-v213');
   // v203: independent budget metrics for the expense summary.
   injectClassic('./expense-budget-metrics-v203.js?v=204','data-household-expense-budget-v203');
   // v205: wife-only reference view, direct toggles, and reversible payment evidence.
   injectClassic('./wife-personal-reference-v205.js?v=205','data-household-wife-reference-v205');
+  // v229: show newly imported transactions and reuse exactly the same 支出 editor.
+  // Keep last so that every provider's importOne wrapper is already installed.
+  injectClassic('./import-postedit-v229.js?v=229','data-household-import-postedit-v229');
   // v92/v93 exact d-card overlay retired in v94.
 })();

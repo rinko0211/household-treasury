@@ -25,6 +25,7 @@ jobs:
           node tests/elapsed-card-forecast-v218.test.cjs
           node tests/card-actual-floor-v225.test.cjs
           node tests/card-special-purchases-v226.test.cjs
+          node tests/post-import-canonical-editor-v229.test.cjs
           node tests/salary-rollforward-v224.test.cjs
           node tests/family-note-sync-v215.test.cjs
           node tests/family-message-expenses-v222.test.cjs

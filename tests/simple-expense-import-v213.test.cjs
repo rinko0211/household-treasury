@@ -58,4 +58,20 @@ const cash={...list[0],key:'simple-v213:distinct-cash',date:'2026-11-06',merchan
 assert.equal(a.plan(state,[cash]).out[0].kind,'cash');
 assert.throws(()=>a.plan(state,[{...cash,payment:'CARD'}]),/カード名/);
 assert.equal(state.purchaseEvents.length,1,'Tests never double charge');
+// 2026-11-24: DAISO and Kaneiri are separate shops, both ¥770.
+const sameDayRows=a.parse('利用日,店舗,金額,内容,カテゴリ,費目,支払方法,カード,備考\n'+
+'2026-11-24,ダイソー イオンモール下田店,770,包装用品,日用品,変動費,未確認,,\n'+
+'2026-11-24,フルーツ＆野菜村 イオンモール下田,2038,野菜果物,食費,変動費,未確認,,\n'+
+'2026-11-24,カルディコーヒーファーム イオンモール下田店,2070,コーヒー,食費,変動費,未確認,,\n'+
+'2026-11-24,イオン下田店,1756,ナッツ,食費,変動費,未確認,,\n'+
+'2026-11-24,niko and ... イオンモール下田店,990,プレート,日用品,変動費,未確認,,\n'+
+'2026-11-24,金入 下田店,770,ねこグッズ,その他,変動費,未確認,,\n');
+assert.equal(sameDayRows.length,6);
+const six=a.plan({cashExpenses:[],purchaseEvents:[]},sameDayRows);
+assert.equal(six.added,6,'Six different store receipts must all import, including both ¥770 payments');
+assert.equal(six.warnings.length,0);
+const existingDaiso=a.index({purchaseEvents:[],cashExpenses:[{date:'2026-11-24',description:'ダイソー イオンモール下田店',amount:770,count_in_spending:true}]});
+assert.equal(a.hint(sameDayRows[0],existingDaiso).exact,false,'Same merchant and amount is still a duplicate candidate');
+assert.equal(a.hint(sameDayRows[5],existingDaiso),null,'Different merchant with the same amount is NOT a duplicate');
+
 console.log('SIMPLE_EXPENSE_IMPORT_V213_PASS');

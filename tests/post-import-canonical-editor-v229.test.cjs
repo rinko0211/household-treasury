@@ -20,7 +20,7 @@ assert.match(editor,/importEditSaved\(editContext,kind,id\)/);
 assert.match(simple,/records:fresh\.out\.map\(/,'Direct CSV picker emits exact source identifiers');
 assert.match(loader,/import-postedit-v229\.js\?v=229/);
 assert.match(sw,/\.\/import-postedit-v229\.js\?v=229/);
-assert.match(html,/sync-state-sanitizer-v22\.js\?v=229/);
+assert.match(html,/sync-state-sanitizer-v22\.js\?v=230/);
 const calls=[],events={},disk=new Map(),elements={};
 const grid={firstChild:null,insertBefore(el){el.isConnected=true;elements[el.id]=el}};
 const node=id=>elements[id]||(elements[id]={id,style:{},dataset:{},isConnected:true,

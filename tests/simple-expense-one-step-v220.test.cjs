@@ -13,9 +13,9 @@ assert.ok(css.includes('#simpleExpenseResultV220'));
 assert.ok(css.includes('overflow-wrap:anywhere'));
 assert.ok(css.includes('overflow-x:clip'));
 assert.ok(html.includes('ui-modern-v169.css?v=222'));
-assert.ok(html.includes('sync-state-sanitizer-v22.js?v=229'));
-assert.ok(loader.includes('simple-expense-import-v213.js?v=229'));
-assert.ok(sw.includes('./simple-expense-import-v213.js?v=229'));
+assert.ok(html.includes('sync-state-sanitizer-v22.js?v=230'));
+assert.ok(loader.includes('simple-expense-import-v213.js?v=230'));
+assert.ok(sw.includes('./simple-expense-import-v213.js?v=230'));
 let state={cashExpenses:[],purchaseEvents:[]},writes=0,backups=0,confirms=0,syncs=0;
 const w={
  getTreasuryStateRaw:()=>state,

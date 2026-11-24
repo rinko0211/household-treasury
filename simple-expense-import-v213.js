@@ -78,8 +78,8 @@ function hint(row,idx){
   const diff=Math.abs(row.amount-x.amount);
   const similar=norm(row.merchant).length>=3&&x.label.length>=3&&
     (norm(row.merchant).includes(x.label)||x.label.includes(norm(row.merchant)));
-  if((similar&&diff<=Math.max(150,row.amount*.05))||
-    (distance===0&&diff===0)){
+  // The same date and price at different stores do not indicate a duplicate.
+  if(similar&&diff<=Math.max(150,row.amount*.05)){
    best={exact:false,label:'既存支出の照合候補：'+x.date+' / '+x.amount+'円 / '+x.kind};
    break;
   }

@@ -5,6 +5,9 @@ const n=v=>Number.isFinite(Number(v))?Number(v):0;
 const iso=v=>/^\d{4}-\d{2}-\d{2}$/.test(String(v||''))?String(v):'';
 const normalized=v=>String(v||'').normalize('NFKC').replace(/[\s　()（）._\-／/・]/g,'').toUpperCase();
 const fullAmount=r=>Math.abs(n(r.purchase_total??r.original_amount??r.amount));
+// Refunds are a separate, cumulative confirmed adjustment to economic spending.
+const refundAmount=(r,gross)=>Math.min(Math.max(0,gross),Math.max(0,Number.isSafeInteger(r?.confirmed_refund_v231)?r.confirmed_refund_v231:0));
+const netAmount=(r,gross)=>gross-refundAmount(r,gross);
 const paidOnce=r=>r.count_in_spending!==false&&r.reconciliation_status!=='ABSORBED_DUPLICATE'&&!r.is_refinanced&&!r.is_refinance_adjustment;
 const expense=r=>!r.economic_type||String(r.economic_type).toUpperCase()==='EXPENSE';
 const cardSig=r=>[
@@ -174,7 +177,9 @@ function calculate(st,month,basis='payday'){
    const costBucket=special?'SPECIAL':nature==='FIXED'?'FIXED':
       nature==='VARIABLE'?'VARIABLE':'UNDETERMINED';
    const conflictingRule=!special&&nature==='SPECIAL';
-   const row={kind,identity:kind+':'+i,date:date||'',label,amount,source:payment,
+   const grossAmount=amount, refund=refundAmount(source,grossAmount);
+   amount=netAmount(source,grossAmount);
+   const row={kind,identity:kind+':'+i,date:date||'',label,amount,grossAmount,refundAmount:refund,source:payment,
       costNature:nature,costBucket,spendingClass:special?'SPECIAL':'NORMAL',
       needsReview:isReview(source,nature)||conflictingRule,status:'confirmed',
       provisional:!date||source.provisional_attribution===true||source.no_source_date===true};
@@ -196,7 +201,7 @@ function calculate(st,month,basis='payday'){
    const label=String(r.description||r.name||'現金・商品券等');
    addExpense(r,'cash',i,date,label,amount,String(r.payment_method||'現金・商品券等'));
    cashSpendingIndex.add(typedKey(date,amount,label));
-   subtotals.cashExpenses+=amount;
+   subtotals.cashExpenses+=netAmount(r,amount);
  }
  for(const [i,r] of (st.purchaseEvents||[]).entries()){
    if(!belongs(r,'purchase_date',p)||!paidOnce(r)||!expense(r))continue;
@@ -205,7 +210,7 @@ function calculate(st,month,basis='payday'){
    if(seenPurchase.has(key))continue;seenPurchase.add(key);
    addExpense(r,'purchase',i,iso(r.purchase_date),
       String(r.merchant_raw||r.merchant_normalized||'カード購入'),amount,String(r.card||'カード')+'利用');
-   subtotals.purchaseEvents+=amount;
+   subtotals.purchaseEvents+=netAmount(r,amount);
  }
  for(const [i,r] of (st.cashTransactions||[]).entries()){
    if(!belongs(r,'date',p)||!n(r.amount))continue;
@@ -247,7 +252,7 @@ function calculate(st,month,basis='payday'){
    const accepted=-amount-disputed;
    if(accepted){
      addExpense(r,'bank',i,date,label,accepted,'銀行直接支出');
-     subtotals.directBank+=accepted;
+     subtotals.directBank+=netAmount(r,accepted);
    }
    if(disputed)bankExpenses.push({date,label,amount:disputed,identity:'bank:'+i});
  }

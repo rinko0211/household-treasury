@@ -39,6 +39,7 @@ jobs:
           node tests/family-share-v163.test.js
           node tests/family-viewer-v163.test.js
           node tests/family-cycle-rollover-v223.test.cjs
+          node tests/mdc-local-pdf-handoff.test.cjs
           node tests/family-budget-clarity-v173.test.cjs
           node tests/family-budget-pace-v174.test.cjs
           node tests/family-sync-v164.test.js

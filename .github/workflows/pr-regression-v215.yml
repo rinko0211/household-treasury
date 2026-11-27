@@ -27,6 +27,7 @@ jobs:
           node tests/card-special-purchases-v226.test.cjs
           node tests/post-import-canonical-editor-v229.test.cjs
           node tests/salary-rollforward-v224.test.cjs
+          node tests/confirmed-refund-v231.test.cjs
           node tests/family-note-sync-v215.test.cjs
           node tests/family-message-expenses-v222.test.cjs
           node tests/simple-expense-import-v213.test.cjs

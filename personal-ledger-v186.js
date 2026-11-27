@@ -91,7 +91,7 @@ function summary(st,p,cycle){
 const normText=s=>String(s||'').normalize('NFKC').replace(/[\s　・()（）\-/]/g,'').toUpperCase();
 function isSameRecordedExpense(row,personal,st){
  if(!['cash','purchase','bank'].includes(row.kind)||
-    Number(row.amount)!==value(personal))return false;
+    Number(row.grossAmount??row.amount)!==value(personal))return false;
  const tagged=classifiedPersonalSource(st||{},row);
  const owner=String(tagged?.personal_owner_v193||'').toLowerCase();
  if(['wife','self'].includes(owner)&&owner!==personal.owner)return false;
@@ -120,7 +120,7 @@ function classifiedPersonalSource(st,row){
 }
 function presentation(st,usage,cycle=usage.basis){
  const s=summary(st,usage,cycle);
- const matched=new Set(),items=[];
+ const matched=new Set(),items=[],matchedRows=new Map();
  let matchedOrdinary=0,matchedConsumption=0;
  const entries=s.rows.map((r,i)=>({r,i}));
  // Preserve original first-unmatched-in-source-order semantics while avoiding
@@ -128,7 +128,7 @@ function presentation(st,usage,cycle=usage.basis){
  const candidatesByAmount=new Map();
  for(const row of usage.usageRows||[]){
    if(!['cash','purchase','bank'].includes(row.kind))continue;
-   const amount=Number(row.amount);
+   const amount=Number(row.grossAmount??row.amount);
    if(!candidatesByAmount.has(amount))candidatesByAmount.set(amount,[]);
    candidatesByAmount.get(amount).push(row);
  }
@@ -137,6 +137,9 @@ function presentation(st,usage,cycle=usage.basis){
      !matched.has(x.identity)&&isSameRecordedExpense(x,r,st));
    if(raw){
      matched.add(raw.identity);
+     matchedRows.set(r,raw);
+     if(r.owner==='wife')s.wifeSpent-=Number(raw.refundAmount)||0;
+     else s.selfSpent-=Number(raw.refundAmount)||0;
      matchedConsumption+=Number(raw.amount)||0;
      if(raw.spendingClass!=='SPECIAL')matchedOrdinary+=Number(raw.amount)||0;
    }
@@ -181,7 +184,7 @@ function presentation(st,usage,cycle=usage.basis){
    const spent=owner==='wife'?s.wifeSpent:s.selfSpent;
    items.push({
      kind:'personal',identity:'personal:'+(r.id||i),date:r.date||'',
-     amount:value(r),label:String(r.description||'個人費'),
+     amount:matchedRows.has(r)?Number(matchedRows.get(r).amount):value(r),label:String(r.description||'個人費'),
      owner,source:owner==='wife'?'妻・消費済み':'本人・個人費',
      personalCategoryLabel:owner==='wife'?
        '妻（渡した分・消費済み）':

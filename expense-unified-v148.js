@@ -131,7 +131,57 @@ function rowDetails(row,st){
  return {...row,category,subcategory,costNature:rule.nature,
    costNatureKey:rule.key,costNatureReason:rule.reason,editKind,editId,
    personalExpense:isPersonal,personalOwner:['wife','self'].includes(owner)?owner:'',
+   refundable:!!source&&['purchase','cash','bank'].includes(row.kind)&&row.grossAmount>0&&
+     !!(editKind==='purchase'?source.purchase_id:source.id),
    manualDeleteIdentity:deletable?.identity||''};
+}
+// Use stable source identifiers, never an array index from a stale screen.
+function refundTarget(st,kind,id){
+ const array=kind==='purchase'?st.purchaseEvents:kind==='cash_expense'?st.cashExpenses:kind==='cash'?st.cashTransactions:null;
+ if(!array||!id)return null;
+ const matches=array.filter(r=>String(kind==='purchase'?r.purchase_id||'':r.id||'')===String(id));
+ if(matches.length!==1)return null;
+ const r=matches[0];
+ if(r.count_in_spending===false||r.reconciliation_status==='ABSORBED_DUPLICATE'||r.is_refinanced||r.is_refinance_adjustment)return null;
+ if(kind==='cash'){
+   if(window.householdUsageLedgerV157?.bankKindWithHistory?.(r,st)!=='expense'||Number(r.amount)>=0)return null;
+ }else if(r.economic_type&&String(r.economic_type).toUpperCase()!=='EXPENSE')return null;
+ const raw=Number(kind==='cash'?r.amount:r.purchase_total??r.original_amount??r.amount);
+ if(kind!=='cash'&&raw<=0)return null;
+ const gross=Math.abs(raw)-(kind==='cash'?Math.max(0,Math.min(Math.abs(raw),n(r.reconciliation_disputed_difference))):0);
+ if(!Number.isSafeInteger(gross)||gross<=0)return null;
+ const old=Math.min(gross,Math.max(0,Number.isSafeInteger(r.confirmed_refund_v231)?r.confirmed_refund_v231:0));
+ return {r,gross,old,signature:JSON.stringify([kind,id,r.date||r.purchase_date,r.description_raw||r.description||r.merchant_raw,gross,old])};
+}
+function setRefund(kind,id,value,expectedSignature){
+ const st=stateNow(),target=refundTarget(st,kind,id);
+ if(!target||target.signature!==expectedSignature)throw Error('明細が変更されています。再表示してください。');
+ if(!Number.isSafeInteger(value)||value<0||value>target.gross)throw Error('返金額は0円から元支出額までの整数で入力してください。');
+ if(value===target.old)return false;
+ if(typeof window.replaceTreasuryState!=='function'||typeof window.treasuryRecoverySnapshot!=='function')
+   throw Error('安全な保存またはバックアップが利用できません。');
+ const next=structuredClone(st),copy=refundTarget(next,kind,id);
+ if(!copy)throw Error('元明細が見つかりません。');
+ copy.r.confirmed_refund_v231=value;
+ copy.r.refund_audit_v231=[...(Array.isArray(copy.r.refund_audit_v231)?copy.r.refund_audit_v231:[]),
+   {at:new Date().toISOString(),previous:target.old,amount:value}];
+ window.treasuryRecoverySnapshot('支出ページ：返金登録前');
+ if(window.replaceTreasuryState(next)===false)throw Error('保存できませんでした。');
+ window.cloudSyncOnLocalSave?.();
+ return true;
+}
+function editRefund(kind,id){
+ const target=refundTarget(stateNow(),kind,id);
+ if(!target)throw Error('返金対象の元明細を特定できません。');
+ const input=window.prompt?.('元支出 '+yen(target.gross)+'\\n確定した累計返金額（円）を入力してください。全額・一部返金に対応。0で取消。\\n購入日基準の支出のみを調整し、銀行残高・カード請求額は変更しません。',String(target.old));
+ if(input==null)return;
+ const cleaned=String(input).normalize('NFKC').trim();
+ if(!/^\\d+$/.test(cleaned))throw Error('返金額を整数で入力してください。');
+ const value=Number(cleaned);
+ if(!Number.isSafeInteger(value)||value>target.gross)throw Error('返金額が元支出を超えています。');
+ if(value===target.old)return;
+ if(!window.confirm?.('実質支出 '+yen(target.gross-value)+' に変更しますか？'))return;
+ if(setRefund(kind,id,value,target.signature))render();
 }
 function usageBuckets(usage,st,includePersonal=false,precomputedPersonal){
  const privateSummary=precomputedPersonal===undefined?
@@ -331,6 +381,8 @@ function detailPanel(bucket,st){
          '<div class="hub-muted">'+esc(x.date||'日付未確定')+' ・ '+esc(x.source||'')+
            (x.provisional?' ・ 仮記帳':'')+(x.needsReview?' ・ 要確認':'')+'</div>'+receiptParts+wifeChoice+
          (x.editKind&&x.editId?'<button type="button" class="hub-edit" data-hub-edit="'+esc(x.editKind)+'" data-hub-editid="'+esc(x.editId)+'">明細を編集</button>':'')+
+         (lens==='economic'&&x.refundable?'<button type="button" class="hub-edit" data-hub-refund="'+esc(x.editKind)+'" data-hub-refundid="'+esc(x.editId)+'">'+(x.refundAmount?'返金額を変更・取消':'返金登録')+'</button>':'')+
+         (lens==='economic'&&x.refundAmount?'<div class="hub-muted">元支出 '+yen(x.grossAmount)+' ・ 返金 −'+yen(x.refundAmount)+'（実質支出）</div>':'')+
          (x.manualDeleteIdentity?'<button type="button" class="hub-delete" data-hub-delete="'+
            esc(x.manualDeleteIdentity)+'">手動明細を削除</button>':
            '<span class="hub-muted" style="display:block;margin-top:6px">公式取込・口座記録（削除不可）</span>')+
@@ -569,6 +621,10 @@ function bindDrilldown(container){
    try{window.householdWifeReferenceV205?.apply?.(btn.dataset.hubWifeRef,btn.dataset.hubWifeMode)}
    catch(e){window.alert?.('参考記録に変更できません：'+String(e?.message||e))}
  }));
+ container.querySelectorAll('[data-hub-refund]').forEach(btn=>btn.addEventListener('click',()=>{
+   try{editRefund(btn.dataset.hubRefund,btn.dataset.hubRefundid)}
+   catch(e){window.alert?.('返金を登録できません：'+String(e?.message||e))}
+ }));
  container.querySelectorAll('[data-hub-edit]').forEach(btn=>btn.addEventListener('click',()=>{
    if(typeof window.openSemanticTransactionEditorV108==='function')
      window.openSemanticTransactionEditorV108(btn.dataset.hubEdit,btn.dataset.hubEditid);
@@ -664,6 +720,6 @@ function boot(){
  window.addEventListener('focus',()=>{if($('expenses')?.classList.contains('active'))render()});
  if($('expenses')?.classList.contains('active'))render();
 }
-window.householdExpenseUnifiedV148={mount,render,calculate,usageBuckets,subgroups,categoryGroups,orderDetailsByUsageDay,rowDetails,fixedReference,seasonalReference,budgetReference,masterNature,loanReference,captureEditContext,restoreEditContext,getSelection:()=>({cycle,lens,month,openBucket,openCategory,openSubcategory})};
+window.householdExpenseUnifiedV148={mount,render,calculate,usageBuckets,subgroups,categoryGroups,orderDetailsByUsageDay,rowDetails,fixedReference,seasonalReference,budgetReference,masterNature,loanReference,captureEditContext,restoreEditContext,refundTarget,setRefund,getSelection:()=>({cycle,lens,month,openBucket,openCategory,openSubcategory})};
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});else setTimeout(boot,0);
 })();
